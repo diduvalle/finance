@@ -34,7 +34,7 @@
 body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;background:var(--bg);color:var(--txt);font-size:14px;line-height:1.4}
 .app{display:flex;flex-direction:column;min-height:100vh}
 /* Topbar */
-.topbar{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--bg2);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;flex-wrap:wrap}
+.topbar{display:flex;align-items:center;gap:10px;padding:11px 18px;background:var(--bg2);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:30;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;font-weight:800;font-size:16px}
 .brand .logo{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,var(--acc),var(--accd));display:grid;place-items:center;color:#fff;font-size:17px}
 .tabs{display:flex;gap:4px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:4px}
@@ -127,6 +127,13 @@ table.grid thead th:hover .thedit{opacity:.7}
 .defs-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;max-width:1120px;align-items:start}
 .defs-grid .span2{grid-column:1/-1}
 .defs-grid>.card{min-width:0}
+.defgroup{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;background:var(--bg2);overflow:hidden}
+.defgroup>summary{cursor:pointer;list-style:none;padding:14px 16px;font-weight:700;font-size:14px;display:flex;align-items:center;gap:8px}
+.defgroup>summary::-webkit-details-marker{display:none}
+.defgroup>summary::before{content:'▸';color:var(--mut);font-size:12px}
+.defgroup[open]>summary::before{content:'▾'}
+.defgroup[open]>summary{border-bottom:1px solid var(--line)}
+.defgroup .defs-grid{padding:14px}
 .cols-2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px}
 .twocol{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:22px}
 .cols-2>*,.twocol>*{min-width:0}
@@ -181,7 +188,12 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .splitseg{display:flex;gap:6px;flex-wrap:wrap}
 .splitseg button{padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--mut);font-size:12px;font-weight:600;cursor:pointer}
 .splitseg button.on{border-color:var(--acc);background:rgba(34,197,94,.12);color:var(--acc)}
-.chip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:20px;padding:5px 12px;font-size:12.5px;font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:18px;padding:0 12px;height:34px;font-size:12.5px;font-weight:600;box-sizing:border-box}
+.chip.warn{border-color:var(--out);color:var(--out)}
+.chip.warn svg{width:14px;height:14px}
+#valeteHead{display:inline-flex;align-items:center;gap:6px}
+.topbar #refreshBtn,.topbar #bell{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
+.topbar .yearnav{height:34px}
 .catedit{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line)}
 .catedit .dot{width:13px;height:13px;border-radius:4px;flex:none}
 .catedit input{flex:1}
@@ -260,7 +272,8 @@ const I={
   grid:'<path d="M3 3h18v18H3zM3 9h18M3 15h18M9 9v12M15 9v12"/>',
   wallet:'<path d="M3 7h15a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h12M17 13h.01"/>',
   trend:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
-  finger:'<path d="M12 11v3a8 8 0 01-1 4M8 14a4 4 0 014-4 4 4 0 014 4v1M6 12a6 6 0 0112 0v2a10 10 0 01-1 4M15 17a14 14 0 01-1 4M9.5 7.5a6 6 0 015 0"/>'
+  finger:'<path d="M12 11v3a8 8 0 01-1 4M8 14a4 4 0 014-4 4 4 0 014 4v1M6 12a6 6 0 0112 0v2a10 10 0 01-1 4M15 17a14 14 0 01-1 4M9.5 7.5a6 6 0 015 0"/>',
+  cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>'
 };
 const svg=(p,w)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w||2}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 
@@ -391,8 +404,11 @@ function isDescontoCat(catId){let c=cat(catId);if(!c)return false;if(c.desconto)
 function valorComSinal(catId,tipo,v){return (tipo==='receita'&&isDescontoCat(catId))?-Math.abs(v):Math.abs(v);}
 /* conta de poupança afetada por um lançamento: Coverflex (cat ligada) ou Valete (saldo real) */
 function contaDeMov(mv){return isCoverflexCat(mv.categoriaId)?coverflexConta():valeteConta();}
-/* lançamentos novos na app abatem/somam na conta certa; guardam vAdj+conta p/ reverter ao apagar */
-function aplicaValete(mv){const c=contaDeMov(mv);if(!c)return;const delta=mv.tipo==='receita'?mv.valor:(mv.tipo==='despesa'?-mv.valor:0);if(!delta)return;c.valor=round2((parseFloat(c.valor)||0)+delta);mv.vAdj=delta;mv.vAdjConta=(c.nome||'').trim().toLowerCase();}
+/* lançamentos novos na app abatem/somam na conta certa; guardam vAdj+conta p/ reverter ao apagar.
+   Pagamentos em dinheiro (mv.cash) NÃO mexem no Valete — saem do Cofre (contado à mão; ver "Esperado" nas Poupanças). */
+function aplicaValete(mv){if(mv.cash)return;const c=contaDeMov(mv);if(!c)return;const delta=mv.tipo==='receita'?mv.valor:(mv.tipo==='despesa'?-mv.valor:0);if(!delta)return;c.valor=round2((parseFloat(c.valor)||0)+delta);mv.vAdj=delta;mv.vAdjConta=(c.nome||'').trim().toLowerCase();}
+/* dinheiro gasto (cash) desde a última contagem do Cofre — para mostrar o "Esperado" */
+function saidasDinheiro(){const base=(state.poupancas[ultimoAnoPoup()]||{}).contagemData||0;return round2(state.movimentos.filter(m=>m.tipo==='despesa'&&m.cash&&m.ts&&m.ts>base).reduce((a,m)=>a+m.valor,0));}
 function reverteValete(mv){if(!mv||!mv.vAdj)return;const p=state.poupancas[ultimoAnoPoup()];if(!p)return;const c=(p.contas||[]).find(x=>(x.nome||'').trim().toLowerCase()===(mv.vAdjConta||'valete'));if(c)c.valor=round2((parseFloat(c.valor)||0)-mv.vAdj);}
 /* HISTÓRICO CONGELADO: só se pode lançar/editar do mês atual para a frente */
 function nowYm(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
@@ -544,8 +560,8 @@ function render(){
   document.getElementById('topright').innerHTML = (tab==='grelha'||tab==='acerto'||tab==='poup')
     ? `<div class="yearnav"><button data-year="-1">‹</button><span class="y">${ano}</span><button data-year="1">›</button></div>` : '';
   const _va=valeteAtual(); const _vf=valeteForecast(); const _alerta=_va!=null&&_vf.faltaDia;
-  let _vChip = _va!=null?`<div class="chip" title="Valete · saldo real da conta (deve bater com o banco)" style="border-color:${_alerta?'var(--out)':'var(--info)'}"><span class="dot" style="background:${_alerta?'var(--out)':'var(--info)'}"></span>Valete&nbsp;<b>${fmt(_va)}</b></div>`:'';
-  if(_alerta){ _vChip += `<div class="chip" title="Estimativa pelo histórico (fixas + gasto variável do mês). Vê o detalhe no sino." style="border-color:var(--out);color:var(--out)">⚠ ~dia ${_vf.faltaDia}: faltam ~${fmt(_vf.faltaValor)}</div>`; }
+  let _vChip = _va!=null?`<div class="chip" title="Valete · saldo real da conta (deve bater com o banco)"><span class="dot" style="background:var(--info)"></span>Valete&nbsp;<b>${fmt(_va)}</b></div>`:'';
+  if(_alerta){ _vChip += `<div class="chip warn" title="Estimativa: por volta do dia ${_vf.faltaDia} o saldo desce abaixo da margem (faltam ~${fmt(_vf.faltaValor)}). Detalhe no sino.">${svg(I.bell)}<b>−${fmt(_vf.faltaValor)}</b></div>`; }
   document.getElementById('valeteHead').innerHTML = _vChip;
   const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
   document.getElementById('refreshBtn').innerHTML=svg(I.repeat);
@@ -576,6 +592,7 @@ function vGrelha(m){
     <div class="fld"><label>Valor</label><input id="qVal" class="v" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
     <div class="fld"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
     <div class="fld"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
+    ${gridTipo==='despesa'?`<button class="btn" id="qAddCash" title="Pagar em dinheiro (sai do Cofre, não do Valete)" style="height:38px">${svg(I.cash)}</button>`:''}
     <button class="btn primary" id="qAdd" style="height:38px">${svg(I.plus)}Adicionar</button>
   </div>
 
@@ -643,9 +660,9 @@ function openCellPop(catId,mi,anchor){
     <div class="pb">
       ${frozen?`<div class="pempty" style="margin-bottom:6px">Mês congelado (histórico). Leitura apenas.</div>`:`
       ${kids.length?`<select id="pSub" style="width:100%;margin-bottom:8px"><option value="${c.id}">${c.nome} (geral)</option>${kids.map(k=>`<option value="${k.id}">${k.nome}</option>`).join('')}</select>`:''}
-      <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'− valor (desconto)':'+ valor'}" autofocus><button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
+      <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'− valor (desconto)':'+ valor'}" autofocus>${c.tipo==='despesa'?`<button class="btn" id="pAddCash" title="Pagar em dinheiro (Cofre)">${svg(I.cash)}</button>`:''}<button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
-      <div class="plist">${movs.length?movs.map(mo=>`<div class="pe"><span style="font-weight:700">${fmt(mo.valor)}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}</span>${frozen?'':`<button class="x" data-delmov="${mo.id}">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
+      <div class="plist">${movs.length?movs.map(mo=>`<div class="pe"><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?' 💵':''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}</span>${frozen?'':`<button class="x" data-delmov="${mo.id}">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
     </div>`;
   pop.classList.add('on');
   // position near anchor
@@ -657,7 +674,7 @@ function openCellPop(catId,mi,anchor){
   setTimeout(()=>{const v=document.getElementById('pVal');if(v)v.focus();},30);
 }
 function closePop(){const p=document.getElementById('pop');p.classList.remove('on');popCell=null;}
-function popAdd(){
+function popAdd(cash){
   const vEl=document.getElementById('pVal'); const v=parseFloat(vEl.value);
   if(isNaN(v)||v===0){vEl.focus();return;}
   if(isFrozenMi(ano,popCell.mi)){toast('Mês congelado — leitura apenas');return;}
@@ -665,6 +682,7 @@ function popAdd(){
   const subEl=document.getElementById('pSub'); const targetId=subEl?subEl.value:c.id;
   let pagador=P()[0].id,split={...state.settings.splitDefault};
   const mv={id:nid('m'),data:dateFor(popCell.mi),tipo:c.tipo,categoriaId:targetId,valor:valorComSinal(targetId,c.tipo,v),pagador,split,nota:''};
+  if(cash&&c.tipo==='despesa'){mv.cash=true;mv.ts=Date.now();}
   state.movimentos.push(mv); aplicaValete(mv);
   save(); const cell=popCell; render();
   // reopen popover on same cell to keep adding
@@ -769,6 +787,10 @@ function vPoupancas(m){
   const moedas = cont.filter(r=>+r.d<=2).reduce((a,r)=>a+(+r.d)*(parseFloat(r.q)||0),0);
   const totalContas = (p.contas||[]).reduce((a,c)=>a+(parseFloat(c.valor)||0),0);
   const total = totalContas + cofre;
+  const liveYear = ano===+ultimoAnoPoup();
+  const saidas = liveYear ? saidasDinheiro() : 0;       // dinheiro gasto desde a última contagem
+  const esperado = round2(cofre - saidas);
+  const hasDisc = saidas>0.001;                          // há divergência (pagamentos em dinheiro por descontar)
   const valete = (p.contas||[]).find(c=>(c.nome||'').trim().toLowerCase()==='valete');
   const isV=n=>(n||'').trim().toLowerCase()==='valete';
   const denomLabel=d=> (d>=1? String(d) : String(d).replace('.',',')) + ' €';
@@ -776,7 +798,7 @@ function vPoupancas(m){
   <div class="kstrip">
     <div class="kbox"><div class="l">Património total ${ano}</div><div class="v pos">${fmt(total)}</div></div>
     ${valete?`<div class="kbox"><div class="l">Valete · saldo real</div><div class="v">${fmt(valete.valor)}</div></div>`:''}
-    <div class="kbox"><div class="l">Cofre (dinheiro)</div><div class="v">${fmt(cofre)}</div></div>
+    <div class="kbox"><div class="l">Cofre (dinheiro)</div><div class="v">${fmt(cofre)}</div>${hasDisc?`<div style="font-size:12px;color:var(--warn)">esperado ${fmt(esperado)}</div>`:''}</div>
   </div>
   <div class="hint" style="margin-bottom:14px">Controlo das poupanças. Usa o botão <b>+ / −</b> de cada conta para <b>reforçar</b>, <b>mobilizar</b> (levantar) ou <b>definir o saldo exato</b> (ex.: igualar o Valete ao banco). O <b>Valete</b> é o saldo real e o <b>Cofre</b> é o dinheiro físico (contado por denominação). Setas ‹ › em cima mudam de ano.</div>
   <div class="gridwrap">
@@ -787,15 +809,16 @@ function vPoupancas(m){
           <td><input class="pinp" data-poupnome="${ano}|${i}" value="${esc(c.nome)}">${isV(c.nome)?' <span class="pill" style="background:rgba(56,189,248,.16);color:var(--info)">saldo real</span>':''}</td>
           <td class="num"><span class="poupval" data-poupledger="${ano}|${i}" title="Adicionar / remover / definir saldo">${fmtn(c.valor)}</span></td>
           <td style="text-align:right;white-space:nowrap"><button class="btn sm" data-poupledger="${ano}|${i}" title="Adicionar / remover valores">+ / −</button><button class="iconbtn" data-poupdel="${ano}|${i}">${svg(I.trash)}</button></td></tr>`).join('')}
-        <tr><td>Cofre <span style="color:var(--mut);font-size:12px">· dinheiro contado</span></td><td class="num">${fmtn(cofre)}</td><td></td></tr>
+        <tr><td>Cofre <span style="color:var(--mut);font-size:12px">· contado à mão</span></td><td class="num">${fmtn(cofre)}${hasDisc?` <span style="color:var(--warn);font-size:11px">(esperado ${fmtn(esperado)})</span>`:''}</td><td></td></tr>
       </tbody>
       <tfoot><tr><td>Património total</td><td class="num">${fmtn(total)} ${moeda()}</td><td></td></tr></tfoot>
     </table>
   </div>
+  ${hasDisc?`<div class="hint" style="margin-top:10px;border-left:3px solid var(--warn)">Gastaste <b>${fmt(saidas)}</b> em dinheiro (💵) desde a última contagem. O <b>Esperado</b> mostra quanto deverá estar no Cofre. Quando recontares, acerta as quantidades na "Contagem do Cofre" (ou carrega em <b>recontei</b>) para limpar o aviso.</div>`:''}
   <button class="btn sm" data-poupadd="${ano}" style="margin-top:12px">${svg(I.plus)}Adicionar conta</button>
 
   <div class="section-h" style="display:flex;align-items:center;gap:8px;cursor:pointer" data-poupcont="1">
-    <span class="exptog">${poupCont?'▾':'▸'}</span> Contagem do Cofre · notas e moedas ${cont.length?`(${fmt(cofre)}, dos quais ${fmt(moedas)} em moedas)`:''}
+    <span class="exptog">${poupCont?'▾':'▸'}</span> Contagem do Cofre · notas e moedas ${cont.length?`(${fmt(cofre)}, dos quais ${fmt(moedas)} em moedas)`:''}${hasDisc?` <span style="color:var(--warn);font-weight:600">· esperado ${fmt(esperado)}</span>`:''}
   </div>
   ${poupCont?`<div class="gridwrap" style="max-width:420px">
     <table class="sumtable">
@@ -805,9 +828,13 @@ function vPoupancas(m){
           <td class="num"><input class="pinp pnum" type="number" step="1" min="0" data-contq="${ano}|${i}" value="${r.q||0}" style="max-width:90px"></td>
           <td class="num">${fmtn((+r.d)*(parseFloat(r.q)||0))}</td></tr>`).join(''):`<tr><td colspan="3" style="text-align:center;color:var(--mut);padding:14px">Sem contagem em ${ano}.</td></tr>`}
       </tbody>
-      <tfoot><tr><td>Total Cofre</td><td></td><td class="num">${fmtn(cofre)} ${moeda()}</td></tr></tfoot>
+      <tfoot>
+        <tr><td>Total Cofre · contado</td><td></td><td class="num">${fmtn(cofre)} ${moeda()}</td></tr>
+        ${hasDisc?`<tr style="color:var(--warn)"><td>${svg(I.cash)} Esperado · após ${fmt(saidas)} em dinheiro</td><td></td><td class="num">${fmtn(esperado)} ${moeda()}</td></tr>`:''}
+      </tfoot>
     </table>
-  </div>`:''}`;
+  </div>
+  ${hasDisc?`<button class="btn sm" data-recontei="${ano}" style="margin-top:10px" title="Já recontei o dinheiro — limpar aviso">${svg(I.check)}Já recontei (limpar aviso)</button>`:''}`:''}`;
 }
 
 function openContaLedger(y,i){
@@ -980,6 +1007,8 @@ function vDefs(m){
   const [a,b]=P();
   const dh=(ic,t,sub)=>`<h3 class="dh">${svg(ic)} ${t}</h3>${sub?`<p class="dsub">${sub}</p>`:''}`;
   m.innerHTML=`
+  <div class="defs-wrap">
+  <details class="defgroup" open><summary>${svg(I.scale)} Pessoas & aparência</summary>
   <div class="defs-grid">
     <div class="card">${dh(I.scale,'Pessoas','Tu pagas tudo. A devedora é a ex (aparece só na aba de Dívida). A tua parceira atual não tem obrigação de pagar despesas da casa.')}
       <div class="f2"><div><label>Eu</label><input id="pn0" value="${esc(a.nome)}"></div><div><label>Devedora (ex) · aba Dívida</label><input id="pn1" value="${esc(b.nome)}"></div></div>
@@ -1000,6 +1029,9 @@ function vDefs(m){
       </div>
     </div>
 
+  </div></details>
+  <details class="defgroup"><summary>${svg(I.cat)} Categorias & regras</summary>
+  <div class="defs-grid">
     <div class="card">${dh(I.repeat,'Despesas fixas (mensais)','Valor e dia do mês de cada uma. O dia alimenta o aviso do Valete ("até ao dia X precisas de Y"). O botão "Lançar fixas" na grelha cria estes valores no mês.')}
       <div id="recList">${state.recorrencias.map(r=>`<div class="catedit"><span class="dot" style="background:${cat(r.categoriaId)?cat(r.categoriaId).cor:'#888'}"></span><span style="flex:1">${cat(r.categoriaId)?catName(r.categoriaId):esc(r.nome)}</span><span style="color:var(--mut);font-size:12px">dia</span><input type="number" step="1" min="1" max="28" value="${r.dia||8}" data-recdia="${r.id}" style="width:52px" title="Dia do mês"><input type="number" step="0.01" value="${r.valor}" data-recval="${r.id}" style="width:96px">€<button class="iconbtn" data-recdel="${r.id}">${svg(I.trash)}</button></div>`).join('')||'<div style="color:var(--mut);font-size:13px">Sem despesas fixas.</div>'}</div>
       <button class="btn sm" style="margin-top:12px" id="recAdd">${svg(I.plus)}Adicionar fixa</button>
@@ -1036,6 +1068,9 @@ function vDefs(m){
       </div>
     </div>
 
+  </div></details>
+  <details class="defgroup"><summary>${svg(I.download)} Dados & sincronização</summary>
+  <div class="defs-grid">
     <div class="card span2">${dh(I.check,'Validação · App vs Excel','Totais de cada ano vs o teu Excel. Se editares/adicionares movimentos, os valores mudam (esperado).')}
       <div class="gridwrap"><table class="sumtable">
         <thead><tr><th>Ano</th><th class="num">Despesa (app)</th><th class="num">Despesa (Excel)</th><th class="num">Receita (app)</th><th class="num">Receita (Excel)</th><th></th></tr></thead>
@@ -1070,9 +1105,13 @@ function vDefs(m){
       </div>
     </div>
 
+  </div></details>
+  <details class="defgroup"><summary>${svg(I.trash)} Zona perigosa</summary>
+  <div class="defs-grid">
     <div class="card">${dh(I.trash,'Zona perigosa','Repõe todos os dados ao estado original importado do Excel.')}
       <button class="btn sm danger" id="reset">${svg(I.trash)}Repor de origem</button>
     </div>
+  </div></details>
   </div>
   <div class="foot-credit">CASA · Finanças — app local (dados neste dispositivo). Feito para o Diogo Vale.</div>`;
 }
@@ -1120,6 +1159,7 @@ document.addEventListener('click',e=>{
   if(d.poupadd){ state.poupancas[d.poupadd]=state.poupancas[d.poupadd]||{contas:[],contagem:[]}; state.poupancas[d.poupadd].contas.push({nome:'Nova conta',valor:0}); save(); render(); return; }
   if(d.poupdel){ const [y,i]=d.poupdel.split('|'); state.poupancas[y].contas.splice(+i,1); save(); render(); return; }
   if(d.poupcont){ poupCont=!poupCont; render(); return; }
+  if(d.recontei){ state.poupancas[d.recontei]=state.poupancas[d.recontei]||{contas:[],contagem:[]}; state.poupancas[d.recontei].contagemData=Date.now(); save(); render(); toast('Contagem marcada como atual'); return; }
   if(d.fch){ state.forecast.horizonte=+d.fch; save(); render(); return; }
   if(d.cenario){ const c=CENARIOS[d.cenario]; if(c){ state.forecast.gRec=c.gRec; state.forecast.gDesp=c.gDesp; state.forecast.juro=c.juro; save(); render(); } return; }
   if(t.id==='fcExport'){ expForecast(); return; }
@@ -1135,8 +1175,10 @@ document.addEventListener('click',e=>{
   if(t.id==='lgAuto'){ poupAutoReforco(); return; }
   if(t.id==='lgSetBtn'){ poupSetSaldo(); return; }
   if(d.poupmovdel){ const[y,i,j]=d.poupmovdel.split('|'); const yp=state.poupancas[y]; const c=yp.contas[+i]; const mo=c.mov[+j]; if(mo){ c.valor=round2((+c.valor||0)-mo.valor); c.mov.splice(+j,1); if(!c.real){ const ri=yp.contas.findIndex(x=>x.real); if(ri>=0&&ri!==+i){ yp.contas[ri].valor=round2((+yp.contas[ri].valor||0)+mo.valor); } } save(); render(); openContaLedger(y,+i);} return; }
-  if(t.id==='qAdd'){quickAdd();return;}
-  if(t.id==='pAdd'){popAdd();return;}
+  if(t.id==='qAdd'){quickAdd(false);return;}
+  if(t.id==='qAddCash'){quickAdd(true);return;}
+  if(t.id==='pAdd'){popAdd(false);return;}
+  if(t.id==='pAddCash'){popAdd(true);return;}
   if(t.id==='genfix'){genFix();return;}
   if(d.settle){const[from,to,val]=d.settle.split('|');openSettle(from,to,+val);return;}
   if(t.id==='savePeople'){P()[0].nome=val('pn0')||'Diogo';P()[1].nome=val('pn1')||'DA';state.settings.parceira=val('pnPar')||'';save();render();toast('Guardado');return;}
@@ -1174,7 +1216,7 @@ document.addEventListener('change',e=>{
   const ds=e.target.dataset||{};
   if(ds.poupnome!=null){const[y,i]=ds.poupnome.split('|');state.poupancas[y].contas[+i].nome=e.target.value.trim();save();render();}
   if(ds.poupval!=null){const[y,i]=ds.poupval.split('|');state.poupancas[y].contas[+i].valor=parseFloat(e.target.value)||0;save();render();}
-  if(ds.contq!=null){const[y,i]=ds.contq.split('|');state.poupancas[y].contagem[+i].q=parseFloat(e.target.value)||0;save();render();}
+  if(ds.contq!=null){const[y,i]=ds.contq.split('|');state.poupancas[y].contagem[+i].q=parseFloat(e.target.value)||0;state.poupancas[y].contagemData=Date.now();save();render();}
   if(ds.orc!=null){const v=parseFloat(e.target.value); if(v>0)state.orcamentos[ds.orc]=v; else delete state.orcamentos[ds.orc]; save();}
   if(e.target.id==='fcBase'){state.forecast.baseAno=e.target.value;save();render();}
   if(e.target.id==='fcGRec'){state.forecast.gRec=parseFloat(e.target.value)||0;save();render();}
@@ -1226,14 +1268,15 @@ function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t
 function openBack(){document.getElementById('back').classList.add('on');}
 function closeBack(){document.getElementById('back').classList.remove('on');document.getElementById('back').innerHTML='';}
 
-function quickAdd(){
+function quickAdd(cash){
   const v=parseFloat(val('qVal')); if(isNaN(v)||v===0){document.getElementById('qVal').focus();return;}
   const catId=document.getElementById('qCat').value, mi=+document.getElementById('qMes').value;
   if(isFrozenMi(ano,mi)){toast('Mês congelado — só podes lançar do mês atual para a frente');return;}
   const c=cat(catId); let pagador=P()[0].id,split={...state.settings.splitDefault};
   const mv={id:nid('m'),data:dateFor(mi),tipo:gridTipo,categoriaId:catId,valor:valorComSinal(catId,gridTipo,v),pagador,split,nota:''};
+  if(cash&&gridTipo==='despesa'){mv.cash=true;mv.ts=Date.now();}
   state.movimentos.push(mv); aplicaValete(mv);
-  save();render();toast('Adicionado: '+fmt(Math.abs(v))+' · '+c.nome);
+  save();render();toast((cash?'Dinheiro: ':'Adicionado: ')+fmt(Math.abs(v))+' · '+c.nome);
   setTimeout(()=>{const q=document.getElementById('qVal');if(q)q.focus();},20);
 }
 function genFix(){
