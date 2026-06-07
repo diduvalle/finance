@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>CASA · Finanças</title>
 <link rel="manifest" href="manifest.webmanifest">
-<meta name="theme-color" content="#0f141b">
+<meta name="theme-color" content="#121613">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CASA">
@@ -21,14 +21,16 @@
 <meta name="twitter:image" content="https://diduvalle.github.io/finance/icon-512.png">
 <style>
 :root{
-  --bg:#0f141b; --bg2:#141a22; --card:#1a212b; --card2:#212a36; --line:#2a3441; --line2:#374252;
-  --txt:#e8edf4; --mut:#8d9bad; --acc:#22c55e; --accd:#16a34a;
-  --in:#22c55e; --out:#f87171; --warn:#f59e0b; --info:#38bdf8;
-  --sh:0 4px 18px rgba(0,0,0,.3); --r:12px;
+  /* Paleta "Sálvia" — baseada no ícone (escandinavo, calmo) */
+  --bg:#121613; --bg2:#181d19; --card:#1e241f; --card2:#27302a; --line:#333d36; --line2:#43504a;
+  --txt:#ecefe8; --mut:#9aa79e; --acc:#7aa183; --accd:#5f7a6b;
+  --in:#8cba98; --out:#df8c7d; --warn:#d9a85c; --info:#87a9c0;
+  --sh:0 4px 18px rgba(0,0,0,.34); --r:12px;
 }
 [data-theme="light"]{
-  --bg:#f1f4f9; --bg2:#e9eef5; --card:#fff; --card2:#f5f8fc; --line:#dde4ee; --line2:#cdd6e3;
-  --txt:#16202b; --mut:#637084; --sh:0 4px 16px rgba(20,40,80,.08);
+  --bg:#f3f1ea; --bg2:#ece8df; --card:#fbf9f4; --card2:#f1ede4; --line:#ddd7c9; --line2:#cabfac;
+  --txt:#26302a; --mut:#6d7a70; --acc:#5f7a6b; --accd:#4d6657;
+  --in:#5f8a6c; --out:#c06f5e; --warn:#b3893f; --info:#5e84a0; --sh:0 4px 16px rgba(60,70,50,.10);
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Segoe UI',system-ui,-apple-system,Roboto,sans-serif;background:var(--bg);color:var(--txt);font-size:14px;line-height:1.4}
@@ -95,7 +97,7 @@ table.grid thead th:hover .delcol{opacity:.6}
 table.grid thead th .delcol:hover{opacity:1;color:var(--out)}
 table.grid tbody th,table.grid tfoot th{position:sticky;left:0;background:var(--card2);z-index:1;text-align:left;font-weight:700;padding:9px 12px;font-size:13px;color:var(--txt)}
 table.grid td.cell{padding:9px 10px;cursor:pointer;font-size:13.5px;min-width:88px}
-table.grid td.cell:hover{background:rgba(34,197,94,.10);box-shadow:inset 0 0 0 1.5px var(--acc)}
+table.grid td.cell:hover{background:rgba(122,161,131,.10);box-shadow:inset 0 0 0 1.5px var(--acc)}
 table.grid td.cell.z{color:var(--mut);font-weight:400}
 table.grid td.tot,table.grid th.tot{background:var(--card2);font-weight:800;position:sticky;right:0;border-left:1px solid var(--line2)}
 table.grid tfoot th,table.grid tfoot td{position:sticky;bottom:0;background:var(--card2);font-weight:800;border-top:2px solid var(--line2);z-index:1;padding:9px 10px}
@@ -104,7 +106,7 @@ table.grid tr.now th{color:var(--info)}
 .addcol-th{cursor:pointer;color:var(--acc)!important}
 table.grid th.subcol,table.grid td.subcol{background:var(--bg2)}
 table.grid td.subcell{background:rgba(56,189,248,.04);font-size:12.5px;color:var(--mut)}
-table.grid td.subcell:hover{background:rgba(34,197,94,.10);color:var(--txt)}
+table.grid td.subcell:hover{background:rgba(122,161,131,.10);color:var(--txt)}
 table.grid td.cell.over{color:var(--out)!important;font-weight:800;background:rgba(248,113,113,.10)}
 table.grid td.cell.warn{color:var(--warn)!important;font-weight:700}
 table.grid thead th.subcol{font-weight:600;font-size:10.5px}
@@ -113,7 +115,7 @@ table.grid th.thtog{cursor:pointer;user-select:none}
 table.grid th.thtog:hover{background:rgba(56,189,248,.12)}
 table.grid th.thtog:hover .exptog{color:var(--info)}
 table.grid thead th[data-cat]{cursor:grab}
-table.grid thead th.th-drop{outline:2px dashed var(--acc);outline-offset:-2px;background:rgba(34,197,94,.16)!important}
+table.grid thead th.th-drop{outline:2px dashed var(--acc);outline-offset:-2px;background:rgba(122,161,131,.16)!important}
 table.grid thead th.th-before{box-shadow:inset 4px 0 0 var(--acc)}
 .thedit{background:none;border:0;color:var(--mut);cursor:pointer;padding:1px;border-radius:4px;opacity:.35;display:inline-flex;margin-left:2px}
 .thedit svg{width:13px;height:13px}
@@ -188,12 +190,15 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .hint{font-size:12.5px;color:var(--mut);background:var(--card2);border:1px solid var(--line);border-left:3px solid var(--info);border-radius:8px;padding:10px 12px}
 .splitseg{display:flex;gap:6px;flex-wrap:wrap}
 .splitseg button{padding:7px 10px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--mut);font-size:12px;font-weight:600;cursor:pointer}
-.splitseg button.on{border-color:var(--acc);background:rgba(34,197,94,.12);color:var(--acc)}
+.splitseg button.on{border-color:var(--acc);background:rgba(122,161,131,.12);color:var(--acc)}
 .chip{display:inline-flex;align-items:center;gap:6px;background:var(--card2);border:1px solid var(--line);border-radius:18px;padding:0 12px;height:34px;font-size:12.5px;font-weight:600;box-sizing:border-box}
 .chip.warn{border-color:var(--out);color:var(--out)}
 .chip.warn svg{width:14px;height:14px}
 #valeteHead{display:inline-flex;align-items:center;gap:6px}
-.topbar #refreshBtn,.topbar #bell{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
+.topbar #refreshBtn,.topbar #bell,.topbar #lockNow{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
+#lockNow{background:none;border:0;color:var(--mut);cursor:pointer;border-radius:9px;display:inline-flex}
+#lockNow:hover{color:var(--out);background:var(--card)}
+#lockNow svg{width:18px;height:18px;display:block}
 .topbar .yearnav{height:34px}
 .catedit{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--line)}
 .catedit .dot{width:13px;height:13px;border-radius:4px;flex:none}
@@ -227,6 +232,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
     <div id="valeteHead"></div>
     <button id="refreshBtn" title="Atualizar — limpar cache e recarregar"></button>
     <button id="bell" title="Alertas & poupança"></button>
+    <button id="lockNow" title="Bloquear (sair)"></button>
     <div id="topright"></div>
   </div>
   <div class="main" id="main"></div>
@@ -243,11 +249,11 @@ window.addEventListener('error',function(ev){
   try{
     var m=document.getElementById('main');
     if(m && m.innerHTML.length>50) return; // app já desenhou, não mexer
-    document.body.innerHTML='<div style="padding:24px;font-family:system-ui,sans-serif;color:#e8edf4;background:#0f141b;min-height:100vh">'
+    document.body.innerHTML='<div style="padding:24px;font-family:system-ui,sans-serif;color:#e8edf4;background:#121613;min-height:100vh">'
       +'<div style="font-size:34px;margin-bottom:8px">€</div>'
       +'<h3 style="margin:0 0 8px">Não consegui abrir</h3>'
       +'<p style="color:#8d9bad;margin:0 0 12px">Provavelmente ficou uma versão antiga em cache. Toca no botão:</p>'
-      +'<button id="_fix" style="padding:13px 16px;background:#22c55e;border:0;color:#fff;border-radius:10px;font-weight:700;font-size:15px">Limpar cache e recarregar</button>'
+      +'<button id="_fix" style="padding:13px 16px;background:#7aa183;border:0;color:#fff;border-radius:10px;font-weight:700;font-size:15px">Limpar cache e recarregar</button>'
       +'<pre style="white-space:pre-wrap;color:#6b7787;font-size:11px;margin-top:18px">'+((ev&&(ev.message||ev.error))||'')+'</pre></div>';
     var b=document.getElementById('_fix');
     if(b) b.onclick=async function(){ try{if(navigator.serviceWorker){var rs=await navigator.serviceWorker.getRegistrations();for(var i=0;i<rs.length;i++)await rs[i].unregister();}}catch(e){} try{if(window.caches){var ks=await caches.keys();for(var j=0;j<ks.length;j++)await caches.delete(ks[j]);}}catch(e){} location.reload(); };
@@ -274,7 +280,8 @@ const I={
   wallet:'<path d="M3 7h15a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h12M17 13h.01"/>',
   trend:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
   finger:'<path d="M12 11v3a8 8 0 01-1 4M8 14a4 4 0 014-4 4 4 0 014 4v1M6 12a6 6 0 0112 0v2a10 10 0 01-1 4M15 17a14 14 0 01-1 4M9.5 7.5a6 6 0 015 0"/>',
-  cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>'
+  cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',
+  logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>'
 };
 const svg=(p,w)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w||2}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 
@@ -286,7 +293,7 @@ const clone=o=>JSON.parse(JSON.stringify(o));
 const EMBED=null;
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MC=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-const PALETTE=['#22c55e','#38bdf8','#a78bfa','#f59e0b','#f87171','#14b8a6','#fb7185','#818cf8','#34d399','#fbbf24','#60a5fa','#c084fc','#2dd4bf','#facc15','#4ade80','#e879f9'];
+const PALETTE=['#7aa183','#38bdf8','#a78bfa','#f59e0b','#f87171','#14b8a6','#fb7185','#818cf8','#34d399','#fbbf24','#60a5fa','#c084fc','#2dd4bf','#facc15','#4ade80','#e879f9'];
 let _seq=0; const nid=p=>(p||'i')+'_'+Date.now().toString(36)+(_seq++);
 
 let state=null, tab='grelha', ano=2026, gridTipo='despesa';
@@ -568,6 +575,7 @@ function render(){
   document.getElementById('valeteHead').innerHTML = _vChip;
   const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
   document.getElementById('refreshBtn').innerHTML=svg(I.repeat);
+  const _ln=document.getElementById('lockNow'); _ln.innerHTML=svg(I.logout); _ln.style.display=state.settings.codigo?'inline-flex':'none';
   ({grelha:vGrelha,acerto:vAcerto,poup:vPoupancas,previsao:vPrevisao,defs:vDefs}[tab])(document.getElementById('main'));
 }
 
@@ -987,7 +995,7 @@ function vPrevisao(m){
     </div>
     <div class="card"><h2 style="border:0;padding:0;margin:0 0 10px;font-size:15px">${svg(I.report)} Património projetado</h2>
       <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:150px">
-        <polygon points="${area}" fill="rgba(34,197,94,.15)"/>
+        <polygon points="${area}" fill="rgba(122,161,131,.15)"/>
         <polyline points="${line}" fill="none" stroke="var(--acc)" stroke-width="2"/>
         ${metaY!=null?`<line x1="${pad}" y1="${metaY.toFixed(0)}" x2="${W-pad}" y2="${metaY.toFixed(0)}" stroke="var(--warn)" stroke-width="1" stroke-dasharray="4 3"/>`:''}
         ${pts.map((p,i)=>`<circle cx="${xs(i).toFixed(0)}" cy="${ys(p.v).toFixed(0)}" r="2.5" fill="var(--acc)"/>`).join('')}
@@ -1028,7 +1036,7 @@ function vDefs(m){
       </div>
       <div style="margin-top:12px"><label>Código de acesso (bloqueio ao abrir)</label><div style="display:flex;gap:8px"><input id="codigoIn" inputmode="numeric" value="${esc(state.settings.codigo||'')}" style="max-width:140px"><button class="btn sm" id="saveCodigo">Guardar</button></div><p class="dsub" style="margin-top:4px">Pedido sempre que abres a app. Deixa vazio para desligar. É um bloqueio simples (não é segurança forte).</p></div>
       <div style="margin-top:12px"><label>Biometria (Face ID / impressão digital)</label>
-        ${bioSupported()?(bioCfg()?`<div style="display:flex;gap:8px;align-items:center"><span class="pill" style="background:rgba(34,197,94,.16);color:var(--acc)">● Ativa neste dispositivo</span><button class="btn sm" id="bioRem">Remover</button></div>`:`<div><button class="btn sm" id="bioReg">${svg(I.finger)}Ativar neste dispositivo</button></div>`)
+        ${bioSupported()?(bioCfg()?`<div style="display:flex;gap:8px;align-items:center"><span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">● Ativa neste dispositivo</span><button class="btn sm" id="bioRem">Remover</button></div>`:`<div><button class="btn sm" id="bioReg">${svg(I.finger)}Ativar neste dispositivo</button></div>`)
           :`<p class="dsub">Indisponível aqui (precisa de abrir pelo link https e de o dispositivo ter biometria).</p>`}
         <p class="dsub" style="margin-top:4px">Funciona com o código (desbloqueias com a digital/rosto; o código fica como alternativa). Ativa-se em cada dispositivo.</p>
       </div>
@@ -1086,7 +1094,7 @@ function vDefs(m){
     <div class="card span2">${dh(I.repeat,'Sincronização (Dropbox)','Mantém os dados iguais no PC e no telemóvel. Liga uma vez em cada dispositivo; depois sincroniza sozinho.')}
       ${(()=>{const c=dbxCfg();
         const stat=_syncing?'<span style="color:var(--info)">a sincronizar…</span>':(_syncErr?`<span style="color:var(--out)">erro: ${esc(_syncErr)}</span>`:(_lastSync?`última sincronização: ${new Date(_lastSync).toLocaleString('pt-PT')}`:'pronto'));
-        if(c&&c.refresh){return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><span class="pill" style="background:rgba(34,197,94,.16);color:var(--acc)">● Ligada</span><span style="font-size:12.5px;color:var(--mut)">${stat}</span></div>
+        if(c&&c.refresh){return `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px"><span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">● Ligada</span><span style="font-size:12.5px;color:var(--mut)">${stat}</span></div>
           <div style="display:flex;gap:9px;flex-wrap:wrap"><button class="btn sm" id="syncPushBtn">${svg(I.upload)}Enviar agora</button><button class="btn sm" id="syncPullBtn">${svg(I.download)}Receber agora</button><button class="btn sm" id="bkpNow">${svg(I.repeat)}Backup agora</button><button class="btn sm danger" id="dbxDisc">Desligar</button></div>
           <div class="hint" style="margin-top:10px">Guarda automaticamente alguns segundos após cada alteração, e ao abrir traz a versão mais recente. Ficheiro: <b>Apps/(a tua app)/CASA-dados.json</b>. Cópias de segurança diárias (últimas 3) em <b>/backups</b>.</div>`;}
         if(c&&c.pending){return `<div class="hint" style="margin-bottom:8px">Abriu-se a Dropbox para autorizares. Depois de <b>Permitir</b>, a Dropbox mostra um <b>código</b> — cola-o aqui:</div>
@@ -1195,6 +1203,7 @@ document.addEventListener('click',e=>{
   if(t.id==='recAdd'){openRec();return;}
   if(d.recdel){state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render();return;}
   if(t.id==='refreshBtn'){hardRefresh();return;}
+  if(t.id==='lockNow'){ if(!state.settings.codigo){toast('Define um código em Definições primeiro');return;} sessionStorage.removeItem('casa-unlock'); closePop(); showLock(); return; }
   if(t.id==='bioReg'){bioRegister();return;}
   if(t.id==='bioRem'){bioRemove();return;}
   if(t.id==='dbxConnect'){dbxStartAuth();return;}
@@ -1554,7 +1563,7 @@ function showLock(){
   if(isUnlocked()){ if(ex)ex.remove(); return; }
   if(ex)return;
   const d=document.createElement('div'); d.id='lock';
-  d.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg,#0f141b);display:flex;align-items:center;justify-content:center;padding:20px';
+  d.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg,#121613);display:flex;align-items:center;justify-content:center;padding:20px';
   const hasBio=!!bioCfg();
   d.innerHTML=`<div style="text-align:center;max-width:260px;width:100%">
     <div style="width:64px;height:64px;border-radius:17px;background:linear-gradient(135deg,#a7b89a,#5f7a6b);display:grid;place-items:center;color:#f5efe6;margin:0 auto 22px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:34px;height:34px"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div>
