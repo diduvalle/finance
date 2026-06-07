@@ -10,6 +10,15 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="CASA">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:title" content="CASA · Finanças">
+<meta property="og:description" content="Gestão financeira pessoal — grelha, poupanças, previsão e controlo.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://diduvalle.github.io/finance/CASA.html">
+<meta property="og:image" content="https://diduvalle.github.io/finance/icon-512.png">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="CASA · Finanças">
+<meta name="twitter:description" content="Gestão financeira pessoal.">
+<meta name="twitter:image" content="https://diduvalle.github.io/finance/icon-512.png">
 <style>
 :root{
   --bg:#0f141b; --bg2:#141a22; --card:#1a212b; --card2:#212a36; --line:#2a3441; --line2:#374252;
@@ -285,6 +294,7 @@ function load(){
   }
   state.settings.valeteMargem = state.settings.valeteMargem ?? 0; // margem de segurança do Valete
   state.settings.diaSalario = state.settings.diaSalario ?? 23; // dia em que a receita líquida costuma entrar
+  if(state.settings.codigo===undefined) state.settings.codigo='197000'; // código de acesso (bloqueio simples)
   // Descontos de receita (SS/IRS) — valores negativos; criar IRS se não existir
   if(!state._descV1){
     state.categorias.filter(c=>c.tipo==='receita'&&/desc\.?\s*ss|seg.*social|irs/i.test(c.nome||'')).forEach(c=>c.desconto=true);
@@ -955,6 +965,7 @@ function vDefs(m){
         <div><label>Tema</label><div class="seg"><button data-theme="dark" class="${state.settings.tema==='dark'?'on-out':''}">Escuro</button><button data-theme="light" class="${state.settings.tema==='light'?'on-out':''}">Claro</button></div></div>
         <div><label>Moeda</label><div style="display:flex;gap:8px"><input id="moedaIn" value="${esc(moeda())}" style="max-width:80px"><button class="btn sm" id="saveMoeda">OK</button></div></div>
       </div>
+      <div style="margin-top:12px"><label>Código de acesso (bloqueio ao abrir)</label><div style="display:flex;gap:8px"><input id="codigoIn" inputmode="numeric" value="${esc(state.settings.codigo||'')}" style="max-width:140px"><button class="btn sm" id="saveCodigo">Guardar</button></div><p class="dsub" style="margin-top:4px">Pedido sempre que abres a app. Deixa vazio para desligar. É um bloqueio simples (não é segurança forte).</p></div>
     </div>
 
     <div class="card">${dh(I.repeat,'Despesas fixas (mensais)','Valor e dia do mês de cada uma. O dia alimenta o aviso do Valete ("até ao dia X precisas de Y"). O botão "Lançar fixas" na grelha cria estes valores no mês.')}
@@ -1099,6 +1110,7 @@ document.addEventListener('click',e=>{
   if(t.id==='savePeople'){P()[0].nome=val('pn0')||'Diogo';P()[1].nome=val('pn1')||'DA';state.settings.parceira=val('pnPar')||'';save();render();toast('Guardado');return;}
   if(d.theme){state.settings.tema=d.theme;save();render();return;}
   if(t.id==='saveMoeda'){state.settings.moeda=val('moedaIn')||'€';save();render();toast('Guardado');return;}
+  if(t.id==='saveCodigo'){state.settings.codigo=(val('codigoIn')||'').trim();sessionStorage.setItem('casa-unlock','1');save();render();toast('Código guardado');return;}
   if(t.id==='recAdd'){openRec();return;}
   if(d.recdel){state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render();return;}
   if(t.id==='dbxConnect'){dbxStartAuth();return;}
@@ -1388,7 +1400,34 @@ function expCSV(){
 function impJSON(file){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.categorias||!d.movimentos)throw 0;localStorage.setItem(KEY,JSON.stringify(d));load();tab='grelha';render();toast('Dados importados');}catch(e){toast('Ficheiro inválido');}};r.readAsText(file);}
 
 /* ----- boot ----- */
-load();render();
+/* ===== Bloqueio de acesso (código simples) ===== */
+function isUnlocked(){ return !state.settings.codigo || sessionStorage.getItem('casa-unlock')==='1'; }
+function showLock(){
+  const ex=document.getElementById('lock');
+  if(isUnlocked()){ if(ex)ex.remove(); return; }
+  if(ex)return;
+  const d=document.createElement('div'); d.id='lock';
+  d.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg,#0f141b);display:flex;align-items:center;justify-content:center;padding:20px';
+  d.innerHTML=`<div style="text-align:center;max-width:300px;width:100%">
+    <div style="width:56px;height:56px;border-radius:15px;background:linear-gradient(135deg,#22c55e,#16a34a);display:grid;place-items:center;color:#fff;font-size:30px;font-weight:800;margin:0 auto 16px">€</div>
+    <div style="font-weight:800;font-size:18px;margin-bottom:4px">CASA</div>
+    <div style="color:#8d9bad;font-size:13px;margin-bottom:16px">Introduz o código de acesso</div>
+    <input id="lockInput" type="password" inputmode="numeric" autocomplete="off" style="width:100%;text-align:center;font-size:22px;letter-spacing:6px;padding:12px;border-radius:10px;border:1px solid #2a3441;background:#1a212b;color:#e8edf4">
+    <div id="lockMsg" style="color:#f87171;font-size:12.5px;height:16px;margin:8px 0"></div>
+    <button id="lockBtn" style="width:100%;padding:12px;border-radius:10px;border:0;background:#22c55e;color:#fff;font-weight:700;font-size:15px;cursor:pointer">Entrar</button>
+  </div>`;
+  document.body.appendChild(d);
+  setTimeout(()=>{const i=document.getElementById('lockInput');if(i)i.focus();},60);
+}
+function tryUnlock(){
+  const i=document.getElementById('lockInput'); if(!i)return;
+  if((i.value||'').trim()===String(state.settings.codigo)){ sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); }
+  else { const m=document.getElementById('lockMsg'); if(m)m.textContent='Código errado'; i.value=''; i.focus(); }
+}
+document.addEventListener('click',e=>{ if(e.target.closest('#lockBtn'))tryUnlock(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&document.getElementById('lockInput'))tryUnlock(); });
+
+load();render();showLock();
 if(dbxOn()) syncOpen();
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 </script>
