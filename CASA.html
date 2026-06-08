@@ -619,6 +619,7 @@ function vGrelha(m){
     <div class="fld"><label>Valor</label><input id="qVal" class="v" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
     <div class="fld"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
     <div class="fld"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
+    <div class="fld" style="flex:1 1 150px"><label>Nota (opcional)</label><input id="qNota" type="text" maxlength="80" placeholder="ex: o que foi"></div>
     ${gridTipo==='despesa'?`<button class="btn" id="qAddCash" title="Pagar em dinheiro (sai do Cofre, não do Valete)" style="height:38px">${svg(I.cash)}</button>`:''}
     <button class="btn primary" id="qAdd" style="height:38px">${svg(I.plus)}Adicionar</button>
   </div>
@@ -690,6 +691,7 @@ function openCellPop(catId,mi,anchor){
       ${frozen?`<div class="pempty" style="margin-bottom:6px">Mês congelado (histórico). Leitura apenas. <button class="btn sm" id="pUnlock" style="margin-top:6px">${svg(I.edit)} Desbloquear para editar</button></div>`:`
       ${kids.length?`<select id="pSub" style="width:100%;margin-bottom:8px"><option value="${c.id}">${c.nome} (geral)</option>${kids.map(k=>`<option value="${k.id}">${k.nome}</option>`).join('')}</select>`:''}
       <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'− valor (desconto)':'+ valor'}" autofocus>${c.tipo==='despesa'?`<button class="btn" id="pAddCash" title="Pagar em dinheiro (Cofre)">${svg(I.cash)}</button>`:''}<button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
+      <input id="pNota" type="text" maxlength="80" placeholder="nota (opcional)" style="width:100%;margin-top:6px">
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
       <div class="plist">${movs.length?movs.map(mo=>`<div class="pe"><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?' 💵':''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}</span>${frozen?'':`<button class="x" data-delmov="${mo.id}">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
     </div>`;
@@ -710,7 +712,7 @@ function popAdd(cash){
   const c=cat(popCell.catId);
   const subEl=document.getElementById('pSub'); const targetId=subEl?subEl.value:c.id;
   let pagador=P()[0].id,split={...state.settings.splitDefault};
-  const mv={id:nid('m'),data:dateFor(popCell.mi),tipo:c.tipo,categoriaId:targetId,valor:valorComSinal(targetId,c.tipo,v),pagador,split,nota:''};
+  const mv={id:nid('m'),data:dateFor(popCell.mi),tipo:c.tipo,categoriaId:targetId,valor:valorComSinal(targetId,c.tipo,v),pagador,split,nota:val('pNota')||''};
   if(cash&&c.tipo==='despesa'){mv.cash=true;mv.ts=Date.now();}
   state.movimentos.push(mv); if(!isPastMonth(ano,popCell.mi)) aplicaValete(mv);
   save(); const cell=popCell; render();
@@ -808,6 +810,7 @@ function expAcertoCSV(){
 /* ================= POUPANÇAS / PATRIMÓNIO ================= */
 let poupCont=false;
 let defCatOpen=new Set();
+let defGroupsOpen=new Set(['pessoas']); // secções <details> abertas em Definições (persiste entre renders)
 function contagemTotal(c){return (c||[]).reduce((a,r)=>a+(+r.d)*(parseFloat(r.q)||0),0);}
 function vPoupancas(m){
   const p = state.poupancas[ano] || {contas:[],contagem:[]};
@@ -1092,7 +1095,7 @@ function vDefs(m){
   const dh=(ic,t,sub)=>`<h3 class="dh">${svg(ic)} ${t}</h3>${sub?`<p class="dsub">${sub}</p>`:''}`;
   m.innerHTML=`
   <div class="defs-wrap">
-  <details class="defgroup" open><summary>${svg(I.scale)} Pessoas & aparência</summary>
+  <details class="defgroup" data-dg="pessoas" ${defGroupsOpen.has('pessoas')?'open':''}><summary>${svg(I.scale)} Pessoas & aparência</summary>
   <div class="defs-grid">
     <div class="card">${dh(I.scale,'Pessoas','Tu pagas tudo. A devedora é a ex (aparece só na aba de Dívida). A tua parceira atual não tem obrigação de pagar despesas da casa.')}
       <div class="f2"><div><label>Eu</label><input id="pn0" value="${esc(a.nome)}"></div><div><label>Devedora (ex) · aba Dívida</label><input id="pn1" value="${esc(b.nome)}"></div></div>
@@ -1121,7 +1124,7 @@ function vDefs(m){
     </div>
 
   </div></details>
-  <details class="defgroup"><summary>${svg(I.cat)} Categorias & regras</summary>
+  <details class="defgroup" data-dg="categorias" ${defGroupsOpen.has('categorias')?'open':''}><summary>${svg(I.cat)} Categorias & regras</summary>
   <div class="defs-grid">
     <div class="card">${dh(I.repeat,'Despesas fixas (mensais)','Valor e dia do mês de cada uma. O dia alimenta o aviso do Valete ("até ao dia X precisas de Y"). O botão "Lançar fixas" na grelha cria estes valores no mês.')}
       <div id="recList">${state.recorrencias.map(r=>`<div class="catedit"><span class="dot" style="background:${cat(r.categoriaId)?cat(r.categoriaId).cor:'#888'}"></span><span style="flex:1">${cat(r.categoriaId)?catName(r.categoriaId):esc(r.nome)}</span><span style="color:var(--mut);font-size:12px">dia</span><input type="number" step="1" min="1" max="28" value="${r.dia||8}" data-recdia="${r.id}" style="width:52px" title="Dia do mês"><input type="number" step="0.01" value="${r.valor}" data-recval="${r.id}" style="width:96px">€<button class="iconbtn" data-recdel="${r.id}">${svg(I.trash)}</button></div>`).join('')||'<div style="color:var(--mut);font-size:13px">Sem despesas fixas.</div>'}</div>
@@ -1160,7 +1163,7 @@ function vDefs(m){
     </div>
 
   </div></details>
-  <details class="defgroup"><summary>${svg(I.download)} Dados & sincronização</summary>
+  <details class="defgroup" data-dg="dados" ${defGroupsOpen.has('dados')?'open':''}><summary>${svg(I.download)} Dados & sincronização</summary>
   <div class="defs-grid">
     <div class="card span2">${dh(I.check,'Validação · App vs Excel','Totais de cada ano vs o teu Excel. Se editares/adicionares movimentos, os valores mudam (esperado).')}
       <div class="gridwrap"><table class="sumtable">
@@ -1197,7 +1200,7 @@ function vDefs(m){
     </div>
 
   </div></details>
-  <details class="defgroup"><summary>${svg(I.trash)} Zona perigosa</summary>
+  <details class="defgroup" data-dg="perigo" ${defGroupsOpen.has('perigo')?'open':''}><summary>${svg(I.trash)} Zona perigosa</summary>
   <div class="defs-grid">
     <div class="card">${dh(I.trash,'Zona perigosa','Repõe todos os dados ao estado original importado do Excel.')}
       <button class="btn sm danger" id="reset">${svg(I.trash)}Repor de origem</button>
@@ -1369,6 +1372,8 @@ document.addEventListener('dragover',e=>{ if(!dragCat)return; clearDropFx(); con
 document.addEventListener('drop',e=>{ if(!dragCat)return; const top=e.target.closest('th[data-droptop]'); const t=e.target.closest('th[data-cat]'); e.preventDefault(); clearDropFx(); if(top){ unnestCat(dragCat); } else if(t){ if(dropMode(e,t)==='before') reorderBefore(dragCat,t.dataset.cat); else nestCat(dragCat,t.dataset.cat); } dragCat=null; });
 document.addEventListener('dragend',()=>{ dragCat=null; clearDropFx(); });
 document.addEventListener('dblclick',e=>{ const th=e.target.closest('th[data-cat]'); if(th) renameCat(th.dataset.cat); });
+/* manter o estado aberto/fechado das secções de Definições entre renders (toggle não faz bubble => capture) */
+document.addEventListener('toggle',e=>{ const d=e.target; if(d&&d.classList&&d.classList.contains('defgroup')&&d.dataset&&d.dataset.dg){ if(d.open)defGroupsOpen.add(d.dataset.dg); else defGroupsOpen.delete(d.dataset.dg); } },true);
 
 const val=id=>{const el=document.getElementById(id);return el?el.value.trim():'';};
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2000);}
@@ -1451,10 +1456,10 @@ function quickAdd(cash){
   const catId=document.getElementById('qCat').value, mi=+document.getElementById('qMes').value;
   if(isFrozenMi(ano,mi)){toast('Mês congelado — só podes lançar do mês atual para a frente');return;}
   const c=cat(catId); let pagador=P()[0].id,split={...state.settings.splitDefault};
-  const mv={id:nid('m'),data:dateFor(mi),tipo:gridTipo,categoriaId:catId,valor:valorComSinal(catId,gridTipo,v),pagador,split,nota:''};
+  const mv={id:nid('m'),data:dateFor(mi),tipo:gridTipo,categoriaId:catId,valor:valorComSinal(catId,gridTipo,v),pagador,split,nota:val('qNota')||''};
   if(cash&&gridTipo==='despesa'){mv.cash=true;mv.ts=Date.now();}
   state.movimentos.push(mv); if(!isPastMonth(ano,mi)) aplicaValete(mv);
-  save();render();toast((cash?'Dinheiro: ':'Adicionado: ')+fmt(Math.abs(v))+' · '+c.nome);
+  save();render();toast((cash?'Dinheiro: ':'Adicionado: ')+fmt(Math.abs(v))+' · '+c.nome+(mv.nota?' · '+mv.nota:''));
   setTimeout(()=>{const q=document.getElementById('qVal');if(q)q.focus();},20);
 }
 function genFix(){
