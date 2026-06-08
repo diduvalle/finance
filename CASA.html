@@ -693,7 +693,7 @@ function openCellPop(catId,mi,anchor){
       <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'− valor (desconto)':'+ valor'}" autofocus>${c.tipo==='despesa'?`<button class="btn" id="pAddCash" title="Pagar em dinheiro (Cofre)">${svg(I.cash)}</button>`:''}<button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
       <input id="pNota" type="text" maxlength="80" placeholder="nota (opcional)" style="width:100%;margin-top:6px">
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
-      <div class="plist">${movs.length?movs.map(mo=>`<div class="pe"><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?' 💵':''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}</span>${frozen?'':`<button class="x" data-delmov="${mo.id}">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
+      <div class="plist">${movs.length?movs.map(mo=>`<div class="pe"><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?' 💵':''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}</span>${frozen?'':`<button class="x" data-movmov="${mo.id}" title="Mudar de categoria" style="margin-right:2px">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
     </div>`;
   pop.classList.add('on');
   // position near anchor
@@ -705,6 +705,31 @@ function openCellPop(catId,mi,anchor){
   setTimeout(()=>{const v=document.getElementById('pVal');if(v)v.focus();},30);
 }
 function closePop(){const p=document.getElementById('pop');p.classList.remove('on');popCell=null;}
+/* mudar a categoria de UM movimento, sem o apagar+relançar (mantém valor, mês e saldo).
+   Para o mês atual reaplica o Valete na conta certa (trata Coverflex/descontos); no passado é neutro. */
+let _moveMovId=null;
+function openMoveMov(id){
+  const mv=state.movimentos.find(x=>x.id===id); if(!mv)return; _moveMovId=id; closePop();
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.move)} Mudar de categoria <button class="close" data-close="1">&times;</button></h2>
+  <div class="body">
+    <div class="hint"><b>${fmt(Math.abs(mv.valor))}</b> · ${mv.data.slice(8,10)}/${mv.data.slice(5,7)}/${mv.data.slice(0,4)} · atual: <b>${esc(catName(mv.categoriaId))}</b></div>
+    <label>Nova categoria</label><select id="mmCat">${catOptions(mv.tipo,mv.categoriaId)}</select>
+    <div class="hint" style="margin-top:8px;border-left:3px solid var(--acc)">Mantém o valor, o mês e o saldo — só muda a categoria. (Use isto em vez de apagar e relançar.)</div>
+  </div>
+  <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Cancelar</button><button class="btn primary" id="mmSave">${svg(I.check)}Mudar</button></div></div>`;
+  openBack();
+}
+function doMoveMov(){
+  const mv=state.movimentos.find(x=>x.id===_moveMovId); if(!mv){closeBack();return;}
+  const newCat=document.getElementById('mmCat').value; if(!newCat||newCat===mv.categoriaId){closeBack();return;}
+  const past=isPastMonth(+mv.data.slice(0,4),+mv.data.slice(5,7)-1);
+  if(!past) reverteValete(mv);            // tira o efeito da conta antiga (Valete ou Coverflex)
+  mv.categoriaId=newCat;
+  mv.valor=valorComSinal(newCat,mv.tipo,mv.valor); // reaplica o sinal (descontos de receita)
+  if(!past) aplicaValete(mv);             // reaplica na conta nova
+  save(); closeBack(); render(); toast('Movido para '+catName(newCat));
+  _moveMovId=null;
+}
 function popAdd(cash){
   const vEl=document.getElementById('pVal'); const v=parseFloat(vEl.value);
   if(isNaN(v)||v===0){vEl.focus();return;}
@@ -1221,7 +1246,7 @@ function catTree(tipo){return topCats(tipo).map(c=>{
 
 /* ================= EVENTS ================= */
 document.addEventListener('click',e=>{
-  const t=e.target.closest('button,a,[data-cell],[data-delmov],[data-newcat]');
+  const t=e.target.closest('button,a,[data-cell],[data-delmov],[data-movmov],[data-newcat]');
   // cell click (td) handled separately:
   const ren=e.target.closest('[data-rencat]');
   if(ren){ renameCat(ren.dataset.rencat); return; }
@@ -1283,6 +1308,8 @@ document.addEventListener('click',e=>{
   if(t.id==='fatSave'){gravarFatura();return;}
   if(t.id==='recSave'){gravarRecibo();return;}
   if(t.id==='fbSave'){gravarFaturasBatch();return;}
+  if(t.id==='mmSave'){doMoveMov();return;}
+  if(d.movmov){openMoveMov(d.movmov);return;}
   if(d.settle){const[from,to,val]=d.settle.split('|');openSettle(from,to,+val);return;}
   if(t.id==='savePeople'){P()[0].nome=val('pn0')||'Diogo';P()[1].nome=val('pn1')||'DA';state.settings.parceira=val('pnPar')||'';save();render();toast('Guardado');return;}
   if(d.theme){state.settings.tema=d.theme;save();render();return;}
