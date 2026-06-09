@@ -222,9 +222,18 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .brand small{display:none}
   .f2{grid-template-columns:1fr}
 }
+/* ----- Splash de arranque: fundo verde (igual ao ícone) + casa a desenhar-se ----- */
+#splash{position:fixed;inset:0;z-index:10000;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#a7b89a,#5f7a6b);transition:opacity .55s ease}
+#splash.done{opacity:0;pointer-events:none}
+#splash svg{width:108px;height:108px;filter:drop-shadow(0 6px 18px rgba(0,0,0,.18));animation:splashPop 1.6s ease both}
+#splash .house{fill:none;stroke:#f5efe6;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:1;stroke-dashoffset:1;animation:houseDraw 1.15s ease .15s forwards}
+@keyframes houseDraw{to{stroke-dashoffset:0}}
+@keyframes splashPop{0%{transform:scale(.86);opacity:.2}55%{opacity:1}70%{transform:scale(1.04)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion:reduce){#splash .house{animation:none;stroke-dashoffset:0}#splash svg{animation:none}}
 </style>
 </head>
 <body data-theme="dark">
+<div id="splash"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="house" pathLength="1" d="M12 4l8 6.5V20H4v-9.5z"/></svg></div>
 <div class="app">
   <div class="topbar">
     <div class="brand"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div></div>
@@ -2321,6 +2330,8 @@ load();try{liquidarPendentes();}catch(e){}render();showLock();
 try{lembreteBoot();}catch(e){}
 if(dbxOn()) syncOpen().then(dailyBackup).catch(()=>{});
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+/* desvanece a splash depois da casa se desenhar (a app já está pronta por baixo) */
+(function(){var sp=document.getElementById('splash');if(!sp)return;setTimeout(function(){sp.classList.add('done');setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp);},650);},1250);})();
 </script>
 </body>
 </html>
