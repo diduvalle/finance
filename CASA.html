@@ -230,6 +230,19 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 @keyframes houseDraw{to{stroke-dashoffset:0}}
 @keyframes splashPop{0%{transform:scale(.86);opacity:.2}55%{opacity:1}70%{transform:scale(1.04)}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){#splash .house{animation:none;stroke-dashoffset:0}#splash svg{animation:none}}
+/* ----- Teclado de PIN do bloqueio ----- */
+#lock .dots{display:flex;gap:13px;justify-content:center;height:14px;margin:2px 0}
+#lock .dots span{width:12px;height:12px;border-radius:50%;border:2px solid var(--line2);transition:background .1s,border-color .1s}
+#lock .dots span.on{background:var(--acc);border-color:var(--acc)}
+#lock .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px}
+#lock .pad button{aspect-ratio:1;border:0;border-radius:14px;background:var(--card2);color:var(--txt);font-size:25px;font-weight:600;cursor:pointer;transition:background .12s,transform .07s;-webkit-tap-highlight-color:transparent;user-select:none}
+#lock .pad button:hover{background:var(--line)}
+#lock .pad button:active{transform:scale(.93);background:var(--acc);color:#10160f}
+#lock .pad button.k-back{background:transparent;color:var(--mut);font-size:22px}
+#lock .pad button.k-back:active{background:transparent;transform:scale(.9)}
+#lock .pad button.k-empty{visibility:hidden;pointer-events:none}
+#lockBox.shake{animation:lockShake .42s}
+@keyframes lockShake{0%,100%{transform:none}20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
 </style>
 </head>
 <body data-theme="dark">
@@ -2300,31 +2313,65 @@ async function bioUnlock(silent){
 
 /* ===== Bloqueio de acesso (código simples) ===== */
 function isUnlocked(){ return !state.settings.codigo || sessionStorage.getItem('casa-unlock')==='1'; }
+let _pinEntry='';
+function pinShuffleOn(){return localStorage.getItem('casa-pinshuffle')!=='0';} // default: baralhado
+function _shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));const t=a[i];a[i]=a[j];a[j]=t;}return a;}
 function showLock(){
   const ex=document.getElementById('lock');
   if(isUnlocked()){ if(ex)ex.remove(); return; }
   if(ex)return;
+  _pinEntry='';
   const d=document.createElement('div'); d.id='lock';
   d.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg,#121613);display:flex;align-items:center;justify-content:center;padding:20px';
   const hasBio=!!bioCfg();
-  d.innerHTML=`<div style="text-align:center;max-width:260px;width:100%">
-    <div style="width:64px;height:64px;border-radius:17px;background:linear-gradient(135deg,#a7b89a,#5f7a6b);display:grid;place-items:center;color:#f5efe6;margin:0 auto 22px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:34px;height:34px"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div>
-    <input id="lockInput" type="password" inputmode="numeric" autocomplete="off" placeholder="• • • • • •" style="width:100%;text-align:center;font-size:24px;letter-spacing:8px;padding:13px;border-radius:12px;border:1px solid #2a3441;background:#1a212b;color:#e8edf4;outline:none">
-    <div id="lockMsg" style="color:#f87171;font-size:12px;height:15px;margin-top:8px"></div>
-    ${hasBio?`<button id="lockBio" style="margin-top:10px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:none;border:1px solid #2a3441;color:#8d9bad;padding:11px;border-radius:12px;cursor:pointer;font-size:14px">${svg(I.finger)} Entrar com biometria</button>`:''}
+  d.innerHTML=`<div id="lockBox" style="text-align:center;max-width:300px;width:100%">
+    <div style="width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,#a7b89a,#5f7a6b);display:grid;place-items:center;color:#f5efe6;margin:0 auto 16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:32px;height:32px"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div>
+    <div style="color:var(--mut);font-size:14px;margin-bottom:8px">Introduz o PIN</div>
+    <div class="dots" id="lockDots"></div>
+    <div id="lockMsg" style="color:#f87171;font-size:12px;height:15px;margin:4px 0 2px"></div>
+    <div class="pad" id="lockPad"></div>
+    <label style="display:flex;align-items:center;justify-content:center;gap:8px;color:var(--mut);font-size:12.5px;margin-top:16px;cursor:pointer"><input type="checkbox" id="pinShuf" ${pinShuffleOn()?'checked':''} style="width:auto"> Teclas baralhadas</label>
+    ${hasBio?`<button id="lockBio" style="margin-top:10px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:none;border:1px solid var(--line);color:var(--mut);padding:11px;border-radius:12px;cursor:pointer;font-size:14px">${svg(I.finger)} Entrar com biometria</button>`:''}
   </div>`;
   document.body.appendChild(d);
-  const i=document.getElementById('lockInput');
-  i.addEventListener('input',()=>{ if((i.value||'').length>=String(state.settings.codigo).length) tryUnlock(); });
+  lockRenderPad(); pinUpdate();
+  const pad=document.getElementById('lockPad');
+  pad.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.pinback)pinBack();else if(b.dataset.pin!=null)pinPress(b.dataset.pin);});
+  document.getElementById('pinShuf').addEventListener('change',e=>{localStorage.setItem('casa-pinshuffle',e.target.checked?'1':'0');lockRenderPad();});
   if(hasBio){ const bb=document.getElementById('lockBio'); if(bb)bb.addEventListener('click',()=>bioUnlock(false)); setTimeout(()=>bioUnlock(true),250); }
-  else setTimeout(()=>i.focus(),60);
 }
-function tryUnlock(){
-  const i=document.getElementById('lockInput'); if(!i)return;
-  if((i.value||'').trim()===String(state.settings.codigo)){ sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} }
-  else { i.style.borderColor='#f87171'; i.value=''; setTimeout(()=>{i.style.borderColor='#2a3441';i.focus();},350); }
+function lockRenderPad(){
+  const pad=document.getElementById('lockPad'); if(!pad)return;
+  const order=pinShuffleOn()?_shuffle([0,1,2,3,4,5,6,7,8,9]):[1,2,3,4,5,6,7,8,9,0];
+  let h=''; for(let k=0;k<9;k++)h+=`<button data-pin="${order[k]}">${order[k]}</button>`;
+  h+=`<button class="k-empty" tabindex="-1"></button><button data-pin="${order[9]}">${order[9]}</button><button class="k-back" data-pinback="1" aria-label="Apagar">⌫</button>`;
+  pad.innerHTML=h;
 }
-document.addEventListener('keydown',e=>{ if(e.key==='Enter'&&document.getElementById('lockInput'))tryUnlock(); });
+function pinUpdate(){
+  const dots=document.getElementById('lockDots'); if(!dots)return;
+  const len=String(state.settings.codigo||'').length||1;
+  let h=''; for(let k=0;k<len;k++)h+=`<span class="${k<_pinEntry.length?'on':''}"></span>`;
+  dots.innerHTML=h;
+}
+function pinPress(dgt){
+  const len=String(state.settings.codigo||'').length;
+  if(_pinEntry.length>=len)return;
+  _pinEntry+=String(dgt); pinUpdate();
+  const m=document.getElementById('lockMsg'); if(m)m.textContent='';
+  if(_pinEntry.length>=len) setTimeout(pinSubmit,130);
+}
+function pinBack(){ _pinEntry=_pinEntry.slice(0,-1); pinUpdate(); }
+function pinSubmit(){
+  if(_pinEntry===String(state.settings.codigo)){
+    sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove();
+    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){}
+  } else {
+    const box=document.getElementById('lockBox'); if(box){box.classList.add('shake');setTimeout(()=>box.classList.remove('shake'),420);}
+    const m=document.getElementById('lockMsg'); if(m)m.textContent='PIN errado';
+    _pinEntry=''; pinUpdate(); lockRenderPad(); // re-baralha após erro
+  }
+}
+document.addEventListener('keydown',e=>{ if(!document.getElementById('lock'))return; if(/^[0-9]$/.test(e.key))pinPress(e.key); else if(e.key==='Backspace'){e.preventDefault();pinBack();} });
 
 load();try{liquidarPendentes();}catch(e){}render();showLock();
 try{lembreteBoot();}catch(e){}
