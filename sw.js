@@ -1,5 +1,5 @@
 /* CASA · service worker — network-first (apanha sempre updates online; cache só p/ offline) */
-const CACHE = 'casa-v2';
+const CACHE = 'casa-v3';
 const ASSETS = ['CASA.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'apple-touch-icon.png'];
 self.addEventListener('install', e => {
   self.skipWaiting();
