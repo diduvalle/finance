@@ -153,6 +153,44 @@ table.grid thead th:hover .thedit{opacity:.7}
 .pinp.pnum{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;max-width:160px}
 .poupval{cursor:pointer;font-weight:700;font-variant-numeric:tabular-nums;border-bottom:1px dashed var(--line);padding-bottom:1px}
 .poupval:hover{border-color:var(--acc);color:var(--acc)}
+/* vista Lista da Grelha (um cartão por mês, colapsável) */
+.gm{display:flex;flex-direction:column;gap:9px}
+.gm-month{background:var(--card);border-radius:var(--r);box-shadow:var(--sh-sm);overflow:hidden;position:relative}
+.gm-month.now{box-shadow:inset 3px 0 0 var(--acc),var(--sh-sm)}
+.gm-head{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:13px 15px;cursor:pointer;font-size:14px;color:var(--txt)}
+.gm-nm{font-weight:800;min-width:92px;text-align:left;flex:none}
+.gm-month.now .gm-nm{color:var(--acc)}
+.gm-lock{font-size:11px;opacity:.7;width:16px;flex:none;text-align:left}
+.gm-tot{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
+.gm-tot.neg{color:var(--out)} .gm-tot.pos{color:var(--in)}
+.gm-tot.mut{color:var(--mut);opacity:.45;font-weight:500}
+.gm-chev{color:var(--mut);font-size:11px;width:12px;flex:none}
+.gm-body{border-top:1px solid var(--line);padding:5px 7px 8px}
+.gm-cat{display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;cursor:pointer;transition:background .12s}
+.gm-cat:hover{background:var(--acc-12)}
+.gm-cat .cicon{flex:none}
+.gm-cnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
+.gm-cv{font-weight:600;font-variant-numeric:tabular-nums;font-size:13.5px}
+.gm-cat.z .gm-cv,.gm-cat.z .gm-cnm{opacity:.45}
+.gm-cat.warn .gm-cv{color:var(--warn)} .gm-cat.over .gm-cv{color:var(--out)}
+.gm-cat.sub{padding-left:30px;background:var(--bg2);border-radius:8px;margin:1px 0}
+.gm-cat.sub .gm-cnm,.gm-cat.sub .gm-cv{font-size:12.5px;color:var(--mut)}
+.gm-cat.sub .cicon{opacity:.85}
+.gm-tog{border:0;background:var(--card2);color:var(--mut);cursor:pointer;padding:3px 8px;border-radius:7px;font-size:11px;flex:none}
+.gm-tog:hover{color:var(--acc)}
+.gm-foot{display:flex;justify-content:space-between;align-items:center;padding:11px 15px;background:var(--card2);border-radius:var(--r);font-size:13px}
+/* metas / objetivos de poupança */
+.metagrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
+@media(max-width:720px){.metagrid{grid-template-columns:1fr}}
+.meta-card{position:relative;display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh)}
+.meta-card::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 1px 0 var(--hair);pointer-events:none}
+.meta-ring{flex:none}
+.meta-body{min-width:0;flex:1}
+.meta-nm{font-weight:700;display:flex;align-items:center;gap:7px}
+.meta-amt{font-size:13px;color:var(--mut);margin-top:2px}
+.meta-amt b{color:var(--txt);font-size:15px}
+.meta-sub{font-size:12.5px;color:var(--mut);margin-top:1px}
+.meta-actions{display:flex;align-items:center;gap:6px;margin-top:9px}
 .defs-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;max-width:1120px;align-items:start}
 .defs-grid .span2{grid-column:1/-1}
 .defs-grid>.card{min-width:0}
@@ -170,6 +208,20 @@ table.grid thead th:hover .thedit{opacity:.7}
 .dh{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;margin:0 0 12px}
 .dh svg{width:17px;height:17px;color:var(--acc);flex:none}
 .dsub{color:var(--mut);font-size:12px;margin:-7px 0 12px;line-height:1.35}
+.cicon{display:inline-grid;place-items:center;border-radius:8px;flex:none;cursor:pointer;transition:transform .1s}
+.cicon.dotcol{border-radius:5px}
+.cicon svg{width:62%;height:62%}
+button.cicon:hover{transform:scale(1.08)}
+.iconpick{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+@media(max-width:560px){.iconpick{grid-template-columns:repeat(6,1fr)}}
+.iconpick button{aspect-ratio:1;border:1px solid var(--line);background:var(--bg2);border-radius:11px;display:grid;place-items:center;cursor:pointer;color:var(--mut);transition:background .12s,color .12s,border-color .12s}
+.iconpick button:hover{background:var(--card);color:var(--acc)}
+.iconpick button.on{border-color:var(--acc);background:var(--acc-12);color:var(--acc)}
+.iconpick button svg{width:20px;height:20px}
+.metacols{display:flex;flex-wrap:wrap;gap:8px}
+.metacol{width:28px;height:28px;border-radius:9px;border:2px solid transparent;cursor:pointer;padding:0;box-shadow:var(--sh-sm);transition:transform .1s}
+.metacol:hover{transform:scale(1.08)}
+.metacol.on{border-color:var(--txt);box-shadow:0 0 0 3px var(--acc-12)}
 @media(max-width:780px){.defs-grid{grid-template-columns:minmax(0,1fr)}}
 /* tamanho seguro p/ todos os ícones SVG (evita ícones gigantes em h2/cartões) */
 svg{width:16px;height:16px;flex:none}
@@ -336,7 +388,9 @@ const I={
   search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
   camera:'<path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>',
   inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5h13l3.5 7v6a2 2 0 01-2 2H4a2 2 0 01-2-2v-6z"/>',
-  qr:'<path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h2v2h-2zM19 15h2v2h-2zM15 19h2v2h-2zM19 19h2v2h-2z"/>'
+  qr:'<path d="M3 3h6v6H3zM15 3h6v6h-6zM3 15h6v6H3zM15 15h2v2h-2zM19 15h2v2h-2zM15 19h2v2h-2zM19 19h2v2h-2z"/>',
+  target:'<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  minus:'<path d="M5 12h14"/>'
 };
 const svg=(p,w)=>`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w||2}" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 
@@ -349,10 +403,34 @@ const EMBED=null;
 const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const MC=['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const PALETTE=['#7aa183','#38bdf8','#a78bfa','#f59e0b','#f87171','#14b8a6','#fb7185','#818cf8','#34d399','#fbbf24','#60a5fa','#c084fc','#2dd4bf','#facc15','#4ade80','#e879f9'];
+/* ícones de categoria (path data cru — usar dentro de <svg>) */
+const CAT_ICONS={
+  casa:'M3 11l9-7 9 7M5 10v10h14V10',luz:'M13 2L5 14h6l-1 8 9-12h-6z',agua:'M12 3s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z',
+  gas:'M12 2c1 3.5 4 5 4 9a4 4 0 11-8 0c0-2.5 1.3-3.8 2.2-4.8.4 1.4 1.3 1.9 2.3 1.1.8-.7.2-3.2-.5-5.3z',
+  comida:'M5 3v7a2 2 0 002 2v9M16 3c-1.7 0-2.6 2.2-2.6 4.6S15 12 16 12v9',carro:'M5 13l1.6-4.2A2 2 0 018.5 7.5h7a2 2 0 011.9 1.3L19 13M4 13h16v4H4zM7.5 17v1.5M16.5 17v1.5',
+  combustivel:'M5 21V5a2 2 0 012-2h5a2 2 0 012 2v16M4 21h11M14 9h2.6L19 11.4V17a1.5 1.5 0 01-3 0v-3H14',saude:'M12 20s-7-4.4-7-10a3.8 3.8 0 017-2 3.8 3.8 0 017 2c0 5.6-7 10-7 10z',
+  lazer:'M5 4h14l-7 8zM12 12v6M8 21h8',compras:'M6 8h12l-1 12H7zM9 8a3 3 0 016 0',sub:'M4 11a8 8 0 0114-5l3 3M20 13a8 8 0 01-14 5l-3-3',
+  internet:'M4 9a14 14 0 0116 0M7 12.5a9 9 0 0110 0M10 16a4 4 0 014 0M12 19h.01',telemovel:'M7 3h10a1 1 0 011 1v16a1 1 0 01-1 1H7a1 1 0 01-1-1V4a1 1 0 011-1zM10 18h4',
+  tv:'M3 5h18v12H3zM8 21h8M12 17v4',seguro:'M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z',salario:'M3 7h18v10H3zM12 9.5a2.5 2.5 0 100 5 2.5 2.5 0 000-5M6 10h.01M18 14h.01',
+  cartao:'M3 6h18v12H3zM3 10h18M6 15h4',presente:'M4 9h16v11H4zM4 9l1.5-4h13L20 9M12 9v11M9 5a2 2 0 010 4M15 5a2 2 0 010 4',
+  educacao:'M2 9l10-4 10 4-10 4zM6 11v5c0 1.2 2.7 2.2 6 2.2s6-1 6-2.2v-5M22 9v5',viagem:'M22 3L2 11l7 3 3 7z',
+  cafe:'M5 8h12v4a6 6 0 01-12 0zM17 9h2a2 2 0 010 4h-2M5 21h12',ginasio:'M4 9v6M7 7v10M17 7v10M20 9v6M7 12h10',banco:'M3 10l9-6 9 6M5 10v8M9 10v8M15 10v8M19 10v8M3 20h18',
+  trabalho:'M3 8h18v11H3zM8 8V6a2 2 0 012-2h4a2 2 0 012 2v2M3 13h18',pessoas:'M9 11a3 3 0 100-6 3 3 0 000 6zM3 20a6 6 0 0112 0M17 7a3 3 0 010 6M22 20a6 6 0 00-5-5.9',
+  poupanca:'M4 7c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3zM4 7v10c0 1.7 3.6 3 8 3s8-1.3 8-3V7M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3',
+  imposto:'M6 18L18 6M7.5 9a1.5 1.5 0 100-3 1.5 1.5 0 000 3M16.5 18a1.5 1.5 0 100-3 1.5 1.5 0 000 3',outros:'M3 11l8-8 9 1 1 9-8 8zM8.5 8.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3',
+  musica:'M9 18V6l12-2v12M9 18a3 3 0 11-6 0 3 3 0 016 0M21 16a3 3 0 11-6 0 3 3 0 016 0',livro:'M4 5a2 2 0 012-2h13v15H6a2 2 0 00-2 2zM4 20a2 2 0 012-2h13',
+  telefone:'M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z',cama:'M3 8v11M3 13h18v6M21 19v-4a2 2 0 00-2-2H8V9a2 2 0 012-2h7a2 2 0 012 2',
+  relogio:'M12 3a9 9 0 100 18 9 9 0 000-18M12 7v5l3.5 2',calendario:'M5 5h14v15H5zM5 9h14M8 3v4M16 3v4',planta:'M12 21V10M12 12C12 8 9 6 5 6c0 4 3 6 7 6M12 14c0-3 2-5 6-5 0 3-2 5-6 5',
+  recibo:'M6 3h9l4 4v14l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21zM9 11h6M9 15h4',medico:'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z'
+};
+const ICON_GUESS=[['renda','casa'],['casa','casa'],['cr[ée]dito hab','casa'],['condom','casa'],['imi','imposto'],['luz','luz'],['eletric','luz'],['energia','luz'],['edp','luz'],['endesa','luz'],['água','agua'],['agua','agua'],['combust','combustivel'],['gasol','combustivel'],['gás','gas'],['gas','gas'],['gascan','gas'],['aliment','comida'],['superm','comida'],['comida','comida'],['refei','comida'],['restau','comida'],['super','comida'],['transp','carro'],['carro','carro'],['portag','carro'],['saúde','saude'],['saude','saude'],['sns','saude'],['m[ée]dic','medico'],['farm','saude'],['dentista','medico'],['lazer','lazer'],['compras','compras'],['roupa','compras'],['subscri','sub'],['internet','internet'],['telem','telemovel'],['telecom','tv'],['\\bnos\\b','tv'],['tv','tv'],['seguro','seguro'],['sal[áa]r','salario'],['ordenado','salario'],['ajuda','presente'],['comiss','presente'],['b[óo]nus','presente'],['coverflex','cartao'],['subs[íi]dio','presente'],['extra','presente'],['presente','presente'],['educa','educacao'],['escola','educacao'],['ualg','educacao'],['aulas','educacao'],['viagem','viagem'],['h[óo]tei','viagem'],['f[ée]rias','viagem'],['café','cafe'],['cafe','cafe'],['gin[áa]s','ginasio'],['banco','banco'],['nb','banco'],['frederica','pessoas'],['creche','educacao'],['finis','pessoas'],['desc','imposto'],['irs','imposto'],['imposto','imposto'],['poupan','poupanca'],['obras','casa'],['recheio','casa'],['outros','outros']];
+function guessIcon(nome){const n=(nome||'').toLowerCase();for(const [k,v] of ICON_GUESS){try{if(new RegExp(k).test(n))return v;}catch(e){if(n.includes(k))return v;}}return null;}
+function catIconHtml(c,size){const k=c&&c.icon&&CAT_ICONS[c.icon];const cor=(c&&c.cor)||'var(--acc)';const s=size||26;return k?`<span class="cicon" style="width:${s}px;height:${s}px;background:${cor};color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${k}"/></svg></span>`:`<span class="cicon dotcol" style="width:${s}px;height:${s}px;background:${cor}"></span>`;}
 let _seq=0; const nid=p=>(p||'i')+'_'+Date.now().toString(36)+(_seq++);
 
 let state=null, tab='grelha', ano=2026, gridTipo='despesa';
 let expandedCols=new Set();
+let gridView='',gmOpen=null; // vista da Grelha: ''=auto (lista no telemóvel, tabela no PC) · meses abertos na lista
 function catOptions(tipo,sel){return topCats(tipo).map(c=>{const kids=childrenOf(c.id);if(!kids.length)return `<option value="${c.id}" ${c.id===sel?'selected':''}>${c.nome}</option>`;return `<optgroup label="${c.nome}"><option value="${c.id}" ${c.id===sel?'selected':''}>${c.nome} (geral)</option>${kids.map(k=>`<option value="${k.id}" ${k.id===sel?'selected':''}>— ${k.nome}</option>`).join('')}</optgroup>`;}).join('');}
 
 /* Livro de dívida importado do Excel (folhas anuais, colunas DA = quota dela, TRANSF = o que pagou).
@@ -391,6 +469,7 @@ function load(){
   state.faturaMap = state.faturaMap || {}; // fornecedor (assinatura) -> categoria aprendida
   state.nifMap = state.nifMap || {};       // NIF do emitente (QR) -> categoria aprendida
   state.inbox = state.inbox || [];         // caixa de entrada de faturas lidas por QR (por classificar)
+  state.metas = state.metas || [];         // objetivos de poupança (envelopes)
   // dia do mês de cada despesa fixa (para a previsão de tesouraria do Valete)
   if(!state._recdiaV1){
     const diaDef=nome=>{const n=(nome||'').toLowerCase();if(/cr[ée]dito|presta/.test(n))return 8;if(/seguro|nb|prevoir|mudum/.test(n))return 8;if(/luz|edp/.test(n))return 12;if(/g[áa]s/.test(n))return 12;if(/[áa]gua/.test(n))return 16;if(/telecom|nos/.test(n))return 22;return 8;};
@@ -418,6 +497,7 @@ function load(){
     }
     state._coverflexV1=true;
   }
+  if(!state._iconMig){ (state.categorias||[]).forEach(c=>{ if(!c.icon){ const g=guessIcon(c.nome); if(g)c.icon=g; } }); state._iconMig=true; } // ícones por nome (1×) — depois das migrações que criam categorias
   state.recorrencias=state.recorrencias||[]; state.movimentos=state.movimentos||[]; state.poupancas=state.poupancas||{}; state.orcamentos=state.orcamentos||{};
   if(!state.acerto||!state.acerto.length) state.acerto=clone(EMBED_ACERTO);
   state.forecast=state.forecast||{}; const _anos=[...new Set(state.movimentos.filter(m=>m.tipo==='receita').map(m=>+m.data.slice(0,4)))].sort();
@@ -673,6 +753,24 @@ function vGrelha(m){
   const colTotV=col=>{let s=0;for(let i=0;i<12;i++)s+=colVal(col,i);return s;};
   const rowTot=i=>tops.reduce((a,c)=>a+cellSum(c.id,i),0);
   const grand=tops.reduce((a,c)=>{let s=0;for(let i=0;i<12;i++)s+=cellSum(c.id,i);return a+s;},0);
+  /* vista Lista (um cartão por mês, colapsável) — por defeito no telemóvel; reusa o popover via data-cell */
+  const view=gridView||((window.matchMedia&&window.matchMedia('(max-width:860px)').matches)?'lista':'tabela');
+  if(!gmOpen)gmOpen=new Set([miv]);
+  const gmHtml=()=>`<div class="gm">${MESES.map((nm,i)=>{
+    const tot=rowTot(i), open=gmOpen.has(i), froz=isFrozenMi(ano,i);
+    let body='';
+    if(open){
+      body='<div class="gm-body">'+tops.map(c=>{
+        const kids=childrenOf(c.id), v=cellSum(c.id,i), exp=kids.length&&expandedCols.has(c.id);
+        let bc=''; if(gridTipo==='despesa'&&v>0){const lim=+state.orcamentos[c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}
+        const pend=v&&cellHasPend(c.id,i,true);
+        let h=`<div class="gm-cat${v?'':' z'}${bc}" data-cell="${c.id}|${i}">${catIconHtml(c,24)}<span class="gm-cnm">${esc(c.nome)}</span>${kids.length?`<button class="gm-tog" data-toggle="${c.id}" title="${exp?'Fechar':'Abrir'} sub-categorias">${exp?'▾':'▸'}&nbsp;${kids.length}</button>`:''}<span class="gm-cv">${v?fmtn(v):'—'}${pend?' ⏳':''}</span></div>`;
+        if(exp)kids.forEach(k=>{const kv=directSum(k.id,i);h+=`<div class="gm-cat sub${kv?'':' z'}" data-cell="${k.id}|${i}">${catIconHtml(k,18)}<span class="gm-cnm">${esc(k.nome)}</span><span class="gm-cv">${kv?fmtn(kv):'—'}</span></div>`;});
+        return h;
+      }).join('')+'</div>';
+    }
+    return `<div class="gm-month${i===mi?' now':''}"><button class="gm-head" data-gmmonth="${i}"><span class="gm-chev">${open?'▾':'▸'}</span><span class="gm-nm">${nm}</span><span class="gm-lock">${froz?'🔒':''}</span><span class="gm-tot${tot?(gridTipo==='despesa'?' neg':' pos'):' mut'}">${tot?fmtn(tot):'—'}</span></button>${body}</div>`;
+  }).join('')}<div class="gm-foot"><span>Total ${gridTipo==='despesa'?'despesas':'receitas'} ${ano}</span><b>${fmtn(grand)}</b></div></div>`;
 
   m.innerHTML=`
   <div class="kstrip">
@@ -698,6 +796,10 @@ function vGrelha(m){
       <button class="${gridTipo==='despesa'?'on-out':''}" data-gt="despesa">Despesas</button>
       <button class="${gridTipo==='receita'?'on-in':''}" data-gt="receita">Receitas</button>
     </div>
+    <div class="seg" title="Como mostrar a grelha">
+      <button class="${view==='lista'?'on':''}" data-gview="lista">Lista</button>
+      <button class="${view==='tabela'?'on':''}" data-gview="tabela">Tabela</button>
+    </div>
     <div class="spacer"></div>
     ${gridTipo==='despesa'?`<button class="btn sm" id="genfix">${svg(I.repeat)}Lançar fixas em ${MESES[miv]}</button>`:''}
     ${gridTipo==='despesa'?`<button class="btn sm" id="impFatura">${svg(I.scan)}Importar fatura (PDF)</button><input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple style="display:none">`:''}
@@ -720,10 +822,10 @@ function vGrelha(m){
       <div><span style="color:var(--mut);font-size:12px">Líquido ${ano}</span><div style="font-weight:800;color:var(--in)">${fmt(liq)}</div></div>
     </div>`;})():''}
 
-  <div class="gridwrap">
+  ${view==='lista'?gmHtml():`<div class="gridwrap">
     <table class="grid">
       <thead><tr><th data-droptop="1" title="Arrasta uma categoria para aqui para a tirar do grupo (passar a coluna principal)" style="text-align:left;left:0;position:sticky;z-index:3">Mês</th>
-        ${cols.map(col=>{const c=col.c;const canTog=col.top&&col.kids;const tog=canTog?`<span class="exptog">${col.exp?'▾':'▸'}</span>`:(col.top?'':'<span style="opacity:.4">└</span>');return `<th title="${canTog?(col.exp?'Fechar':'Abrir')+' — '+c.nome:c.nome} (arrasta p/ agrupar · 2 cliques p/ renomear)" draggable="true" data-cat="${c.id}" class="${col.top?'':'subcol'}${canTog?' thtog':''}" ${canTog?`data-toggle="${c.id}"`:''}><span style="display:inline-flex;align-items:center;gap:6px">${tog}<span style="width:8px;height:8px;border-radius:2px;background:${c.cor};display:inline-block"></span>${c.nome}<button class="thedit" data-rencat="${c.id}" title="Renomear">${svg(I.edit)}</button></span></th>`;}).join('')}
+        ${cols.map(col=>{const c=col.c;const canTog=col.top&&col.kids;const tog=canTog?`<span class="exptog">${col.exp?'▾':'▸'}</span>`:(col.top?'':'<span style="opacity:.4">└</span>');return `<th title="${canTog?(col.exp?'Fechar':'Abrir')+' — '+c.nome:c.nome} (arrasta p/ agrupar · 2 cliques p/ renomear)" draggable="true" data-cat="${c.id}" class="${col.top?'':'subcol'}${canTog?' thtog':''}" ${canTog?`data-toggle="${c.id}"`:''}><span style="display:inline-flex;align-items:center;gap:6px">${tog}${catIconHtml(c,17)}${c.nome}<button class="thedit" data-rencat="${c.id}" title="Renomear">${svg(I.edit)}</button></span></th>`;}).join('')}
         <th class="addcol-th" data-newcat="${gridTipo}" title="Adicionar categoria">＋</th>
         <th class="tot">Total</th></tr></thead>
       <tbody>
@@ -736,7 +838,7 @@ function vGrelha(m){
         ${cols.map(col=>`<td class="${col.top?'':'subcol'}">${fmtn(colTotV(col))}</td>`).join('')}
         <td></td><td class="tot">${fmtn(grand)}</td></tr></tfoot>
     </table>
-  </div>
+  </div>`}
 
   <div class="section-h">Resumo mensal ${ano}</div>
   <div class="gridwrap">
@@ -908,6 +1010,67 @@ let poupCont=false;
 let defCatOpen=new Set();
 let defGroupsOpen=new Set(['pessoas']); // secções <details> abertas em Definições (persiste entre renders)
 function contagemTotal(c){return (c||[]).reduce((a,r)=>a+(+r.d)*(parseFloat(r.q)||0),0);}
+/* ===== METAS / objetivos de poupança ===== */
+let _metaId=null,_metaAddId=null;
+function progRing(pct,size,col){
+  const r=42,C=2*Math.PI*r,len=Math.max(0,Math.min(100,pct))/100*C,s=size||106;
+  return `<svg viewBox="0 0 100 100" style="width:${s}px;height:${s}px"><circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--card2)" stroke-width="11"/><circle cx="50" cy="50" r="${r}" fill="none" stroke="${col||'var(--acc)'}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${(C-len).toFixed(1)}" transform="rotate(-90 50 50)"/><text x="50" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="var(--txt)">${Math.round(pct)}%</text></svg>`;
+}
+function metasHtml(){
+  return `<div class="section-h" style="margin-top:22px;display:flex;align-items:center;gap:8px">${svg(I.target)} Objetivos de poupança<div class="spacer"></div><button class="btn sm" data-novameta="1">${svg(I.plus)}Nova meta</button></div>
+  ${(state.metas&&state.metas.length)?`<div class="metagrid">${state.metas.map(g=>{const alvo=+g.alvo||0,guard=+g.guardado||0;const pct=alvo>0?Math.min(100,Math.round(guard/alvo*100)):0;const falta=round2(alvo-guard);return `<div class="meta-card">
+    <div class="meta-ring">${progRing(pct,72,g.cor||'var(--acc)')}</div>
+    <div class="meta-body">
+      <div class="meta-nm"><span class="dot" style="background:${g.cor||'var(--acc)'}"></span>${esc(g.nome||'Objetivo')}</div>
+      <div class="meta-amt"><b>${fmt0(guard)}</b> de ${fmt0(alvo)}</div>
+      <div class="meta-sub">${falta<=0?`<span class="pos">Objetivo atingido 🎉</span>`:`Faltam ${fmt0(falta)}`}</div>
+      <div class="meta-actions"><button class="btn sm" data-metaadd="${g.id}">${svg(I.plus)}Reforçar</button><button class="iconbtn" data-metaedit="${g.id}" title="Editar">${svg(I.edit)}</button><button class="iconbtn" data-metadel="${g.id}" title="Eliminar">${svg(I.trash)}</button></div>
+    </div></div>`;}).join('')}</div>`:`<div class="card" style="padding:18px;text-align:center;color:var(--mut)">Sem objetivos. Cria metas (Férias, Fundo de emergência, Carro…) e acompanha o progresso. <button class="btn sm" data-novameta="1" style="margin-top:8px">${svg(I.plus)}Criar a primeira</button></div>`}`;
+}
+function openMeta(id){
+  const g=id?(state.metas||[]).find(x=>x.id===id):null; _metaId=id||null;
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.target)} ${g?'Editar objetivo':'Novo objetivo'} <button class="close" data-close="1">&times;</button></h2>
+  <div class="body">
+    <div><label>Nome</label><input id="mtNome" type="text" maxlength="40" placeholder="ex: Férias, Fundo de emergência, Carro" value="${g?esc(g.nome||''):''}"></div>
+    <div class="f2">
+      <div><label>Objetivo (€)</label><input id="mtAlvo" type="number" step="1" inputmode="decimal" placeholder="ex: 3000" value="${g?(g.alvo||''):''}"></div>
+      <div><label>Já guardado (€)</label><input id="mtGuard" type="number" step="0.01" inputmode="decimal" placeholder="0,00" value="${g?(g.guardado||''):''}"></div>
+    </div>
+    <div><label>Cor</label><div class="metacols">${PALETTE.slice(0,8).map(c=>`<button type="button" class="metacol${(g?g.cor:PALETTE[0])===c?' on':''}" data-metacol="${c}" style="background:${c}"></button>`).join('')}</div><input type="hidden" id="mtCor" value="${g?(g.cor||PALETTE[0]):PALETTE[0]}"></div>
+    <div class="hint">Acompanhas o progresso com um anel. Usa <b>Reforçar</b> no cartão para somar contribuições.</div>
+  </div>
+  <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Cancelar</button><button class="btn primary" id="saveMeta">${svg(I.check)}Guardar</button></div></div>`;
+  openBack();
+}
+function saveMeta(){
+  const nome=val('mtNome').trim(); const alvo=Math.abs(parseFloat(val('mtAlvo'))||0); const guardado=Math.abs(parseFloat(val('mtGuard'))||0); const cor=val('mtCor')||PALETTE[0];
+  if(!nome){toast('Dá um nome ao objetivo');return;}
+  if(!alvo){toast('Indica o valor do objetivo');return;}
+  state.metas=state.metas||[];
+  if(_metaId){ const g=state.metas.find(x=>x.id===_metaId); if(g){g.nome=nome;g.alvo=alvo;g.guardado=guardado;g.cor=cor;} }
+  else { state.metas.push({id:nid('mt'),nome,alvo,guardado,cor}); }
+  save(); closeBack(); render(); toast('Guardado'); _metaId=null;
+}
+function openMetaAdd(id){
+  const g=(state.metas||[]).find(x=>x.id===id); if(!g)return; _metaAddId=id;
+  const alvo=+g.alvo||0,guard=+g.guardado||0,falta=round2(alvo-guard);
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.plus)} ${esc(g.nome)} <button class="close" data-close="1">&times;</button></h2>
+  <div class="body">
+    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--bg2);border-radius:11px;padding:11px 14px;box-shadow:inset 0 0 0 1px var(--line)">
+      <span style="color:var(--mut)">Guardado</span><b style="font-size:18px">${fmt(guard)} <span style="color:var(--mut);font-weight:600;font-size:13px">de ${fmt0(alvo)}</span></b></div>
+    <div><label>Valor</label><input id="mtAddVal" type="number" step="0.01" inputmode="decimal" placeholder="${falta>0?fmt0(falta).replace(/[^\d.,]/g,''):'0,00'}" autofocus></div>
+    <div class="hint">Reforçar soma ao objetivo; retirar subtrai (ex.: se mobilizaste o dinheiro).</div>
+  </div>
+  <div class="foot"><button class="btn danger" id="metaSub">${svg(I.minus)}Retirar</button><div class="spacer"></div><button class="btn" data-close="1">Cancelar</button><button class="btn primary" id="metaAdd">${svg(I.plus)}Reforçar</button></div></div>`;
+  openBack();
+}
+function saveMetaAdd(sign){
+  const g=(state.metas||[]).find(x=>x.id===_metaAddId); if(!g)return;
+  const v=Math.abs(parseFloat(val('mtAddVal'))||0); if(!v){toast('Indica o valor');return;}
+  g.guardado=Math.max(0,round2((+g.guardado||0)+sign*v));
+  save(); closeBack(); render(); toast(sign>0?'Reforço registado':'Valor retirado'); _metaAddId=null;
+}
+function delMeta(id){ const g=(state.metas||[]).find(x=>x.id===id); if(!g)return; if(!confirm('Eliminar o objetivo "'+(g.nome||'')+'"?'))return; state.metas=state.metas.filter(x=>x.id!==id); save(); render(); toast('Objetivo eliminado'); }
 function vPoupancas(m){
   const p = state.poupancas[ano] || {contas:[],contagem:[]};
   const cont = p.contagem||[];
@@ -944,6 +1107,8 @@ function vPoupancas(m){
   </div>
   ${hasDisc?`<div class="hint" style="margin-top:10px;border-left:3px solid var(--warn)">Gastaste <b>${fmt(saidas)}</b> em dinheiro (💵) desde a última contagem. O <b>Esperado</b> mostra quanto deverá estar no Cofre. Quando recontares, acerta as quantidades na "Contagem do Cofre" (ou carrega em <b>recontei</b>) para limpar o aviso.</div>`:''}
   <button class="btn sm" data-poupadd="${ano}" style="margin-top:12px">${svg(I.plus)}Adicionar conta</button>
+
+  ${metasHtml()}
 
   <div class="section-h" style="display:flex;align-items:center;gap:8px;cursor:pointer" data-poupcont="1">
     <span class="exptog">${poupCont?'▾':'▸'}</span> Contagem do Cofre · notas e moedas ${cont.length?`(${fmt(cofre)}, dos quais ${fmt(moedas)} em moedas)`:''}${hasDisc?` <span style="color:var(--warn);font-weight:600">· esperado ${fmt(esperado)}</span>`:''}
@@ -1305,7 +1470,25 @@ function vDefs(m){
   </div>
   <div class="foot-credit">CASA · Finanças — app local (dados neste dispositivo). Feito para o Diogo Vale.</div>`;
 }
-function catRow(c,child,lead,badge){return `<div class="catedit" style="${child?'padding-left:24px':''}">${child?'<span style="opacity:.4;margin-right:-2px">└</span>':(lead||'<span style="width:18px;display:inline-block;flex:none"></span>')}<span class="dot" style="background:${c.cor}"></span><input class="pinp" value="${esc(c.nome)}" data-catname="${c.id}">${badge||''}${!child?`<button class="iconbtn" data-newsub="${c.id}" title="Adicionar sub-categoria">${svg(I.plus)}</button>`:''}<button class="iconbtn" data-movecat="${c.id}" title="Mover / re-aninhar">${svg(I.move)}</button><button class="iconbtn" data-delcat="${c.id}">${svg(I.trash)}</button></div>`;}
+function catRow(c,child,lead,badge){return `<div class="catedit" style="${child?'padding-left:24px':''}">${child?'<span style="opacity:.4;margin-right:-2px">└</span>':(lead||'<span style="width:18px;display:inline-block;flex:none"></span>')}<button class="cicon ${c.icon&&CAT_ICONS[c.icon]?'':'dotcol'}" data-caticon="${c.id}" title="Escolher ícone e cor" style="width:28px;height:28px;background:${c.cor};color:#fff">${c.icon&&CAT_ICONS[c.icon]?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${CAT_ICONS[c.icon]}"/></svg>`:''}</button><input class="pinp" value="${esc(c.nome)}" data-catname="${c.id}">${badge||''}${!child?`<button class="iconbtn" data-newsub="${c.id}" title="Adicionar sub-categoria">${svg(I.plus)}</button>`:''}<button class="iconbtn" data-movecat="${c.id}" title="Mover / re-aninhar">${svg(I.move)}</button><button class="iconbtn" data-delcat="${c.id}">${svg(I.trash)}</button></div>`;}
+function openCatIcon(catId){
+  const c=cat(catId); if(!c)return; const cols=PALETTE.slice(0,8);
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.cat)} Ícone & cor <button class="close" data-close="1">&times;</button></h2>
+  <div class="body">
+    <div style="display:flex;align-items:center;gap:12px">${catIconHtml(c,46)}<div style="min-width:0"><div style="font-weight:700">${esc(c.nome)}</div><div class="dsub" style="margin:0">Escolhe a cor e um ícone.</div></div></div>
+    <label style="margin-top:10px">Cor</label>
+    <div class="metacols">${cols.map(col=>`<button type="button" class="metacol${c.cor===col?' on':''}" data-caticoncol="${catId}|${col}" style="background:${col}"></button>`).join('')}</div>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:9px;flex-wrap:wrap">
+      <input type="color" id="catColPick" data-cat="${catId}" value="${/^#[0-9a-fA-F]{6}$/.test(c.cor||'')?c.cor:'#7aa183'}" title="Roda de cores" style="width:48px;height:38px;padding:2px">
+      <input type="text" id="catColHex" data-cat="${catId}" value="${esc(c.cor||'')}" maxlength="7" placeholder="#RRGGBB" style="max-width:120px">
+      <span class="dsub" style="margin:0">roda de cores ou código #RRGGBB</span>
+    </div>
+    <label style="margin-top:12px">Ícone</label>
+    <div class="iconpick"><button class="${!c.icon?'on':''}" data-caticonpick="${catId}|" title="Sem ícone (só cor)"><span class="cicon dotcol" style="width:15px;height:15px;background:${c.cor}"></span></button>${Object.keys(CAT_ICONS).map(k=>`<button class="${c.icon===k?'on':''}" data-caticonpick="${catId}|${k}" title="${k}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${CAT_ICONS[k]}"/></svg></button>`).join('')}</div>
+  </div>
+  <div class="foot"><div class="spacer"></div><button class="btn primary" data-close="1">${svg(I.check)}Concluir</button></div></div>`;
+  openBack();
+}
 function catTree(tipo){return topCats(tipo).map(c=>{
   const kids=childrenOf(c.id); const open=defCatOpen.has(c.id);
   const lead = kids.length? `<button class="iconbtn" data-defcatopen="${c.id}" style="padding:2px;flex:none" title="${open?'Fechar':'Abrir'} (${kids.length})">${open?'▾':'▸'}</button>` : '<span style="width:18px;display:inline-block;flex:none"></span>';
@@ -1337,6 +1520,8 @@ document.addEventListener('click',e=>{
   if(d.tab){tab=d.tab;closePop();render();return;}
   if(d.year){ano+=+d.year;render();return;}
   if(d.gt){gridTipo=d.gt;render();return;}
+  if(d.gview){gridView=d.gview;render();return;}
+  if(d.gmmonth!=null){const _i=+d.gmmonth;gmOpen.has(_i)?gmOpen.delete(_i):gmOpen.add(_i);render();return;}
   if(d.acexpand){const led=acertoLedger();acAnosOpen=new Set(led.map(r=>+r.ym.slice(0,4)));render();return;}
   if(d.accollapse){acAnosOpen=new Set();render();return;}
   if(t.id==='acCsv'){expAcertoCSV();return;}
@@ -1355,6 +1540,17 @@ document.addEventListener('click',e=>{
   if(d.cenario){ const c=CENARIOS[d.cenario]; if(c){ state.forecast.gRec=c.gRec; state.forecast.gDesp=c.gDesp; state.forecast.juro=c.juro; save(); render(); } return; }
   if(t.id==='fcExport'){ expForecast(); return; }
   if(t.id==='fcInflReal'){ const r=inflacaoHistorica(); if(r!=null){state.forecast.gDesp=r;save();render();} return; }
+  if(d.caticon){ openCatIcon(d.caticon); return; }
+  if(d.caticonpick!=null){ const [id,k]=d.caticonpick.split('|'); const c=cat(id); if(c){ if(k&&CAT_ICONS[k])c.icon=k; else delete c.icon; save(); render(); openCatIcon(id); } return; }
+  if(d.caticoncol!=null){ const [id,col]=d.caticoncol.split('|'); const c=cat(id); if(c){ c.cor=col; save(); render(); openCatIcon(id); } return; }
+  if(d.novameta!=null){openMeta('');return;}
+  if(d.metaedit){openMeta(d.metaedit);return;}
+  if(d.metaadd){openMetaAdd(d.metaadd);return;}
+  if(d.metadel){delMeta(d.metadel);return;}
+  if(d.metacol){const hid=document.getElementById('mtCor');if(hid){hid.value=d.metacol;document.querySelectorAll('#back .metacol').forEach(b=>b.classList.toggle('on',b.dataset.metacol===d.metacol));}return;}
+  if(t.id==='saveMeta'){saveMeta();return;}
+  if(t.id==='metaAdd'){saveMetaAdd(1);return;}
+  if(t.id==='metaSub'){saveMetaAdd(-1);return;}
   if(d.superflag){ const c=cat(d.superflag); if(c){c.superfluo=!c.superfluo; save(); render();} return; }
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
@@ -1424,6 +1620,8 @@ document.addEventListener('change',e=>{
   if(e.target.id==='fotoIn'&&e.target.files[0]){processFotoFatura(e.target.files[0]);e.target.value='';}
   if(e.target.dataset&&(e.target.dataset.recchk!=null||e.target.dataset.reccat!=null)){recLiveSync();return;}
   if(e.target.dataset&&e.target.dataset.catname!=null){const c=cat(e.target.dataset.catname);if(c){c.nome=e.target.value.trim()||c.nome;save();}}
+  if(e.target.id==='catColPick'){const c=cat(e.target.dataset.cat);if(c){c.cor=e.target.value;save();render();openCatIcon(e.target.dataset.cat);}return;}
+  if(e.target.id==='catColHex'){const v=e.target.value.trim();if(/^#?[0-9a-fA-F]{6}$/.test(v)){const c=cat(e.target.dataset.cat);if(c){c.cor=(v[0]==='#'?v:'#'+v);save();render();openCatIcon(e.target.dataset.cat);}}else{toast('Cor inválida (usa #RRGGBB)');}return;}
   if(e.target.dataset&&e.target.dataset.recval!=null){const r=state.recorrencias.find(x=>x.id===e.target.dataset.recval);if(r){r.valor=parseFloat(e.target.value)||0;save();render();}}
   if(e.target.dataset&&e.target.dataset.recdia!=null){const r=state.recorrencias.find(x=>x.id===e.target.dataset.recdia);if(r){r.dia=Math.min(28,Math.max(1,parseInt(e.target.value)||8));save();render();}}
   const ds=e.target.dataset||{};
@@ -1603,7 +1801,7 @@ function saveNewCat(){
   const tipo=document.getElementById('ncTipo').value;
   const parent=val('ncParent')||null;
   const ord=catsOf(tipo).length;
-  const id=nid('c'); state.categorias.push({id,nome,tipo,parent,fixa:false,cor:PALETTE[state.categorias.length%PALETTE.length],ordem:ord});
+  const id=nid('c'); const _ic=guessIcon(nome); state.categorias.push(Object.assign({id,nome,tipo,parent,fixa:false,cor:PALETTE[state.categorias.length%PALETTE.length],ordem:ord},_ic?{icon:_ic}:{}));
   const fx=document.getElementById('ncFixa');
   if(fx&&fx.checked){state.recorrencias.push({id:nid('r'),nome,categoriaId:id,valor:0,dia:8,pagador:P()[0].id,ativo:true});}
   save();closeBack();render();toast('Categoria criada');
