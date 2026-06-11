@@ -1,7 +1,7 @@
 {
   "name": "CASA · Finanças",
   "short_name": "CASA",
-  "start_url": "CASA.html",
+  "start_url": "index.html",
   "scope": "./",
   "display": "standalone",
   "orientation": "portrait",
