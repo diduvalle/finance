@@ -1659,7 +1659,10 @@ document.addEventListener('change',e=>{
 });
 // close popover when clicking outside
 document.addEventListener('mousedown',e=>{ if(popCell && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); const ap=document.getElementById('alertPanel'); if(ap&&ap.classList.contains('on')&&!e.target.closest('#alertPanel')&&!e.target.closest('#bell')) ap.classList.remove('on'); });
-window.addEventListener('resize',()=>closePop());
+/* fechar popover ao redimensionar — só quando muda a LARGURA (rotação/janela);
+   ignora mudanças só de altura (teclado virtual no telemóvel, que senão fechava o popover ao focar o input) */
+let _popWinW=window.innerWidth;
+window.addEventListener('resize',()=>{ if(window.innerWidth!==_popWinW){ _popWinW=window.innerWidth; closePop(); } });
 
 /* ---- drag & drop de colunas (agrupar/desagrupar) + renomear ---- */
 let dragCat=null;
