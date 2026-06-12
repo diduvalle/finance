@@ -262,6 +262,11 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .pe{display:flex;align-items:center;gap:8px;font-size:12.5px;background:var(--card2);border-radius:7px;padding:6px 9px}
 .pe .x{margin-left:auto;cursor:pointer;color:var(--mut);background:none;border:0;font-size:13px;line-height:1;padding:2px 4px;border-radius:5px}
 .pe .x:hover{color:var(--out);background:var(--card)}
+.pe-ed{gap:6px}
+.pe-ed input{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-size:12.5px;color:var(--txt);min-width:0}
+.pe-ed .pe-ed-val{width:84px;flex:none;font-variant-numeric:tabular-nums}
+.pe-ed .pe-ed-nota{flex:1}
+.pe-ed .x.ok{color:var(--acc)}
 .pop .popt{display:flex;gap:6px;margin-bottom:9px}
 .pop .popt select{flex:1;padding:6px 8px;font-size:12px}
 .pempty{color:var(--mut);font-size:12px;text-align:center;padding:8px}
@@ -872,6 +877,7 @@ function vGrelha(m){
 
 /* ----- cell popover ----- */
 let popCell=null;
+let popEditId=null; // id do lançamento em edição inline no popover (null = nenhum)
 function openCellPop(catId,mi,anchor){
   popCell={catId,mi};
   const c=cat(catId), kids=childrenOf(catId);
@@ -886,7 +892,7 @@ function openCellPop(catId,mi,anchor){
       <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'− valor (desconto)':'+ valor'}" autofocus>${c.tipo==='despesa'?`<button class="btn" id="pAddCash" title="Pagar em dinheiro (Cofre)">${svg(I.cash)}</button>`:''}<button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
       <input id="pNota" type="text" maxlength="80" placeholder="nota (opcional)" style="width:100%;margin-top:6px">
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
-      <div class="plist">${movs.length?movs.map(mo=>`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?' 💵':''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)">⏳ agendado (ainda não cobrado)</span>`:''}</span>${frozen?'':`<button class="x" data-movmov="${mo.id}" title="Mudar de categoria" style="margin-right:2px">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
+      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?' 💵':''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)">⏳ agendado (ainda não cobrado)</span>`:''}</span>${frozen?'':`<button class="x" data-editmov="${mo.id}" title="Editar valor/nota" style="margin-right:2px">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
     </div>`;
   pop.classList.add('on');
   // position near anchor
@@ -895,9 +901,9 @@ function openCellPop(catId,mi,anchor){
   if(left+pw>window.innerWidth-10) left=window.innerWidth-pw-10;
   if(top+ph>window.innerHeight-10) top=Math.max(10,r.top-ph-6);
   pop.style.left=left+'px'; pop.style.top=top+'px';
-  setTimeout(()=>{const v=document.getElementById('pVal');if(v)v.focus();},30);
+  setTimeout(()=>{const v=document.getElementById(popEditId?'peEditVal':'pVal');if(v){v.focus();if(popEditId&&v.select)v.select();}},30);
 }
-function closePop(){const p=document.getElementById('pop');p.classList.remove('on');popCell=null;}
+function closePop(){const p=document.getElementById('pop');p.classList.remove('on');popCell=null;popEditId=null;}
 /* mudar a categoria de UM movimento, sem o apagar+relançar (mantém valor, mês e saldo).
    Para o mês atual reaplica o Valete na conta certa (trata Coverflex/descontos); no passado é neutro. */
 let _moveMovId=null;
@@ -937,6 +943,22 @@ function popAdd(cash){
   // reopen popover on same cell to keep adding
   const anchor=document.querySelector(`[data-cell="${cell.catId}|${cell.mi}"]`);
   if(anchor) openCellPop(cell.catId,cell.mi,anchor);
+}
+/* reabre o popover na mesma célula (usado após editar/cancelar) */
+function reopenPop(){const pc=popCell;if(!pc)return;const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`);if(an)openCellPop(pc.catId,pc.mi,an);}
+/* guardar a edição inline de um lançamento (valor e nota) */
+function saveEditMov(id){
+  const mv=state.movimentos.find(x=>x.id===id);
+  if(!mv){popEditId=null;reopenPop();return;}
+  if(isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado — leitura apenas');popEditId=null;reopenPop();return;}
+  const el=document.getElementById('peEditVal'); const nv=parseFloat(el?el.value:NaN);
+  if(isNaN(nv)||nv===0){if(el)el.focus();return;}
+  const hadAdj=!!mv.vAdj;                 // só os lançamentos feitos na app mexem no Valete
+  if(hadAdj) reverteValete(mv);           // tira o efeito antigo
+  mv.valor=valorComSinal(mv.categoriaId,mv.tipo,nv); // reaplica o sinal (descontos de receita)
+  mv.nota=val('peEditNota');
+  if(hadAdj) aplicaValete(mv);            // reaplica com o novo valor
+  popEditId=null; save(); render(); reopenPop(); toast('Lançamento atualizado');
 }
 
 /* ================= ACERTO / DÍVIDA ================= */
@@ -1534,7 +1556,7 @@ document.addEventListener('click',e=>{
   const delHead=e.target.closest('.delcol[data-delcat]');
   if(delHead){ delCat(delHead.dataset.delcat); return; }
   const cellTd=e.target.closest('[data-cell]');
-  if(cellTd){ openCellPop(...cellTd.dataset.cell.split('|').map((v,i)=>i?+v:v), cellTd); return; }
+  if(cellTd){ popEditId=null; openCellPop(...cellTd.dataset.cell.split('|').map((v,i)=>i?+v:v), cellTd); return; }
   if(!t) return;
   const d=t.dataset;
   if(d.tab){tab=d.tab;closePop();render();return;}
@@ -1546,6 +1568,9 @@ document.addEventListener('click',e=>{
   if(d.accollapse){acAnosOpen=new Set();render();return;}
   if(t.id==='acCsv'){expAcertoCSV();return;}
   if(d.delmov){const mv=state.movimentos.find(x=>x.id===d.delmov);if(mv&&isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado — não pode ser apagado');return;}if(mv&&!confirm('Apagar este movimento?\n'+catName(mv.categoriaId)+' · '+fmt(Math.abs(mv.valor))+' · '+mv.data))return;reverteValete(mv);state.movimentos=state.movimentos.filter(x=>x.id!==d.delmov);save();const pc=popCell;render();if(pc){const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`);if(an)openCellPop(pc.catId,pc.mi,an);}return;}
+  if(d.editmov){ popEditId=d.editmov; reopenPop(); return; }
+  if(d.editsave){ saveEditMov(d.editsave); return; }
+  if(d.editcancel){ popEditId=null; reopenPop(); return; }
   if(d.delcat){delCat(d.delcat);return;}
   if(d.newcat){openNewCat(d.newcat);return;}
   if(d.newsub){const pc=cat(d.newsub);openNewCat(pc.tipo,d.newsub);return;}
