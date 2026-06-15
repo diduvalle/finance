@@ -1483,6 +1483,7 @@ function vDefs(m){
           <select data-pvcat="${p.id}" title="Categoria">${p.catId?'':'<option value="" selected>— categoria —</option>'}${catOptions('despesa',p.catId)}</select>
           <select data-pvsrc="${p.id}" title="Fonte"><option value="pdf" ${p.source!=='body'?'selected':''}>📎 PDF</option><option value="body" ${p.source==='body'?'selected':''}>✉ corpo</option></select>
           <span style="color:var(--mut);font-size:11px">${p.n||0} imp.${p.last?' · '+fmt(p.last.total):''}</span>
+          <button class="iconbtn" data-pvtest="${p.id}" title="Procurar e ler o último email deste remetente (validar)">${svg(I.scan)}</button>
           <button class="btn sm ${p.auto?'primary':''}" data-pvauto="${p.id}" title="${p.auto?'Auto-lançar ativo (clica para desligar)':'Ativar auto-lançar na grelha'}">${p.auto?'Auto ✓':'Auto'}</button>
           <button class="iconbtn" data-pvdel="${p.id}" title="Esquecer este fornecedor">${svg(I.trash)}</button>
         </div>`).join('')}
@@ -1725,6 +1726,7 @@ document.addEventListener('click',e=>{
   if(d.pvadd){const f=(val('pvFrom')||'').trim().toLowerCase();if(!f){toast('Indica o remetente (email/domínio)');return;}if(findProvider(f)){toast('Já existe um fornecedor com esse remetente');return;}const c=(document.getElementById('pvCat')||{}).value;const lbl=(val('pvLabel')||'').trim()||f;const src=(document.getElementById('pvSource')||{}).value||'pdf';state.providers=state.providers||[];state.providers.push({id:nid('pv'),label:lbl,from:f,catId:c,auto:false,source:src,n:0,last:null});save();render();toast('Fornecedor adicionado: '+lbl);return;}
   if(d.pvseed){state.providers=state.providers||[];let n=0;SUGGESTED_PROVIDERS.forEach(s=>{if(findProvider(s.from))return;const c=findCatByName(s.cat);state.providers.push({id:nid('pv'),label:s.label,from:s.from,catId:c?c.id:null,auto:false,source:s.source||'pdf',n:0,last:null});n++;});save();render();toast(n?n+' fornecedor(es) adicionados — confirma a categoria/fonte e liga o Auto':'Já tinhas todos os sugeridos');return;}
   if(d.pvdetect){mailDetectSenders();return;}
+  if(d.pvtest){mailTestProvider(d.pvtest);return;}
   if(d.pvadddet!=null){const s=_detSenders[+d.pvadddet];if(s){state.providers=state.providers||[];if(!findProvider(s.dom)){state.providers.push({id:nid('pv'),label:s.name||s.dom,from:s.dom,catId:null,auto:false,source:'pdf',n:0,last:null});save();}render();mailSendersModal();toast('Ligado: '+(s.name||s.dom)+' — escolhe a categoria na lista');}return;}
   if(d.mailtest){const txt=val('mailTestText');const out=document.getElementById('mailTestOut');if(!txt){if(out)out.textContent='Cola algum texto primeiro.';return;}const pf=parseFatura(txt);if(out)out.innerHTML=(pf&&pf.total!=null)?`Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''}${pf.forn?' · '+esc(pf.forn):''} → ${pf.catId?esc(catName(pf.catId)):'(sem categoria detetada)'}`:'Não detetei um valor. Cola mais texto (incl. a linha do total/valor a pagar).';return;}
   if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
@@ -2942,6 +2944,39 @@ function mailSendersModal(){
     ${ex?`<span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">já ligado: ${esc(ex.label||ex.from)}</span>`:`<button class="btn sm" data-pvadddet="${i}">${svg(I.plus)}Adicionar</button>`}
   </div>`}).join(''):'<div class="pempty" style="padding:18px">Nenhum remetente com PDF encontrado no último ano.</div>'}
   </div><div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
+  openBack();
+}
+/* validar um fornecedor: procura o último email desse remetente, lê (PDF/corpo) e mostra o que deteta */
+async function mailTestProvider(id){
+  const p=(state.providers||[]).find(x=>x.id===id); if(!p)return;
+  if(!p.from){toast('Define o remetente primeiro');return;}
+  let token; try{ token=await gmailToken(); }catch(e){ toast('Gmail: '+(e.message||'cancelado')); return; }
+  if(!token)return; toast('A procurar emails de '+(p.label||p.from)+'…');
+  const gh={'Authorization':'Bearer '+token};
+  try{
+    const q='from:('+p.from+') newer_than:365d'+(p.source==='body'?'':' has:attachment filename:pdf');
+    const lr=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=1&q='+encodeURIComponent(q),{headers:gh})).json();
+    if(lr.error)throw new Error(lr.error.message||'erro Gmail');
+    const msgs=lr.messages||[]; if(!msgs.length){ mailTestResultModal(p,{found:false}); return; }
+    const msg=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+msgs[0].id+'?format=full',{headers:gh})).json();
+    const hdr=(n)=>(((msg.payload&&msg.payload.headers)||[]).find(h=>(h.name||'').toLowerCase()===n)||{}).value||'';
+    const subject=hdr('subject'); const part=_findPdfPart(msg.payload); const useBody=(p.source==='body')||!part;
+    let pf=null;
+    if(useBody){ const txt=(_getEmailText(msg.payload)+' '+subject).trim(); if(txt)pf=parseFatura(txt); }
+    else if(part){ const att=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+msgs[0].id+'/attachments/'+part.body.attachmentId,{headers:gh})).json(); pf=parseFatura(await extractPdfText(_b64urlToBlob(att.data,'application/pdf'))); }
+    mailTestResultModal(p,{found:true,subject,via:useBody?'corpo do email':'PDF anexo',pf});
+  }catch(e){ toast('Falha no teste: '+(e.message||e)); }
+}
+function mailTestResultModal(p,r){
+  let body;
+  if(!r.found){ body=`<div class="pempty" style="padding:18px">Não encontrei emails de <b>${esc(p.from)}</b> nos últimos 12 meses${p.source!=='body'?' com PDF anexo':''}.<br>Confirma o remetente${p.source!=='body'?' ou muda a fonte para ✉ corpo':''}.</div>`; }
+  else { const pf=r.pf;
+    body=`<div class="hint" style="border-left:3px solid var(--acc)">Último email encontrado (lido via <b>${r.via}</b>):<br><span style="color:var(--mut)">${esc(r.subject||'(sem assunto)')}</span></div>
+    ${(pf&&pf.total!=null)?`<div style="font-size:15px;margin-top:12px">Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''} → ${p.catId?esc(catName(p.catId)):(pf.catId?esc(catName(pf.catId)):'(sem categoria — escolhe na lista)')}</div><p class="dsub" style="margin-top:8px">Parece bem? Então este fornecedor está pronto — liga o <b>Auto</b> na lista.</p>`:`<div style="margin-top:12px;color:var(--warn)">Encontrei o email mas não detetei o valor.${p.source!=='body'?' Experimenta mudar a fonte para ✉ corpo do email.':' Verifica se o valor aparece no texto.'}</div>`}`;
+  }
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scan)} Testar ${esc(p.label||p.from)} <button class="close" data-close="1">&times;</button></h2>
+  <div class="body">${body}</div>
+  <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
   openBack();
 }
 /* shared: a importação automática é "devida" hoje? (1×/dia, a partir da hora preferida, com rede de segurança >34h) */
