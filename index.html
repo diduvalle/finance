@@ -1468,6 +1468,14 @@ function vDefs(m){
       ${(state.providers&&state.providers.length)?`<div style="margin-top:16px">
         <label>Fornecedores aprendidos</label>
         <p class="dsub" style="margin-top:2px">Liga <b>Auto</b> para esse fornecedor passar a entrar direto na grelha (depois de validares as primeiras). Sem Auto, vai à Caixa de entrada para confirmares.</p>
+        <div class="catedit" style="padding:2px 0;gap:6px;flex-wrap:wrap;font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px">
+          <span class="dot" style="visibility:hidden"></span>
+          <span style="flex:1 1 90px;min-width:80px">Etiqueta</span>
+          <span style="flex:1 1 110px;min-width:90px">Remetente</span>
+          <span style="min-width:120px">Categoria</span>
+          <span style="min-width:70px">Fonte</span>
+          <span style="flex:1 1 60px">Auto / apagar</span>
+        </div>
         ${state.providers.map(p=>`<div class="catedit" style="padding:8px 0;gap:6px;flex-wrap:wrap;align-items:center">
           <span class="dot" style="background:${cat(p.catId)?cat(p.catId).cor:'#888'}"></span>
           <input value="${esc(p.label||'')}" data-pvlabel="${p.id}" placeholder="etiqueta" style="flex:1 1 90px;min-width:80px" title="Etiqueta">
@@ -1489,7 +1497,11 @@ function vDefs(m){
           <div><label style="font-size:11px;color:var(--mut)">Fonte</label><select id="pvSource"><option value="pdf">PDF anexo</option><option value="body">Corpo do email</option></select></div>
           <button class="btn sm" data-pvadd="1" style="height:38px">${svg(I.plus)}Adicionar</button>
         </div>
-        <button class="btn sm" data-pvseed="1" style="margin-top:10px">${svg(I.plus)}Sugerir conhecidos (NOS, Endesa, Gascan, Inframoura, seguros…)</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+          <button class="btn sm" data-pvseed="1">${svg(I.plus)}Sugerir conhecidos</button>
+          <button class="btn sm" data-pvdetect="1">${svg(I.scan)}Detetar remetentes do Gmail</button>
+        </div>
+        <p class="dsub" style="margin-top:6px">"Detetar" lê os remetentes reais dos teus emails com PDF (último ano) e deixa-te ligá-los — para teres o endereço exato.</p>
       </div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
         <label>Testar leitura</label>
@@ -1712,6 +1724,8 @@ document.addEventListener('click',e=>{
   if(t.id==='mailImport'){state.mailCfg=Object.assign({},state.mailCfg,{from:val('mailFrom'),since:val('mailSince')||isoToday()});save();mailImport();return;}
   if(d.pvadd){const f=(val('pvFrom')||'').trim().toLowerCase();if(!f){toast('Indica o remetente (email/domínio)');return;}if(findProvider(f)){toast('Já existe um fornecedor com esse remetente');return;}const c=(document.getElementById('pvCat')||{}).value;const lbl=(val('pvLabel')||'').trim()||f;const src=(document.getElementById('pvSource')||{}).value||'pdf';state.providers=state.providers||[];state.providers.push({id:nid('pv'),label:lbl,from:f,catId:c,auto:false,source:src,n:0,last:null});save();render();toast('Fornecedor adicionado: '+lbl);return;}
   if(d.pvseed){state.providers=state.providers||[];let n=0;SUGGESTED_PROVIDERS.forEach(s=>{if(findProvider(s.from))return;const c=findCatByName(s.cat);state.providers.push({id:nid('pv'),label:s.label,from:s.from,catId:c?c.id:null,auto:false,source:s.source||'pdf',n:0,last:null});n++;});save();render();toast(n?n+' fornecedor(es) adicionados — confirma a categoria/fonte e liga o Auto':'Já tinhas todos os sugeridos');return;}
+  if(d.pvdetect){mailDetectSenders();return;}
+  if(d.pvadddet!=null){const s=_detSenders[+d.pvadddet];if(s){state.providers=state.providers||[];if(!findProvider(s.dom)){state.providers.push({id:nid('pv'),label:s.name||s.dom,from:s.dom,catId:null,auto:false,source:'pdf',n:0,last:null});save();}render();mailSendersModal();toast('Ligado: '+(s.name||s.dom)+' — escolhe a categoria na lista');}return;}
   if(d.mailtest){const txt=val('mailTestText');const out=document.getElementById('mailTestOut');if(!txt){if(out)out.textContent='Cola algum texto primeiro.';return;}const pf=parseFatura(txt);if(out)out.innerHTML=(pf&&pf.total!=null)?`Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''}${pf.forn?' · '+esc(pf.forn):''} → ${pf.catId?esc(catName(pf.catId)):'(sem categoria detetada)'}`:'Não detetei um valor. Cola mais texto (incl. a linha do total/valor a pagar).';return;}
   if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
   if(d.pvdel){const p=(state.providers||[]).find(x=>x.id===d.pvdel);if(p&&confirm('Esquecer o fornecedor "'+(p.label||p.from)+'"? (as faturas já lançadas mantêm-se)')){state.providers=state.providers.filter(x=>x.id!==d.pvdel);save();render();}return;}
@@ -2899,6 +2913,36 @@ async function mailImport(silent){
     if(silent){ if(added||auto)toast(`Email: ${added} p/ rever${auto?' · '+auto+' auto-lançadas':''}`); }
     else { toast(`Gmail: ${added} p/ rever${auto?' · '+auto+' auto-lançadas':''} · ${dup} repetidas`+(skip?` · ${skip} ignoradas`:'')); if(added)openInbox(); }
   }catch(e){ if(!silent)toast('Falha no Gmail: '+(e.message||e)); }
+}
+/* deteta os remetentes reais dos emails com PDF (último ano) p/ o utilizador ligar fornecedores */
+let _detSenders=[];
+async function mailDetectSenders(){
+  let token; try{ token=await gmailToken(); }catch(e){ toast('Gmail: '+(e.message||'cancelado')); return; }
+  if(!token)return; toast('A detetar remetentes…');
+  const gh={'Authorization':'Bearer '+token};
+  try{
+    const lr=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=60&q='+encodeURIComponent('newer_than:365d has:attachment filename:pdf'),{headers:gh})).json();
+    if(lr.error)throw new Error(lr.error.message||'erro Gmail');
+    const msgs=lr.messages||[]; const map={};
+    for(const mref of msgs){
+      const m=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'?format=metadata&metadataHeaders=From',{headers:gh})).json();
+      const fromHdr=(((m.payload&&m.payload.headers)||[]).find(h=>(h.name||'').toLowerCase()==='from')||{}).value||'';
+      const dom=_emailDomain(fromHdr); if(!dom)continue;
+      if(!map[dom])map[dom]={dom,name:_emailName(fromHdr),n:0}; map[dom].n++;
+    }
+    _detSenders=Object.values(map).sort((a,b)=>b.n-a.n);
+    mailSendersModal();
+  }catch(e){ toast('Falha a detetar: '+(e.message||e)); }
+}
+function mailSendersModal(){
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scan)} Remetentes detetados <button class="close" data-close="1">&times;</button></h2>
+  <div class="body"><div class="hint" style="border-left:3px solid var(--acc)">Remetentes de emails com PDF no último ano. Liga cada um a um fornecedor (depois escolhe a categoria na lista).</div>
+  ${_detSenders.length?_detSenders.map((s,i)=>{const ex=findProvider(s.dom);return `<div class="catedit" style="padding:7px 0;gap:8px;flex-wrap:wrap;align-items:center">
+    <span style="flex:1;min-width:0"><b>${esc(s.name||s.dom)}</b> <span style="color:var(--mut);font-size:11px">· ${esc(s.dom)} · ${s.n} email(s)</span></span>
+    ${ex?`<span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">já ligado: ${esc(ex.label||ex.from)}</span>`:`<button class="btn sm" data-pvadddet="${i}">${svg(I.plus)}Adicionar</button>`}
+  </div>`}).join(''):'<div class="pempty" style="padding:18px">Nenhum remetente com PDF encontrado no último ano.</div>'}
+  </div><div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
+  openBack();
 }
 /* shared: a importação automática é "devida" hoje? (1×/dia, a partir da hora preferida, com rede de segurança >34h) */
 function _autoDue(last,hour){
