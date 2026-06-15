@@ -1405,13 +1405,12 @@ function vDefs(m){
   <div class="defs-wrap">
   <details class="defgroup" data-dg="pessoas" ${defGroupsOpen.has('pessoas')?'open':''}><summary>${svg(I.scale)} Pessoas & aparência</summary>
   <div class="defs-grid">
-    <div class="card">${dh(I.scale,'Pessoas','Tu pagas tudo. A devedora é a ex (aparece só na aba de Dívida). A tua parceira atual não tem obrigação de pagar despesas da casa.')}
+    <div class="card span2">${dh(I.scale,'Pessoas','Tu pagas tudo. A devedora é a ex (aparece só na aba de Dívida). A tua parceira atual não tem obrigação de pagar despesas da casa.')}
       <div class="f2"><div><label>Eu</label><input id="pn0" value="${esc(a.nome)}"></div><div><label>Devedora (ex) · aba Dívida</label><input id="pn1" value="${esc(b.nome)}"></div></div>
       <div style="margin-top:10px"><label>Parceira atual (sem obrigações)</label><input id="pnPar" value="${esc(state.settings.parceira||'')}"></div>
       <button class="btn primary sm" style="margin-top:14px" id="savePeople">${svg(I.check)}Guardar</button>
-    </div>
 
-    <div class="card">${dh(I.gear,'Aparência & moeda')}
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line)">${dh(I.gear,'Aparência & moeda')}
       <div class="f2">
         <div><label>Tema</label><div class="seg"><button data-theme="dark" class="${state.settings.tema==='dark'?'on-out':''}">Escuro</button><button data-theme="light" class="${state.settings.tema==='light'?'on-out':''}">Claro</button></div></div>
         <div><label>Moeda</label><div style="display:flex;gap:8px"><input id="moedaIn" value="${esc(moeda())}" style="max-width:80px"><button class="btn sm" id="saveMoeda">OK</button></div></div>
@@ -1428,6 +1427,7 @@ function vDefs(m){
           <span class="pill" style="background:var(--card2);color:var(--mut)">Avisa quando há débitos a chegar</span>
         </div>
         <p class="dsub" style="margin-top:4px">Quando abres a app, lembra-te dos débitos diretos dos próximos dias (ex.: "amanhã sai a Endesa ~42 €"), com base no dia que a app aprendeu de cada fatura. ${('Notification'in window)?'':'(Este dispositivo não suporta notificações do sistema — verás o aviso na app.)'}</p>
+      </div>
       </div>
     </div>
 
