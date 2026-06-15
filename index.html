@@ -1446,7 +1446,7 @@ function vDefs(m){
       ${state.bank?`
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
           <span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">● Ligado · ${esc(state.bank.aspsp||'banco')}</span>
-          ${state.bank.validUntil?`<span class="pill" style="background:var(--card2);color:var(--mut)">consentimento até ${esc(String(state.bank.validUntil).slice(0,10))}</span>`:''}
+          ${(()=>{const dl=bankDaysLeft();if(dl==null)return '';const warn=dl<=14;const txt=dl<0?'consentimento EXPIRADO — religa':(dl<=14?`expira em ${dl} dia(s) — religa`:`consentimento até ${String(state.bank.validUntil).slice(0,10)}`);return `<span class="pill" style="background:${warn?'rgba(245,158,11,.18)':'var(--card2)'};color:${warn?'var(--warn)':'var(--mut)'}">${warn?'⚠️ ':''}${txt}</span>`;})()}
           ${state.bank.lastImport?`<span class="pill" style="background:var(--card2);color:var(--mut)">última importação ${new Date(state.bank.lastImport).toLocaleDateString('pt-PT')}</span>`:''}
         </div>
         <div style="font-size:13px;color:var(--mut);margin-bottom:10px">${(state.bank.accounts||[]).map(a=>'• '+esc(a.name)).join('<br>')||'sem contas'}</div>
@@ -1715,6 +1715,7 @@ document.addEventListener('click',e=>{
   if(t.id==='impFoto'){const f=document.getElementById('fotoIn');if(f)f.click();return;}
   if(t.id==='inboxBtn'||t.id==='inboxTop'){openInbox();return;}
   if(d.ibadd){inboxAdd(d.ibadd);return;}
+  if(d.ibaddall){inboxAddAll();return;}
   if(d.ibdel){inboxDiscard(d.ibdel);return;}
   if(d.ibclear){ if((state.inbox||[]).length&&confirm('Descartar TODAS as '+state.inbox.length+' entradas da Caixa de entrada? (não são lançadas na grelha)')){state.inbox=[];save();render();openInbox();} return; }
   if(d.fatcand){const i=document.getElementById('fatVal');if(i)i.value=(+d.fatcand).toFixed(2);return;}
@@ -2261,7 +2262,7 @@ function openInbox(){
         <button class="btn sm danger" data-ibdel="${it.id}">Descartar</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
-        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria (${tipo==='receita'?'receita':'despesa'})</label><select id="ibcat_${it.id}">${catOptions(tipo,it.catId)}</select></div>
+        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria (${tipo==='receita'?'receita':'despesa'})</label><select id="ibcat_${it.id}">${it.catId?'':'<option value="" selected>— escolher —</option>'}${catOptions(tipo,it.catId)}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Mês</label><select id="ibmes_${it.id}">${MESES.map((x,k)=>`<option value="${k}" ${k===ym?'selected':''}>${x.slice(0,3)}</option>`).join('')}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Ano</label><input id="ibano_${it.id}" type="number" step="1" value="${it.year||ano}" style="width:64px"></div>
         ${tipo==='despesa'?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut);height:38px" title="Pago em dinheiro (sai do Cofre, não do Valete)"><input type="checkbox" id="ibcash_${it.id}">💵</label>`:''}
@@ -2274,7 +2275,7 @@ function openInbox(){
     <div class="hint" style="border-left:3px solid var(--acc)">Movimentos do <b>banco</b> (🏦), faturas do <b>email</b> (📧) e leituras por <b>QR</b>. Confirma a <b>categoria</b> e <b>Adicionar</b> — só aí entram na grelha (a data real é mantida). Marca <b>💵</b> se foi em dinheiro. Usa <b>Descartar</b> (ou <b>Descartar todas</b>) para o que não queres lançar.</div>
     ${items.length?items.map(row).join(''):'<div class="pempty" style="padding:24px">Caixa de entrada vazia. Usa <b>Foto da fatura</b> para capturar pelo QR.</div>'}
   </div>
-  <div class="foot">${items.length?`<button class="btn sm danger" data-ibclear="1">Descartar todas</button>`:''}<div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
+  <div class="foot">${items.length?`<button class="btn sm primary" data-ibaddall="1">${svg(I.check)}Adicionar todas</button><button class="btn sm danger" data-ibclear="1">Descartar todas</button>`:''}<div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
   openBack();
 }
 function inboxAdd(id){
@@ -2283,24 +2284,31 @@ function inboxAdd(id){
   if(!catId){toast('Escolhe a categoria');return;}
   const mi=+((document.getElementById('ibmes_'+id)||{}).value)||0;
   const year=+((document.getElementById('ibano_'+id)||{}).value)||ano;
+  const cash=(it.tipo!=='receita') && !!(document.getElementById('ibcash_'+id)||{}).checked;
+  const r=_commitInbox(it,catId,mi,year,cash,false);
+  if(r.status==='frozen'){toast('Mês congelado — desbloqueia na grelha');return;}
+  if(r.status==='cancel')return;
+  save(); render(); openInbox();
+  toast((r.futuro?'Agendado p/ '+r.dia+'/'+String(mi+1).padStart(2,'0')+': ':(cash?'Dinheiro: ':(r.tipo==='receita'?'Receita: ':'Adicionada: ')))+fmt(Math.abs(it.total))+' · '+catName(catId));
+}
+/* núcleo partilhado: cria o movimento a partir de um item da inbox (sem save/render). silent=true salta os confirm. */
+function _commitInbox(it,catId,mi,year,cash,silent){
   const tipo=it.tipo||'despesa';
   const isBank=it.source==='bank';
   const isMail=it.source==='mail'||it.source==='csv'; // email e CSV: data real + nota = descrição
   const useExact=isBank||isMail; // banco, email e CSV já trazem a data real
-  const cash=tipo==='despesa' && !!(document.getElementById('ibcash_'+id)||{}).checked;
-  if(isFrozenMi(year,mi)){toast('Mês congelado — desbloqueia na grelha');return;}
-  // banco => usa a data real do movimento; QR despesa recorrente => dia de débito aprendido
+  if(isFrozenMi(year,mi)) return {status:'frozen'};
   const rec=tipo==='despesa'?(state.recorrencias||[]).find(r=>r.categoriaId===catId&&r.ativo!==false):null;
   const recorrente = !useExact && !!(rec&&rec.dia);
   const dia = recorrente ? Math.min(rec.dia,28) : (it.dia&&it.dia>=1&&it.dia<=28?it.dia:15);
   const ym=`${year}-${String(mi+1).padStart(2,'0')}`;
   const dataStr=`${ym}-${String(dia).padStart(2,'0')}`;
   const dupe=isDupMov(tipo,catId,it.total,ym);
-  if(dupe&&!confirm('Já existe um movimento igual neste mês ('+catName(catId)+' · '+fmt(Math.abs(dupe.valor))+').\nAdicionar à mesma?'))return;
+  if(dupe){ if(silent) return {status:'dupe'}; if(!confirm('Já existe um movimento igual neste mês ('+catName(catId)+' · '+fmt(Math.abs(dupe.valor))+').\nAdicionar à mesma?')) return {status:'cancel'}; }
   const mv={id:nid('m'),data:dataStr,tipo,categoriaId:catId,valor:valorComSinal(catId,tipo,it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:(isBank||isMail)?(it.desc||(isMail?'fatura':'banco')):'fatura'};
   if(rec)mv.recId=rec.id;
   if(cash){mv.cash=true;mv.ts=Date.now();}
-  // banco pendente (não cobrado) ou QR recorrente com débito futuro => agendado
+  // banco pendente (não cobrado) ou email/CSV/QR-recorrente com débito futuro => agendado
   const futuro = (isBank ? it.pend : ((isMail||recorrente) && !cash && dataStr>isoToday())) && !isPastMonth(year,mi);
   if(futuro)mv.pendente=true;
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
@@ -2310,9 +2318,25 @@ function inboxAdd(id){
     let pv=findProvider(it.from); if(!pv){pv={id:nid('pv'),label:it.fromName||it.from,from:it.from,catId,auto:false,n:0,last:null};state.providers.push(pv);}
     pv.catId=catId; pv.n=(pv.n||0)+1; pv.last={total:it.total,ym};
   }
-  state.inbox=state.inbox.filter(x=>x.id!==id);
+  state.inbox=state.inbox.filter(x=>x.id!==it.id);
+  return {status:'ok',dia,futuro,tipo};
+}
+/* ação em massa: adiciona todos os itens que já têm categoria (salta os sem categoria e os repetidos) */
+function inboxAddAll(){
+  const items=(state.inbox||[]).slice();
+  if(!items.length){toast('Caixa de entrada vazia');return;}
+  let ok=0,nocat=0,dupe=0,frozen=0;
+  items.forEach(it=>{
+    const catId=(document.getElementById('ibcat_'+it.id)||{}).value||it.catId;
+    if(!catId){nocat++;return;}
+    const mi=+((document.getElementById('ibmes_'+it.id)||{}).value)||0;
+    const year=+((document.getElementById('ibano_'+it.id)||{}).value)||ano;
+    const cash=(it.tipo!=='receita') && !!(document.getElementById('ibcash_'+it.id)||{}).checked;
+    const r=_commitInbox(it,catId,mi,year,cash,true);
+    if(r.status==='ok')ok++; else if(r.status==='dupe')dupe++; else if(r.status==='frozen')frozen++;
+  });
   save(); render(); openInbox();
-  toast((futuro?'Agendado p/ '+dia+'/'+String(mi+1).padStart(2,'0')+': ':(cash?'Dinheiro: ':(tipo==='receita'?'Receita: ':'Adicionada: ')))+fmt(Math.abs(it.total))+' · '+catName(catId));
+  toast(`Adicionados ${ok}`+(nocat?` · ${nocat} sem categoria`:'')+(dupe?` · ${dupe} repetidos`:'')+(frozen?` · ${frozen} mês congelado`:''));
 }
 function inboxDiscard(id){
   const it=(state.inbox||[]).find(x=>x.id===id); if(!it)return;
@@ -2812,6 +2836,14 @@ function bankAutoImport(){
   if(!_autoDue(state.bank.lastImport, state.bank.autoHour))return; // 1×/dia, a partir da hora preferida
   bankImport(true);
 }
+/* dias até o consentimento do banco expirar (null se não houver) */
+function bankDaysLeft(){ const v=state.bank&&state.bank.validUntil; if(!v)return null; const d=Math.ceil((new Date(v).getTime()-Date.now())/86400000); return isNaN(d)?null:d; }
+/* aviso no arranque se o consentimento está a expirar (≤7 dias) — 1× por sessão */
+function bankConsentCheck(){
+  if(!state.bank)return; const dl=bankDaysLeft(); if(dl==null||dl>7)return;
+  if(sessionStorage.getItem('bankWarned'))return; sessionStorage.setItem('bankWarned','1');
+  toast(dl<0?'⚠️ Consentimento do banco expirou — religa em Definições → Banco':'⚠️ Consentimento do banco expira em '+dl+' dia(s) — religa em Definições → Banco');
+}
 function bankDisconnect(){
   if(!confirm('Desligar o banco?\nOs movimentos já adicionados à grelha mantêm-se. Os itens do banco ainda por classificar na Caixa de entrada são removidos.'))return;
   state.inbox=(state.inbox||[]).filter(x=>x.source!=='bank');
@@ -3158,9 +3190,22 @@ load();try{bankCaptureCallback();}catch(e){}try{liquidarPendentes();}catch(e){}r
 try{lembreteBoot();}catch(e){}
 try{bankTryProcess();}catch(e){}
 try{bankAutoImport();}catch(e){}
+try{bankConsentCheck();}catch(e){}
 try{resetIdle();}catch(e){}
 if(dbxOn()) syncOpen().then(dailyBackup).catch(()=>{});
-if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+function showUpdateBar(){
+  if(document.getElementById('updBar'))return;
+  const d=document.createElement('div'); d.id='updBar';
+  d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:10001;background:var(--acc);color:#10160f;padding:10px 14px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center;font-size:14px;font-weight:700';
+  d.innerHTML='Nova versão disponível <button id="updGo" style="background:#10160f;color:#fff;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700">Atualizar</button>';
+  document.body.appendChild(d);
+  document.getElementById('updGo').onclick=()=>{ try{hardRefresh();}catch(e){location.reload();} };
+}
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  navigator.serviceWorker.register('sw.js').then(reg=>{
+    reg.addEventListener('updatefound',()=>{ const nw=reg.installing; if(!nw)return; nw.addEventListener('statechange',()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller) showUpdateBar(); }); });
+  }).catch(()=>{});
+}
 /* desvanece a splash depois da casa se desenhar (a app já está pronta por baixo) */
 (function(){var sp=document.getElementById('splash');if(!sp){document.documentElement.style.background='';return;}setTimeout(function(){sp.classList.add('done');setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp);document.documentElement.style.background='';},650);},1250);})();
 </script>
