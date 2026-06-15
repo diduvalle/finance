@@ -1512,6 +1512,14 @@ function vDefs(m){
         <div id="mailTestOut" style="font-size:13px;color:var(--mut);margin-top:6px"></div>
       </div>
     </div>
+    <div class="card span2">${dh(I.scan,'Importar extrato (CSV)','Para contas sem ligação automática (ex.: Coverflex). Exporta o CSV (ex.: extensão coverflex-downloader) e importa aqui — gastos descontam, carregamentos somam. Vão para a Caixa de entrada para confirmares.')}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+        <div style="flex:1 1 200px"><label style="font-size:11px;color:var(--mut)">Categoria por defeito (a ligada à conta, ex. Coverflex)</label><select id="csvCat"><option value="">— deixar por classificar —</option>${catOptions('despesa')}</select></div>
+        <button class="btn sm" id="csvImport" style="height:38px">${svg(I.scan)}Escolher CSV…</button>
+        <input type="file" id="csvIn" accept=".csv,text/csv,text/plain" style="display:none">
+      </div>
+      <p class="dsub" style="margin-top:6px">Deteta as colunas (data, valor, descrição). Sinal do valor: <b>negativo = gasto</b> (despesa), <b>positivo = carregamento</b> (receita). Se as colunas não forem reconhecidas, envia-me o cabeçalho do teu CSV.</p>
+    </div>
   </div></details>
   <details class="defgroup" data-dg="categorias" ${defGroupsOpen.has('categorias')?'open':''}><summary>${svg(I.cat)} Categorias & regras</summary>
   <div class="defs-grid">
@@ -1727,6 +1735,7 @@ document.addEventListener('click',e=>{
   if(d.pvseed){state.providers=state.providers||[];let n=0;SUGGESTED_PROVIDERS.forEach(s=>{if(findProvider(s.from))return;const c=findCatByName(s.cat);state.providers.push({id:nid('pv'),label:s.label,from:s.from,catId:c?c.id:null,auto:false,source:s.source||'pdf',n:0,last:null});n++;});save();render();toast(n?n+' fornecedor(es) adicionados — confirma a categoria/fonte e liga o Auto':'Já tinhas todos os sugeridos');return;}
   if(d.pvdetect){mailDetectSenders();return;}
   if(d.pvtest){mailTestProvider(d.pvtest);return;}
+  if(t.id==='csvImport'){const f=document.getElementById('csvIn');if(f)f.click();return;}
   if(d.pvadddet!=null){const s=_detSenders[+d.pvadddet];if(s){state.providers=state.providers||[];if(!findProvider(s.dom)){state.providers.push({id:nid('pv'),label:s.name||s.dom,from:s.dom,catId:null,auto:false,source:'pdf',n:0,last:null});save();}render();mailSendersModal();toast('Ligado: '+(s.name||s.dom)+' — escolhe a categoria na lista');}return;}
   if(d.mailtest){const txt=val('mailTestText');const out=document.getElementById('mailTestOut');if(!txt){if(out)out.textContent='Cola algum texto primeiro.';return;}const pf=parseFatura(txt);if(out)out.innerHTML=(pf&&pf.total!=null)?`Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''}${pf.forn?' · '+esc(pf.forn):''} → ${pf.catId?esc(catName(pf.catId)):'(sem categoria detetada)'}`:'Não detetei um valor. Cola mais texto (incl. a linha do total/valor a pagar).';return;}
   if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
@@ -1761,6 +1770,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('change',e=>{
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
   if(e.target.id==='pdfIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
+  if(e.target.id==='csvIn'&&e.target.files[0]){const f=e.target.files[0];e.target.value='';const c=(document.getElementById('csvCat')||{}).value||null;importExtratoCSV(f,c);}
   if(e.target.id==='reciboIn'&&e.target.files[0]){processRecibo(e.target.files[0]);e.target.value='';}
   if(e.target.id==='fotoIn'&&e.target.files[0]){processFotoFatura(e.target.files[0]);e.target.value='';}
   if(e.target.dataset&&(e.target.dataset.recchk!=null||e.target.dataset.reccat!=null)){recLiveSync();return;}
@@ -2238,10 +2248,10 @@ function openInbox(){
   const items=(state.inbox||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
   const row=(it)=>{
     const tipo = it.tipo||'despesa';
-    const isFeed = it.source==='bank'||it.source==='mail';
-    const label = isFeed ? (it.desc||it.acct||(it.source==='mail'?'fatura (email)':'movimento')) : (it.catId?catName(it.catId):(it.nif?('NIF '+it.nif):'desconhecido'));
+    const isFeed = it.source==='bank'||it.source==='mail'||it.source==='csv';
+    const label = isFeed ? (it.desc||it.acct||(it.source==='mail'?'fatura (email)':(it.source==='csv'?'extrato':'movimento'))) : (it.catId?catName(it.catId):(it.nif?('NIF '+it.nif):'desconhecido'));
     const ym = (it.mi!=null?it.mi:new Date().getMonth());
-    const badge = it.source==='bank' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🏦 ${tipo==='receita'?'crédito':'débito'}${it.pend?' · pendente':''}</span> ` : (it.source==='mail' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">📧 fatura</span> ` : '');
+    const badge = it.source==='bank' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🏦 ${tipo==='receita'?'crédito':'débito'}${it.pend?' · pendente':''}</span> ` : (it.source==='mail' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">📧 fatura</span> ` : (it.source==='csv' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🧾 extrato</span> ` : ''));
     return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
         <div style="min-width:0"><b style="font-size:15px;color:${tipo==='receita'?'var(--acc)':'inherit'}">${tipo==='receita'?'+':''}${fmt(it.total)}</b> <span style="color:var(--mut);font-size:12px">· ${badge}${esc(label)}${it.acct&&it.source==='bank'?' · '+esc(it.acct):''}${it.year?(' · '+(it.mi!=null?MESES[it.mi].slice(0,3)+'/':'' )+it.year):''}</span></div>
@@ -2272,8 +2282,8 @@ function inboxAdd(id){
   const year=+((document.getElementById('ibano_'+id)||{}).value)||ano;
   const tipo=it.tipo||'despesa';
   const isBank=it.source==='bank';
-  const isMail=it.source==='mail';
-  const useExact=isBank||isMail; // banco e faturas de email já trazem a data real
+  const isMail=it.source==='mail'||it.source==='csv'; // email e CSV: data real + nota = descrição
+  const useExact=isBank||isMail; // banco, email e CSV já trazem a data real
   const cash=tipo==='despesa' && !!(document.getElementById('ibcash_'+id)||{}).checked;
   if(isFrozenMi(year,mi)){toast('Mês congelado — desbloqueia na grelha');return;}
   // banco => usa a data real do movimento; QR despesa recorrente => dia de débito aprendido
@@ -2978,6 +2988,42 @@ function mailTestResultModal(p,r){
   <div class="body">${body}</div>
   <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
   openBack();
+}
+/* ===== Importar extrato CSV (ex.: Coverflex) ===== */
+function parseCSV(text){
+  text=String(text||'').replace(/\r\n?/g,'\n').replace(/^﻿/,'').trim();
+  const lines=text.split('\n').filter(l=>l.trim()); if(!lines.length)return {header:[],rows:[]};
+  const delim=((lines[0].match(/;/g)||[]).length > (lines[0].match(/,/g)||[]).length) ? ';' : ',';
+  const parseLine=(l)=>{const out=[];let cur='',q=false;for(let i=0;i<l.length;i++){const c=l[i];if(q){if(c==='"'){if(l[i+1]==='"'){cur+='"';i++;}else q=false;}else cur+=c;}else{if(c==='"')q=true;else if(c===delim){out.push(cur);cur='';}else cur+=c;}}out.push(cur);return out.map(s=>s.trim());};
+  return {header:parseLine(lines[0]).map(h=>h.toLowerCase()), rows:lines.slice(1).map(parseLine)};
+}
+function _csvCol(header,names){for(const n of names){const i=header.findIndex(h=>h.includes(n));if(i>=0)return i;}return -1;}
+async function importExtratoCSV(file,defaultCatId){
+  if(!file)return; toast('A ler o CSV…');
+  let text=''; try{ text=await file.text(); }catch(e){ toast('Não consegui ler o ficheiro'); return; }
+  const {header,rows}=parseCSV(text);
+  if(!rows.length){ toast('CSV vazio ou inválido'); return; }
+  const di=_csvCol(header,['data','date']);
+  const ai=_csvCol(header,['amount','valor','montante','quantia','importe','value']);
+  const mi=_csvCol(header,['merchant','comerciante','payee','descri','description','estabelec','nome','note','detalhe']);
+  const ci=_csvCol(header,['categoria','category']);
+  if(ai<0){ toast('CSV: não encontrei a coluna do valor. Envia-me o cabeçalho ('+header.join(', ')+')'); return; }
+  let added=0;
+  rows.forEach(r=>{
+    const val=parseValorPT(String(r[ai]||'').replace(/[€\s]/g,''));
+    if(val==null||val===0)return;
+    const tipo = val<0 ? 'despesa' : 'receita';
+    const total=Math.abs(val);
+    let y,mo,d; const dt=di>=0?parseDataPT(r[di]):null; const now=new Date();
+    if(dt){mo=dt[0];y=dt[1];d=dt[2];} else {y=now.getFullYear();mo=now.getMonth();}
+    const desc=(mi>=0&&r[mi])||(ci>=0&&r[ci])||'extrato';
+    const catId=defaultCatId||guessCatFromDesc(desc,tipo)||null;
+    state.inbox.push({id:nid('ib'),source:'csv',tipo,total,desc,year:y,mi:mo,dia:d||null,catId,ts:Date.now()});
+    added++;
+  });
+  save(); render();
+  toast(`CSV: ${added} movimento(s) na Caixa de entrada`);
+  if(added)openInbox();
 }
 /* shared: a importação automática é "devida" hoje? (1×/dia, a partir da hora preferida, com rede de segurança >34h) */
 function _autoDue(last,hour){
