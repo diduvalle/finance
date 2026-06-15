@@ -1442,6 +1442,8 @@ function vDefs(m){
           ${state.bank.lastImport?`<span class="pill" style="background:var(--card2);color:var(--mut)">última importação ${new Date(state.bank.lastImport).toLocaleDateString('pt-PT')}</span>`:''}
         </div>
         <div style="font-size:13px;color:var(--mut);margin-bottom:10px">${(state.bank.accounts||[]).map(a=>'• '+esc(a.name)).join('<br>')||'sem contas'}</div>
+        <div style="margin-bottom:10px"><label style="font-size:11px;color:var(--mut)">Importar a partir de</label><br><input id="bankSince" type="date" value="${state.bank.since||isoToday()}" style="max-width:160px"></div>
+        <p class="dsub" style="margin-top:0">Só traz movimentos <b>a partir desta data</b> — por defeito o dia em que ligaste, para não duplicar o passado já lançado. As repetições são ignoradas.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn primary sm" id="bankImport">${svg(I.repeat)}Importar movimentos</button>
           <button class="btn sm" id="bankDisc">Desligar banco</button>
@@ -1677,7 +1679,7 @@ document.addEventListener('click',e=>{
   if(t.id==='saveCodigo'){state.settings.codigo=(val('codigoIn')||'').trim();sessionStorage.setItem('casa-unlock','1');save();render();toast('Código guardado');return;}
   if(t.id==='bankConnect'){bankConnect();return;}
   if(d.bankpick){closeBack();bankStartAuth(d.bankpick);return;}
-  if(t.id==='bankImport'){bankImport();return;}
+  if(t.id==='bankImport'){if(state.bank){const s=val('bankSince');if(s)state.bank.since=s;save();}bankImport();return;}
   if(t.id==='bankDisc'){bankDisconnect();return;}
   if(t.id==='mailImport'){state.mailCfg={from:val('mailFrom'),since:val('mailSince')||isoToday()};save();mailImport();return;}
   if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
@@ -2673,10 +2675,11 @@ async function bankTryProcess(){
     toast('A ligar a conta…');
     const s=await bankFn('/session',{method:'POST',body:JSON.stringify({code:pend.code})});
     state.bank={
-      aspsp:(s.aspsp&&s.aspsp.name)||BANK_ASPSP,
+      aspsp:(s.aspsp&&s.aspsp.name)||'banco',
       sessionId:s.session_id,
       validUntil:(s.access&&s.access.valid_until)||null,
       accounts:(s.accounts||[]).map(a=>({uid:a.uid, name:bankAcctName(a), iban:(a.account_id&&a.account_id.iban)||null, sel:true})),
+      since:isoToday(), // só importa movimentos a partir de hoje (o passado já está lançado)
       connectedAt:Date.now(), lastImport:null
     };
     save(); render();
@@ -2708,7 +2711,7 @@ function bankTxToInbox(t){
 async function bankImport(){
   if(!state.bank||!(state.bank.accounts||[]).length){toast('Banco não ligado');return;}
   state.bankSeen=state.bankSeen||[]; const seen=new Set(state.bankSeen);
-  const dateFrom=new Date(Date.now()-89*24*3600*1000).toISOString().slice(0,10);
+  const dateFrom=(state.bank&&state.bank.since)||isoToday(); // só a partir da data definida (default: dia da ligação) — não puxa o passado já lançado
   let added=0, dup=0, err=0;
   for(const acc of state.bank.accounts){
     if(acc.sel===false)continue;
