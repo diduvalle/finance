@@ -494,7 +494,8 @@ function load(){
   state.inbox = state.inbox || [];         // caixa de entrada de faturas lidas por QR (por classificar)
   state.bankSeen = state.bankSeen || [];   // ids de transações do banco já importadas (dedup)
   state.mailSeen = state.mailSeen || [];   // ids de emails (faturas) já importados (dedup)
-  state.mailCfg = state.mailCfg || {from:'',days:60}; // config da importação de faturas do Gmail
+  state.mailCfg = state.mailCfg || {from:''}; // config da importação de faturas do Gmail
+  if(!state.mailCfg.since) state.mailCfg.since = isoToday(); // só faturas a partir desta data (default: hoje — ignora o passado já lançado)
   state.metas = state.metas || [];         // objetivos de poupança (envelopes)
   // dia do mês de cada despesa fixa (para a previsão de tesouraria do Valete)
   if(!state._recdiaV1){
@@ -1451,9 +1452,10 @@ function vDefs(m){
     <div class="card span2">${dh(I.scan,'Faturas por email (Gmail)','Importa as faturas em PDF que recebes por email (NOS, Endesa, Gascan, Inframoura, seguros…) direto para a Caixa de entrada. Acesso só de leitura e temporário — nada fica guardado.')}
       <div class="f2">
         <div><label>Remetentes (opcional, separados por vírgula)</label><input id="mailFrom" value="${esc((state.mailCfg&&state.mailCfg.from)||'')}" placeholder="ex: nos.pt, endesa, inframoura, gascan"></div>
-        <div><label>Últimos dias</label><input id="mailDays" type="number" min="1" max="365" value="${(state.mailCfg&&state.mailCfg.days)||60}" style="max-width:90px"></div>
+        <div><label>A partir de</label><input id="mailSince" type="date" value="${(state.mailCfg&&state.mailCfg.since)||isoToday()}"></div>
       </div>
-      <button class="btn primary sm" id="mailImport" style="margin-top:12px">${svg(I.scan)}Importar faturas do Gmail</button>
+      <p class="dsub" style="margin-top:6px">Só importa faturas recebidas <b>a partir desta data</b> — por defeito hoje, para ignorar o que já lançaste. Vai correndo "Importar" quando chegarem novas (as repetidas são ignoradas).</p>
+      <button class="btn primary sm" id="mailImport" style="margin-top:8px">${svg(I.scan)}Importar faturas do Gmail</button>
       ${!GMAIL_CLIENT_ID?`<p class="dsub" style="margin-top:6px;color:var(--warn)">Falta configurar o Client ID do Google — a importação ainda não funciona.</p>`:''}
     </div>
   </div></details>
@@ -1650,6 +1652,7 @@ document.addEventListener('click',e=>{
   if(t.id==='inboxBtn'){openInbox();return;}
   if(d.ibadd){inboxAdd(d.ibadd);return;}
   if(d.ibdel){inboxDiscard(d.ibdel);return;}
+  if(d.ibclear){ if((state.inbox||[]).length&&confirm('Descartar TODAS as '+state.inbox.length+' entradas da Caixa de entrada? (não são lançadas na grelha)')){state.inbox=[];save();render();openInbox();} return; }
   if(d.fatcand){const i=document.getElementById('fatVal');if(i)i.value=(+d.fatcand).toFixed(2);return;}
   if(t.id==='fatSave'){gravarFatura();return;}
   if(t.id==='recSave'){gravarRecibo();return;}
@@ -1665,7 +1668,7 @@ document.addEventListener('click',e=>{
   if(d.bankpick){closeBack();bankStartAuth(d.bankpick);return;}
   if(t.id==='bankImport'){bankImport();return;}
   if(t.id==='bankDisc'){bankDisconnect();return;}
-  if(t.id==='mailImport'){state.mailCfg={from:val('mailFrom'),days:Math.max(1,Math.min(365,parseInt(val('mailDays'))||60))};save();mailImport();return;}
+  if(t.id==='mailImport'){state.mailCfg={from:val('mailFrom'),since:val('mailSince')||isoToday()};save();mailImport();return;}
   if(t.id==='recAdd'){openRec();return;}
   if(d.recdel){state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render();return;}
   if(t.id==='searchBtn'){openSearch();return;}
@@ -2184,10 +2187,10 @@ function openInbox(){
   };
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.inbox)} Caixa de entrada <button class="close" data-close="1">&times;</button></h2>
   <div class="body">
-    <div class="hint" style="border-left:3px solid var(--acc)">Movimentos importados do <b>banco</b> (🏦) e faturas lidas por <b>QR</b>. Confirma a <b>categoria</b> e <b>Adicionar</b> — só aí entram na grelha (a data do banco é mantida). Compras por QR sem recorrência entram na data da fatura; categorias recorrentes (luz, água…) usam o <b>dia de débito aprendido</b>. Marca <b>💵</b> se foi em dinheiro.</div>
+    <div class="hint" style="border-left:3px solid var(--acc)">Movimentos do <b>banco</b> (🏦), faturas do <b>email</b> (📧) e leituras por <b>QR</b>. Confirma a <b>categoria</b> e <b>Adicionar</b> — só aí entram na grelha (a data real é mantida). Marca <b>💵</b> se foi em dinheiro. Usa <b>Descartar</b> (ou <b>Descartar todas</b>) para o que não queres lançar.</div>
     ${items.length?items.map(row).join(''):'<div class="pempty" style="padding:24px">Caixa de entrada vazia. Usa <b>Foto da fatura</b> para capturar pelo QR.</div>'}
   </div>
-  <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
+  <div class="foot">${items.length?`<button class="btn sm danger" data-ibclear="1">Descartar todas</button>`:''}<div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
   openBack();
 }
 function inboxAdd(id){
@@ -2748,9 +2751,9 @@ async function mailImport(){
   if(!token)return;
   toast('A procurar faturas no Gmail…');
   state.mailSeen=state.mailSeen||[]; const seen=new Set(state.mailSeen);
-  const days=(state.mailCfg&&state.mailCfg.days)||60;
+  const since=((state.mailCfg&&state.mailCfg.since)||isoToday());
   const from=((state.mailCfg&&state.mailCfg.from)||'').trim();
-  let q='has:attachment filename:pdf newer_than:'+days+'d';
+  let q='has:attachment filename:pdf after:'+since.replace(/-/g,'/');
   if(from){const list=from.split(/[,\n;]+/).map(s=>s.trim()).filter(Boolean);if(list.length)q+=' from:('+list.join(' OR ')+')';}
   const gh={'Authorization':'Bearer '+token};
   try{
