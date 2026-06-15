@@ -1470,11 +1470,29 @@ function vDefs(m){
         <p class="dsub" style="margin-top:2px">Liga <b>Auto</b> para esse fornecedor passar a entrar direto na grelha (depois de validares as primeiras). Sem Auto, vai à Caixa de entrada para confirmares.</p>
         ${state.providers.map(p=>`<div class="catedit" style="padding:7px 0">
           <span class="dot" style="background:${cat(p.catId)?cat(p.catId).cor:'#888'}"></span>
-          <span style="flex:1;min-width:0">${esc(p.label||p.from)} <span style="color:var(--mut);font-size:11px">· ${esc(p.from)} → ${p.catId?esc(catName(p.catId)):'(por classificar)'} · ${p.n||0} importada(s)${p.last?' · última '+fmt(p.last.total):''}</span></span>
+          <span style="flex:1;min-width:0">${esc(p.label||p.from)} <span style="color:var(--mut);font-size:11px">· ${esc(p.from)} · ${p.source==='body'?'✉ corpo':'📎 PDF'} → ${p.catId?esc(catName(p.catId)):'(por classificar)'} · ${p.n||0} importada(s)${p.last?' · última '+fmt(p.last.total):''}</span></span>
           <button class="btn sm ${p.auto?'primary':''}" data-pvauto="${p.id}" title="${p.auto?'Auto-lançar ativo (clica para desligar)':'Ativar auto-lançar na grelha'}">${p.auto?'Auto ✓':'Auto'}</button>
           <button class="iconbtn" data-pvdel="${p.id}" title="Esquecer este fornecedor">${svg(I.trash)}</button>
         </div>`).join('')}
       </div>`:''}
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+        <label>Adicionar fornecedor à mão</label>
+        <p class="dsub" style="margin-top:2px">A app procura só estes remetentes. Fonte: <b>PDF anexo</b> ou (para notificações sem PDF, ex. banco) <b>corpo do email</b>.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
+          <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Remetente (email/domínio)</label><input id="pvFrom" placeholder="ex: nos.pt"></div>
+          <div style="flex:1 1 130px"><label style="font-size:11px;color:var(--mut)">Categoria</label><select id="pvCat">${catOptions('despesa')}</select></div>
+          <div><label style="font-size:11px;color:var(--mut)">Etiqueta</label><input id="pvLabel" placeholder="ex: NOS" style="max-width:110px"></div>
+          <div><label style="font-size:11px;color:var(--mut)">Fonte</label><select id="pvSource"><option value="pdf">PDF anexo</option><option value="body">Corpo do email</option></select></div>
+          <button class="btn sm" data-pvadd="1" style="height:38px">${svg(I.plus)}Adicionar</button>
+        </div>
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+        <label>Testar leitura</label>
+        <p class="dsub" style="margin-top:2px">Cola o texto de uma fatura/email e vê o que a app deteta (valor, data, categoria) — útil antes de confiar no automático.</p>
+        <textarea id="mailTestText" rows="3" style="width:100%" placeholder="cola aqui o texto da fatura/notificação…"></textarea>
+        <button class="btn sm" data-mailtest="1" style="margin-top:6px">${svg(I.scan)}Analisar</button>
+        <div id="mailTestOut" style="font-size:13px;color:var(--mut);margin-top:6px"></div>
+      </div>
     </div>
   </div></details>
   <details class="defgroup" data-dg="categorias" ${defGroupsOpen.has('categorias')?'open':''}><summary>${svg(I.cat)} Categorias & regras</summary>
@@ -1687,6 +1705,8 @@ document.addEventListener('click',e=>{
   if(t.id==='bankImport'){if(state.bank){const s=val('bankSince');if(s)state.bank.since=s;save();}bankImport();return;}
   if(t.id==='bankDisc'){bankDisconnect();return;}
   if(t.id==='mailImport'){state.mailCfg=Object.assign({},state.mailCfg,{from:val('mailFrom'),since:val('mailSince')||isoToday()});save();mailImport();return;}
+  if(d.pvadd){const f=(val('pvFrom')||'').trim().toLowerCase();if(!f){toast('Indica o remetente (email/domínio)');return;}if(findProvider(f)){toast('Já existe um fornecedor com esse remetente');return;}const c=(document.getElementById('pvCat')||{}).value;const lbl=(val('pvLabel')||'').trim()||f;const src=(document.getElementById('pvSource')||{}).value||'pdf';state.providers=state.providers||[];state.providers.push({id:nid('pv'),label:lbl,from:f,catId:c,auto:false,source:src,n:0,last:null});save();render();toast('Fornecedor adicionado: '+lbl);return;}
+  if(d.mailtest){const txt=val('mailTestText');const out=document.getElementById('mailTestOut');if(!txt){if(out)out.textContent='Cola algum texto primeiro.';return;}const pf=parseFatura(txt);if(out)out.innerHTML=(pf&&pf.total!=null)?`Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''}${pf.forn?' · '+esc(pf.forn):''} → ${pf.catId?esc(catName(pf.catId)):'(sem categoria detetada)'}`:'Não detetei um valor. Cola mais texto (incl. a linha do total/valor a pagar).';return;}
   if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
   if(d.pvdel){const p=(state.providers||[]).find(x=>x.id===d.pvdel);if(p&&confirm('Esquecer o fornecedor "'+(p.label||p.from)+'"? (as faturas já lançadas mantêm-se)')){state.providers=state.providers.filter(x=>x.id!==d.pvdel);save();render();}return;}
   if(t.id==='recAdd'){openRec();return;}
@@ -2170,7 +2190,7 @@ function parseFatura(text){
   let mi=null,year=null,dia=null;
   const deb=dataDebito(text);
   if(deb){mi=deb[0];year=deb[1];dia=deb[2];}
-  if(mi==null){const idx=text.search(/data\s*(?:de|da)?\s*(?:emiss|fatura)/i);const d=idx>=0?parseDataPT(text.slice(idx,idx+45)):parseDataPT(text);if(d){mi=d[0];year=d[1];}}
+  if(mi==null){const idx=text.search(/data\s*(?:de|da)?\s*(?:emiss|fatura)/i);const d=idx>=0?parseDataPT(text.slice(idx,idx+45)):parseDataPT(text);if(d){mi=d[0];year=d[1];if(dia==null)dia=d[2];}}
   // categoria pelo fornecedor (regra que dispara é a "assinatura" segura: não depende do nome do cliente)
   let catId=null,forn=null;
   for(const [re,nome] of FATURA_CATS){if(re.test(text)){const c=findCatByName(nome);if(c){catId=c.id;forn=nome;break;}}}
@@ -2790,6 +2810,18 @@ function gmailToken(silent){
   });
 }
 function _b64urlToBlob(data,type){const b=atob(String(data).replace(/-/g,'+').replace(/_/g,'/'));const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return new Blob([a],{type});}
+function _b64urlToText(data){try{const b=atob(String(data).replace(/-/g,'+').replace(/_/g,'/'));return decodeURIComponent(escape(b));}catch(e){return '';}}
+/* texto do corpo do email (prefere text/plain; senão text/html sem tags) — para faturas/notificações sem PDF */
+function _getEmailText(payload){
+  let plain='',html='';
+  const walk=(p)=>{ if(!p)return; const mt=(p.mimeType||'').toLowerCase();
+    if(p.body&&p.body.data){ if(mt==='text/plain')plain+=' '+_b64urlToText(p.body.data); else if(mt==='text/html')html+=' '+_b64urlToText(p.body.data); }
+    if(p.parts)p.parts.forEach(walk);
+  };
+  walk(payload);
+  let t = plain.trim() || html.replace(/<style[\s\S]*?<\/style>/gi,' ').replace(/<[^>]+>/g,' ');
+  return t.replace(/&nbsp;/gi,' ').replace(/&amp;/gi,'&').replace(/&euro;/gi,'€').replace(/&#8364;/g,'€').replace(/\s+/g,' ').trim();
+}
 function _findPdfPart(payload){
   const walk=(p)=>{ if(!p)return null; if(p.filename&&/\.pdf$/i.test(p.filename)&&p.body&&p.body.attachmentId)return p; if(p.parts){for(const c of p.parts){const r=walk(c);if(r)return r;}} return null; };
   return walk(payload);
@@ -2804,30 +2836,35 @@ async function mailImport(silent){
   state.mailSeen=state.mailSeen||[]; const seen=new Set(state.mailSeen);
   const since=((state.mailCfg&&state.mailCfg.since)||isoToday());
   const from=((state.mailCfg&&state.mailCfg.from)||'').trim();
-  let q='has:attachment filename:pdf after:'+since.replace(/-/g,'/');
   let senders=[]; if(from)senders.push(...from.split(/[,\n;]+/).map(s=>s.trim()).filter(Boolean));
   (state.providers||[]).forEach(p=>{if(p.from)senders.push(p.from);}); senders=[...new Set(senders)];
-  if(senders.length)q+=' from:('+senders.join(' OR ')+')';
+  // com remetentes definidos: procura TODOS os emails desses (PDF e corpo); sem remetentes: só PDFs recentes
+  let q='after:'+since.replace(/-/g,'/');
+  q += senders.length ? ' from:('+senders.join(' OR ')+')' : ' has:attachment filename:pdf';
   const gh={'Authorization':'Bearer '+token};
   try{
-    const lr=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=30&q='+encodeURIComponent(q),{headers:gh})).json();
+    const lr=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=40&q='+encodeURIComponent(q),{headers:gh})).json();
     if(lr.error)throw new Error(lr.error.message||'erro Gmail');
     const msgs=lr.messages||[]; let added=0,auto=0,dup=0,skip=0;
     for(const mref of msgs){
       if(seen.has(mref.id)){dup++;continue;}
       const msg=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'?format=full',{headers:gh})).json();
-      const part=_findPdfPart(msg.payload); if(!part){seen.add(mref.id);state.mailSeen.push(mref.id);skip++;continue;}
-      const att=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'/attachments/'+part.body.attachmentId,{headers:gh})).json();
-      let pf=null; try{ pf=parseFatura(await extractPdfText(_b64urlToBlob(att.data,'application/pdf'))); }catch(e){}
+      const hdr=(n)=>((msg.payload.headers||[]).find(h=>(h.name||'').toLowerCase()===n)||{}).value||'';
+      const fromHdr=hdr('from'); const prov=findProvider(fromHdr);
+      const part=_findPdfPart(msg.payload);
+      const useBody = (prov&&prov.source==='body') || (!part && prov); // corpo: fornecedor "body" ou sem PDF anexo
+      let pf=null;
+      try{
+        if(useBody){ const txt=(_getEmailText(msg.payload)+' '+hdr('subject')).trim(); if(txt)pf=parseFatura(txt); }
+        else if(part){ const att=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'/attachments/'+part.body.attachmentId,{headers:gh})).json(); pf=parseFatura(await extractPdfText(_b64urlToBlob(att.data,'application/pdf'))); }
+      }catch(e){}
       seen.add(mref.id); state.mailSeen.push(mref.id);
       if(!pf||pf.total==null){skip++;continue;}
-      const hdr=(n)=>((msg.payload.headers||[]).find(h=>(h.name||'').toLowerCase()===n)||{}).value||'';
-      const fromHdr=hdr('from'); const fromDom=_emailDomain(fromHdr); const fromName=_emailName(fromHdr);
+      const fromDom=_emailDomain(fromHdr); const fromName=_emailName(fromHdr);
       const ed=new Date(+msg.internalDate||Date.now());
       const year=pf.year!=null?pf.year:ed.getFullYear();
       const mi=pf.mi!=null?pf.mi:ed.getMonth();
-      const prov=findProvider(fromHdr);
-      const it={id:nid('ib'),source:'mail',tipo:'despesa',total:pf.total,desc:pf.forn||fromName||hdr('subject')||'fatura',year,mi,dia:pf.dia||null,catId:(prov&&prov.catId)||pf.catId,from:fromDom||fromHdr,fromName,providerId:prov?prov.id:null,mailId:mref.id,ts:Date.now()};
+      const it={id:nid('ib'),source:'mail',tipo:'despesa',total:pf.total,desc:(prov&&prov.label)||pf.forn||fromName||hdr('subject')||'fatura',year,mi,dia:pf.dia||null,catId:(prov&&prov.catId)||pf.catId,from:fromDom||fromHdr,fromName,providerId:prov?prov.id:null,mailId:mref.id,ts:Date.now()};
       // fornecedor com Auto ligado e categoria => lança direto na grelha (salta a revisão)
       if(prov&&prov.auto&&it.catId&&!isFrozenMi(year,mi)){
         const dia=(it.dia&&it.dia>=1&&it.dia<=28)?it.dia:15;
