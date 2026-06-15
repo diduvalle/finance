@@ -1468,9 +1468,13 @@ function vDefs(m){
       ${(state.providers&&state.providers.length)?`<div style="margin-top:16px">
         <label>Fornecedores aprendidos</label>
         <p class="dsub" style="margin-top:2px">Liga <b>Auto</b> para esse fornecedor passar a entrar direto na grelha (depois de validares as primeiras). Sem Auto, vai à Caixa de entrada para confirmares.</p>
-        ${state.providers.map(p=>`<div class="catedit" style="padding:7px 0">
+        ${state.providers.map(p=>`<div class="catedit" style="padding:8px 0;gap:6px;flex-wrap:wrap;align-items:center">
           <span class="dot" style="background:${cat(p.catId)?cat(p.catId).cor:'#888'}"></span>
-          <span style="flex:1;min-width:0">${esc(p.label||p.from)} <span style="color:var(--mut);font-size:11px">· ${esc(p.from)} · ${p.source==='body'?'✉ corpo':'📎 PDF'} → ${p.catId?esc(catName(p.catId)):'(por classificar)'} · ${p.n||0} importada(s)${p.last?' · última '+fmt(p.last.total):''}</span></span>
+          <input value="${esc(p.label||'')}" data-pvlabel="${p.id}" placeholder="etiqueta" style="flex:1 1 90px;min-width:80px" title="Etiqueta">
+          <input value="${esc(p.from||'')}" data-pvfrom="${p.id}" placeholder="remetente" style="flex:1 1 110px;min-width:90px" title="Remetente (email/domínio)">
+          <select data-pvcat="${p.id}" title="Categoria">${p.catId?'':'<option value="" selected>— categoria —</option>'}${catOptions('despesa',p.catId)}</select>
+          <select data-pvsrc="${p.id}" title="Fonte"><option value="pdf" ${p.source!=='body'?'selected':''}>📎 PDF</option><option value="body" ${p.source==='body'?'selected':''}>✉ corpo</option></select>
+          <span style="color:var(--mut);font-size:11px">${p.n||0} imp.${p.last?' · '+fmt(p.last.total):''}</span>
           <button class="btn sm ${p.auto?'primary':''}" data-pvauto="${p.id}" title="${p.auto?'Auto-lançar ativo (clica para desligar)':'Ativar auto-lançar na grelha'}">${p.auto?'Auto ✓':'Auto'}</button>
           <button class="iconbtn" data-pvdel="${p.id}" title="Esquecer este fornecedor">${svg(I.trash)}</button>
         </div>`).join('')}
@@ -1758,6 +1762,10 @@ document.addEventListener('change',e=>{
   if(e.target.id==='bankSince'){if(state.bank){state.bank.since=e.target.value||isoToday();save();}}
   if(e.target.id==='bankHour'){if(state.bank){state.bank.autoHour=parseInt((e.target.value||'20:00').split(':')[0])||0;save();}}
   if(e.target.id==='mailFrom'){state.mailCfg=state.mailCfg||{};state.mailCfg.from=e.target.value;save();}
+  if(ds.pvcat!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvcat);if(p){p.catId=e.target.value||null;save();render();}}
+  if(ds.pvsrc!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvsrc);if(p){p.source=e.target.value;save();render();}}
+  if(ds.pvfrom!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvfrom);if(p){p.from=(e.target.value||'').trim().toLowerCase();save();}}
+  if(ds.pvlabel!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvlabel);if(p){p.label=e.target.value;save();}}
   if(e.target.id==='mailSince'){state.mailCfg=state.mailCfg||{};state.mailCfg.since=e.target.value||isoToday();save();}
   if(e.target.id==='fcBase'){state.forecast.baseAno=e.target.value;save();render();}
   if(e.target.id==='fcGRec'){state.forecast.gRec=parseFloat(e.target.value)||0;save();render();}
