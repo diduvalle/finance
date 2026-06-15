@@ -492,6 +492,7 @@ function load(){
   state.faturaMap = state.faturaMap || {}; // fornecedor (assinatura) -> categoria aprendida
   state.nifMap = state.nifMap || {};       // NIF do emitente (QR) -> categoria aprendida
   state.inbox = state.inbox || [];         // caixa de entrada de faturas lidas por QR (por classificar)
+  state.bankSeen = state.bankSeen || [];   // ids de transações do banco já importadas (dedup)
   state.metas = state.metas || [];         // objetivos de poupança (envelopes)
   // dia do mês de cada despesa fixa (para a previsão de tesouraria do Valete)
   if(!state._recdiaV1){
@@ -829,7 +830,7 @@ function vGrelha(m){
     ${gridTipo==='despesa'?`<button class="btn sm" id="genfix">${svg(I.repeat)}Lançar fixas em ${MESES[miv]}</button>`:''}
     ${gridTipo==='despesa'?`<button class="btn sm" id="impFatura">${svg(I.scan)}Importar fatura (PDF)</button><input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple style="display:none">`:''}
     ${gridTipo==='despesa'?`<button class="btn sm" id="impFoto">${svg(I.camera)}Foto da fatura</button><input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none">`:''}
-    ${gridTipo==='despesa'&&state.inbox&&state.inbox.length?`<button class="btn sm" id="inboxBtn" style="border-color:var(--warn);color:var(--warn)">${svg(I.inbox)}Caixa de entrada (${state.inbox.length})</button>`:''}
+    ${state.inbox&&state.inbox.length?`<button class="btn sm" id="inboxBtn" style="border-color:var(--warn);color:var(--warn)">${svg(I.inbox)}Caixa de entrada (${state.inbox.length})</button>`:''}
     ${gridTipo==='receita'?`<button class="btn sm" id="impRecibo">${svg(I.scan)}Importar recibo (PDF)</button><input type="file" id="reciboIn" accept="application/pdf,.pdf" style="display:none">`:''}
     <button class="btn sm" data-newcat="${gridTipo}">${svg(I.plus)}Nova categoria</button>
   </div>
@@ -1427,6 +1428,25 @@ function vDefs(m){
     </div>
 
   </div></details>
+  <details class="defgroup" data-dg="banco" ${defGroupsOpen.has('banco')?'open':''}><summary>${svg(I.wallet)} Banco (importar movimentos)</summary>
+  <div class="defs-grid">
+    <div class="card span2">${dh(I.wallet,'Ligação ao banco (open banking)','Importa automaticamente os teus movimentos para a Caixa de entrada, onde confirmas a categoria antes de entrarem na grelha. Read-only — nunca move dinheiro.')}
+      ${state.bank?`
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+          <span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">● Ligado · ${esc(state.bank.aspsp||'banco')}</span>
+          ${state.bank.validUntil?`<span class="pill" style="background:var(--card2);color:var(--mut)">consentimento até ${esc(String(state.bank.validUntil).slice(0,10))}</span>`:''}
+          ${state.bank.lastImport?`<span class="pill" style="background:var(--card2);color:var(--mut)">última importação ${new Date(state.bank.lastImport).toLocaleDateString('pt-PT')}</span>`:''}
+        </div>
+        <div style="font-size:13px;color:var(--mut);margin-bottom:10px">${(state.bank.accounts||[]).map(a=>'• '+esc(a.name)).join('<br>')||'sem contas'}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn primary sm" id="bankImport">${svg(I.repeat)}Importar movimentos</button>
+          <button class="btn sm" id="bankDisc">Desligar banco</button>
+        </div>`
+      :`
+        <p class="dsub" style="margin-top:0">Atualmente em modo de <b>teste (sandbox)</b> com um banco simulado. Quando estiver tudo validado, passamos ao <b>Novobanco</b> real.</p>
+        <button class="btn primary sm" id="bankConnect">${svg(I.wallet)}Ligar banco</button>`}
+    </div>
+  </div></details>
   <details class="defgroup" data-dg="categorias" ${defGroupsOpen.has('categorias')?'open':''}><summary>${svg(I.cat)} Categorias & regras</summary>
   <div class="defs-grid">
     <div class="card">${dh(I.repeat,'Despesas fixas (mensais)','Valor e dia do mês de cada uma. O dia alimenta o aviso do Valete ("até ao dia X precisas de Y"). O botão "Lançar fixas" na grelha cria estes valores no mês.')}
@@ -1631,6 +1651,9 @@ document.addEventListener('click',e=>{
   if(d.theme){state.settings.tema=d.theme;save();render();return;}
   if(t.id==='saveMoeda'){state.settings.moeda=val('moedaIn')||'€';save();render();toast('Guardado');return;}
   if(t.id==='saveCodigo'){state.settings.codigo=(val('codigoIn')||'').trim();sessionStorage.setItem('casa-unlock','1');save();render();toast('Código guardado');return;}
+  if(t.id==='bankConnect'){bankConnect();return;}
+  if(t.id==='bankImport'){bankImport();return;}
+  if(t.id==='bankDisc'){bankDisconnect();return;}
   if(t.id==='recAdd'){openRec();return;}
   if(d.recdel){state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render();return;}
   if(t.id==='searchBtn'){openSearch();return;}
@@ -2128,25 +2151,27 @@ async function processFatura(file){
 function openInbox(){
   const items=(state.inbox||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
   const row=(it)=>{
-    const provider = it.catId?catName(it.catId):(it.nif?('NIF '+it.nif):'desconhecido');
+    const tipo = it.tipo||'despesa';
+    const label = it.source==='bank' ? (it.desc||it.acct||'movimento do banco') : (it.catId?catName(it.catId):(it.nif?('NIF '+it.nif):'desconhecido'));
     const ym = (it.mi!=null?it.mi:new Date().getMonth());
+    const badge = it.source==='bank' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🏦 ${tipo==='receita'?'crédito':'débito'}${it.pend?' · pendente':''}</span> ` : '';
     return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <div><b style="font-size:15px">${fmt(it.total)}</b> <span style="color:var(--mut);font-size:12px">· ${esc(provider)}${it.nif?'':' '}${it.year?(' · '+(it.mi!=null?MESES[it.mi].slice(0,3)+'/':'' )+it.year):''}</span></div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
+        <div style="min-width:0"><b style="font-size:15px;color:${tipo==='receita'?'var(--acc)':'inherit'}">${tipo==='receita'?'+':''}${fmt(it.total)}</b> <span style="color:var(--mut);font-size:12px">· ${badge}${esc(label)}${it.acct&&it.source==='bank'?' · '+esc(it.acct):''}${it.year?(' · '+(it.mi!=null?MESES[it.mi].slice(0,3)+'/':'' )+it.year):''}</span></div>
         <button class="btn sm danger" data-ibdel="${it.id}">Descartar</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
-        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria</label><select id="ibcat_${it.id}">${catOptions('despesa',it.catId)}</select></div>
+        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria (${tipo==='receita'?'receita':'despesa'})</label><select id="ibcat_${it.id}">${catOptions(tipo,it.catId)}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Mês</label><select id="ibmes_${it.id}">${MESES.map((x,k)=>`<option value="${k}" ${k===ym?'selected':''}>${x.slice(0,3)}</option>`).join('')}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Ano</label><input id="ibano_${it.id}" type="number" step="1" value="${it.year||ano}" style="width:64px"></div>
-        <label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut);height:38px" title="Pago em dinheiro (sai do Cofre, não do Valete)"><input type="checkbox" id="ibcash_${it.id}">💵</label>
+        ${tipo==='despesa'?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut);height:38px" title="Pago em dinheiro (sai do Cofre, não do Valete)"><input type="checkbox" id="ibcash_${it.id}">💵</label>`:''}
         <button class="btn primary sm" data-ibadd="${it.id}" style="height:38px">${svg(I.check)}Adicionar</button>
       </div>
     </div>`;
   };
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.inbox)} Caixa de entrada <button class="close" data-close="1">&times;</button></h2>
   <div class="body">
-    <div class="hint" style="border-left:3px solid var(--acc)">Faturas/compras lidas por <b>QR</b> (valor exato). Escolhe a categoria e <b>Adicionar</b>. Compras gerais entram na <b>data da fatura</b>; se escolheres uma categoria recorrente (luz, água…), entra no <b>dia de débito aprendido</b> (agendado se for futuro). Marca <b>💵</b> se pagaste em dinheiro.</div>
+    <div class="hint" style="border-left:3px solid var(--acc)">Movimentos importados do <b>banco</b> (🏦) e faturas lidas por <b>QR</b>. Confirma a <b>categoria</b> e <b>Adicionar</b> — só aí entram na grelha (a data do banco é mantida). Compras por QR sem recorrência entram na data da fatura; categorias recorrentes (luz, água…) usam o <b>dia de débito aprendido</b>. Marca <b>💵</b> se foi em dinheiro.</div>
     ${items.length?items.map(row).join(''):'<div class="pempty" style="padding:24px">Caixa de entrada vazia. Usa <b>Foto da fatura</b> para capturar pelo QR.</div>'}
   </div>
   <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
@@ -2158,27 +2183,29 @@ function inboxAdd(id){
   if(!catId){toast('Escolhe a categoria');return;}
   const mi=+((document.getElementById('ibmes_'+id)||{}).value)||0;
   const year=+((document.getElementById('ibano_'+id)||{}).value)||ano;
-  const cash=!!(document.getElementById('ibcash_'+id)||{}).checked;
+  const tipo=it.tipo||'despesa';
+  const isBank=it.source==='bank';
+  const cash=tipo==='despesa' && !!(document.getElementById('ibcash_'+id)||{}).checked;
   if(isFrozenMi(year,mi)){toast('Mês congelado — desbloqueia na grelha');return;}
-  const rec=(state.recorrencias||[]).find(r=>r.categoriaId===catId&&r.ativo!==false);
-  const recorrente = !!(rec&&rec.dia);
-  // recorrente => dia de débito aprendido (pode ser agendado); compra geral => data da fatura (já paga)
+  // banco => usa a data real do movimento; QR despesa recorrente => dia de débito aprendido
+  const rec=tipo==='despesa'?(state.recorrencias||[]).find(r=>r.categoriaId===catId&&r.ativo!==false):null;
+  const recorrente = !isBank && !!(rec&&rec.dia);
   const dia = recorrente ? Math.min(rec.dia,28) : (it.dia&&it.dia>=1&&it.dia<=28?it.dia:15);
   const ym=`${year}-${String(mi+1).padStart(2,'0')}`;
   const dataStr=`${ym}-${String(dia).padStart(2,'0')}`;
-  const dupe=isDupMov('despesa',catId,it.total,ym);
-  if(dupe&&!confirm('Já existe uma despesa igual neste mês ('+catName(catId)+' · '+fmt(Math.abs(dupe.valor))+').\nAdicionar à mesma?'))return;
-  const mv={id:nid('m'),data:dataStr,tipo:'despesa',categoriaId:catId,valor:Math.abs(it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:'fatura'};
+  const dupe=isDupMov(tipo,catId,it.total,ym);
+  if(dupe&&!confirm('Já existe um movimento igual neste mês ('+catName(catId)+' · '+fmt(Math.abs(dupe.valor))+').\nAdicionar à mesma?'))return;
+  const mv={id:nid('m'),data:dataStr,tipo,categoriaId:catId,valor:valorComSinal(catId,tipo,it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:isBank?(it.desc||'banco'):'fatura'};
   if(rec)mv.recId=rec.id;
   if(cash){mv.cash=true;mv.ts=Date.now();}
-  // só agenda (pendente) faturas de serviço recorrente com débito futuro; compras gerais entram já pagas
-  const futuro = recorrente && !cash && dataStr>isoToday() && !isPastMonth(year,mi);
+  // banco pendente (não cobrado) ou QR recorrente com débito futuro => agendado
+  const futuro = (isBank ? it.pend : (recorrente && !cash && dataStr>isoToday())) && !isPastMonth(year,mi);
   if(futuro)mv.pendente=true;
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
   if(it.nif)state.nifMap[it.nif]=catId; // aprende NIF -> categoria
   state.inbox=state.inbox.filter(x=>x.id!==id);
   save(); render(); openInbox();
-  toast((futuro?'Agendada p/ '+dia+'/'+String(mi+1).padStart(2,'0')+': ':(cash?'Dinheiro: ':'Adicionada: '))+fmt(Math.abs(it.total))+' · '+catName(catId));
+  toast((futuro?'Agendado p/ '+dia+'/'+String(mi+1).padStart(2,'0')+': ':(cash?'Dinheiro: ':(tipo==='receita'?'Receita: ':'Adicionada: ')))+fmt(Math.abs(it.total))+' · '+catName(catId));
 }
 function inboxDiscard(id){
   const it=(state.inbox||[]).find(x=>x.id===id); if(!it)return;
@@ -2544,6 +2571,111 @@ function expCSV(){
 }
 function impJSON(file){const r=new FileReader();r.onload=()=>{try{const d=JSON.parse(r.result);if(!d.categorias||!d.movimentos)throw 0;localStorage.setItem(KEY,JSON.stringify(d));load();tab='grelha';render();toast('Dados importados');}catch(e){toast('Ficheiro inválido');}};r.readAsText(file);}
 
+/* ===== BANCO (open banking via Enable Banking + Supabase Edge Function) =====
+   A app só fala com a Edge Function (proxy). A chave privada vive no Supabase, não aqui.
+   BANK_KEY é a anon key do Supabase — pública por design (usada no browser). */
+const BANK_FN='https://gmwtcyxdxtywvbjndukw.supabase.co/functions/v1/novobanco';
+const BANK_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdtd3RjeXhkeHR5d3Ziam5kdWt3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0ODgzNTMsImV4cCI6MjA5NzA2NDM1M30.Hdg-he0Ic_rNsqy6UozfvIF9LMU0FUVEVrcipan2aWs';
+const BANK_ASPSP='BBVA';   // SANDBOX de teste. Em produção mudar para 'Novo Banco' (e nova app/segredos).
+const BANK_COUNTRY='PT';
+
+async function bankFn(path,opts={}){
+  const r=await fetch(BANK_FN+path,{...opts,headers:{'apikey':BANK_KEY,'Authorization':'Bearer '+BANK_KEY,'Content-Type':'application/json',...(opts.headers||{})}});
+  let d=null; try{d=await r.json();}catch(_){}
+  if(!r.ok) throw new Error((d&&d.error)||('HTTP '+r.status));
+  return d;
+}
+/* iniciar ligação: pede sessão de autorização e reencaminha para o banco (SCA) */
+async function bankConnect(){
+  try{
+    const st=nid('bk'); sessionStorage.setItem('bankState',st);
+    const redirect=location.origin+location.pathname;
+    toast('A contactar o banco…');
+    const r=await bankFn('/auth',{method:'POST',body:JSON.stringify({aspsp:BANK_ASPSP,country:BANK_COUNTRY,redirect_url:redirect,state:st})});
+    if(r&&r.url) location.href=r.url; else toast('Resposta inesperada do banco');
+  }catch(e){ toast('Falha a ligar ao banco: '+e.message); }
+}
+function bankAcctName(a){
+  const iban=a&&a.account_id&&a.account_id.iban; const tail=iban?('···'+iban.slice(-4)):'';
+  return [(a&&(a.product||a.name))||'Conta', tail].filter(Boolean).join(' ');
+}
+let _bankPending=null, _bankBusy=false;
+/* lê ?code=&state= do redirect e limpa o URL (corre cedo, mesmo com o cadeado) */
+function bankCaptureCallback(){
+  const p=new URLSearchParams(location.search);
+  const code=p.get('code'); if(!code)return;
+  _bankPending={code, state:p.get('state')};
+  history.replaceState({}, document.title, location.origin+location.pathname);
+}
+/* processa o callback assim que a app estiver desbloqueada */
+async function bankTryProcess(){
+  if(!_bankPending||_bankBusy||!isUnlocked())return;
+  _bankBusy=true; const pend=_bankPending; _bankPending=null;
+  try{
+    const stored=sessionStorage.getItem('bankState'); sessionStorage.removeItem('bankState');
+    if(pend.state&&stored&&pend.state!==stored){toast('Sessão de banco inválida — liga outra vez');return;}
+    toast('A ligar a conta…');
+    const s=await bankFn('/session',{method:'POST',body:JSON.stringify({code:pend.code})});
+    state.bank={
+      aspsp:(s.aspsp&&s.aspsp.name)||BANK_ASPSP,
+      sessionId:s.session_id,
+      validUntil:(s.access&&s.access.valid_until)||null,
+      accounts:(s.accounts||[]).map(a=>({uid:a.uid, name:bankAcctName(a), iban:(a.account_id&&a.account_id.iban)||null, sel:true})),
+      connectedAt:Date.now(), lastImport:null
+    };
+    save(); render();
+    toast('Banco ligado ✓ — '+state.bank.accounts.length+' conta(s)');
+    bankImport();
+  }catch(e){ toast('Falha ao ligar a conta: '+e.message); }
+  finally{ _bankBusy=false; }
+}
+function bankTxId(t){ return t.transaction_id || t.entry_reference || (t.booking_date+'|'+((t.transaction_amount||{}).amount)+'|'+t.credit_debit_indicator); }
+/* adivinha a categoria pela descrição (nome de uma categoria contido no texto) */
+function guessCatFromDesc(desc,tipo){
+  const n=(desc||'').toLowerCase(); if(!n)return null;
+  for(const c of state.categorias){ if(c.tipo!==tipo)continue; const nm=(c.nome||'').toLowerCase(); if(nm.length>=3 && n.includes(nm)) return c.id; }
+  return null;
+}
+/* mapeia uma transação do Enable Banking para um item da Caixa de entrada */
+function bankTxToInbox(t){
+  const tipo = t.credit_debit_indicator==='CRDT' ? 'receita' : 'despesa';
+  const total = Math.abs(parseFloat((t.transaction_amount||{}).amount||'0'))||0;
+  const date = t.booking_date || t.value_date || t.transaction_date || isoToday();
+  const [y,mm,d]=date.split('-').map(Number);
+  const ri=(t.remittance_information||[]).filter(Boolean).join(' ').trim();
+  const party = tipo==='despesa' ? (t.creditor&&t.creditor.name) : (t.debtor&&t.debtor.name);
+  const desc = ri || party || '';
+  return { id:nid('ib'), source:'bank', tipo, total, desc, year:y, mi:(mm-1), dia:d,
+           catId: guessCatFromDesc(desc,tipo), txId: bankTxId(t), pend:(t.status==='PEND'), ts:Date.now() };
+}
+/* importa transações das contas ligadas para a Caixa de entrada (dedup por txId) */
+async function bankImport(){
+  if(!state.bank||!(state.bank.accounts||[]).length){toast('Banco não ligado');return;}
+  state.bankSeen=state.bankSeen||[]; const seen=new Set(state.bankSeen);
+  const dateFrom=new Date(Date.now()-89*24*3600*1000).toISOString().slice(0,10);
+  let added=0, dup=0, err=0;
+  for(const acc of state.bank.accounts){
+    if(acc.sel===false)continue;
+    try{
+      const r=await bankFn('/transactions?account_id='+encodeURIComponent(acc.uid)+'&date_from='+dateFrom);
+      for(const t of (r.transactions||[])){
+        const id=bankTxId(t);
+        if(seen.has(id)){dup++;continue;}
+        seen.add(id); state.bankSeen.push(id);
+        const it=bankTxToInbox(t); it.acct=acc.name; state.inbox.push(it); added++;
+      }
+    }catch(e){ err++; }
+  }
+  state.bank.lastImport=Date.now(); save(); render();
+  toast(`Importados ${added} · ${dup} repetidos`+(err?` · ${err} conta(s) com erro`:''));
+  if(added) openInbox();
+}
+function bankDisconnect(){
+  if(!confirm('Desligar o banco?\nOs movimentos já adicionados à grelha mantêm-se. Os itens do banco ainda por classificar na Caixa de entrada são removidos.'))return;
+  state.inbox=(state.inbox||[]).filter(x=>x.source!=='bank');
+  state.bank=null; save(); render(); toast('Banco desligado');
+}
+
 /* ----- boot ----- */
 /* atualizar: desliga o service worker, limpa caches e recarrega da rede (resolve "ficou na versão antiga") */
 async function hardRefresh(){
@@ -2579,7 +2711,7 @@ async function bioUnlock(silent){
     const pk={ challenge:crypto.getRandomValues(new Uint8Array(32)), rpId:location.hostname, userVerification:'required', timeout:60000 };
     if(c.id) pk.allowCredentials=[{type:'public-key',id:_b64urlBuf(c.id)}]; // ajuda o telemóvel a encontrar a passkey
     await navigator.credentials.get({publicKey:pk});
-    sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} return true;
+    sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} return true;
   }catch(e){ if(!silent){ const m=document.getElementById('lockMsg'); if(m)m.textContent='Biometria: '+(e.name||'cancelada')+' — usa o código'; } return false; }
 }
 
@@ -2633,7 +2765,7 @@ function pinBack(){ _pinEntry=_pinEntry.slice(0,-1); pinUpdate(); }
 function pinSubmit(){
   if(_pinEntry===String(state.settings.codigo)){
     sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove();
-    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){}
+    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){}
   } else {
     const box=document.getElementById('lockBox'); if(box){box.classList.add('shake');setTimeout(()=>box.classList.remove('shake'),420);}
     const m=document.getElementById('lockMsg'); if(m)m.textContent='PIN errado';
@@ -2642,8 +2774,9 @@ function pinSubmit(){
 }
 document.addEventListener('keydown',e=>{ if(!document.getElementById('lock'))return; if(/^[0-9]$/.test(e.key))pinPress(e.key); else if(e.key==='Backspace'){e.preventDefault();pinBack();} });
 
-load();try{liquidarPendentes();}catch(e){}render();showLock();
+load();try{bankCaptureCallback();}catch(e){}try{liquidarPendentes();}catch(e){}render();showLock();
 try{lembreteBoot();}catch(e){}
+try{bankTryProcess();}catch(e){}
 if(dbxOn()) syncOpen().then(dailyBackup).catch(()=>{});
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 /* desvanece a splash depois da casa se desenhar (a app já está pronta por baixo) */
