@@ -93,9 +93,11 @@ input:focus,select:focus,textarea:focus{box-shadow:inset 0 0 0 1px var(--acc),0 
 input[type=number]{-moz-appearance:textfield}
 input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 @media(max-width:720px){.tabs .tablabel{display:none}.tabs button{padding:9px 12px}}
-#bell{background:none;border:0;color:var(--mut);cursor:pointer;position:relative;padding:6px;border-radius:9px;display:inline-flex}
-#bell:hover{color:var(--txt);background:var(--card)}
-#bell svg{width:19px;height:19px;display:block}
+#bell,#inboxTop{background:none;border:0;color:var(--mut);cursor:pointer;position:relative;padding:6px;border-radius:9px;display:inline-flex}
+#bell:hover,#inboxTop:hover{color:var(--txt);background:var(--card)}
+#bell svg,#inboxTop svg{width:19px;height:19px;display:block}
+.hlp{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--card2);color:var(--mut);font-size:11px;font-weight:800;cursor:help;border:1px solid var(--line);vertical-align:middle;margin-left:6px;user-select:none}
+.hlp:hover{color:var(--acc);border-color:var(--acc)}
 #refreshBtn,#searchBtn{background:none;border:0;color:var(--mut);cursor:pointer;padding:6px;border-radius:9px;display:inline-flex}
 #refreshBtn:hover,#searchBtn:hover{color:var(--txt);background:var(--card)}
 #refreshBtn svg,#searchBtn svg{width:18px;height:18px;display:block}
@@ -292,7 +294,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .chip.warn{border-color:var(--out);color:var(--out)}
 .chip.warn svg{width:14px;height:14px}
 #valeteHead{display:inline-flex;align-items:center;gap:6px}
-.topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
+.topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
 #lockNow{background:none;border:0;color:var(--mut);cursor:pointer;border-radius:9px;display:inline-flex}
 #lockNow:hover{color:var(--out);background:var(--card)}
 #lockNow svg{width:18px;height:18px;display:block}
@@ -355,6 +357,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
     <div class="spacer"></div>
     <div id="valeteHead"></div>
     <button id="searchBtn" title="Pesquisar movimentos"></button>
+    <button id="inboxTop" title="Caixa de entrada (por classificar)"></button>
     <button id="refreshBtn" title="Atualizar — limpar cache e recarregar"></button>
     <button id="bell" title="Alertas & poupança"></button>
     <button id="lockNow" title="Bloquear (sair)"></button>
@@ -565,6 +568,8 @@ function isoToday(){const d=new Date();return d.getFullYear()+'-'+String(d.getMo
 function curMi(){const d=new Date();return d.getFullYear()===ano?d.getMonth():-1;}
 function dateFor(mi){const d=new Date();if(d.getFullYear()===ano&&d.getMonth()===mi)return isoToday();return ano+'-'+String(mi+1).padStart(2,'0')+'-15';}
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+/* ajuda compacta: um "!" que mostra o texto (hover no PC, toque no telemóvel) — poupa espaço */
+function hlp(t){return t?`<span class="hlp" data-hlp="1" title="${esc(t)}" aria-label="${esc(t)}">!</span>`:'';}
 function sumMonth(tipo,mi){return state.movimentos.filter(m=>m.tipo===tipo&&+m.data.slice(0,4)===ano&&+m.data.slice(5,7)-1===mi).reduce((a,m)=>a+m.valor,0);}
 function sumYear(tipo){return state.movimentos.filter(m=>m.tipo===tipo&&+m.data.slice(0,4)===ano).reduce((a,m)=>a+m.valor,0);}
 function sumYearOf(tipo,y){return state.movimentos.filter(m=>m.tipo===tipo&&m.data.slice(0,4)===String(y)).reduce((a,m)=>a+m.valor,0);}
@@ -765,6 +770,7 @@ function render(){
   document.getElementById('valeteHead').innerHTML = _vChip;
   const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
   document.getElementById('searchBtn').innerHTML=svg(I.search);
+  const _ibn=(state.inbox||[]).length; document.getElementById('inboxTop').innerHTML=`${svg(I.inbox)}${_ibn?`<span class="bell-badge">${_ibn}</span>`:''}`;
   document.getElementById('refreshBtn').innerHTML=svg(I.repeat);
   const _ln=document.getElementById('lockNow'); _ln.innerHTML=svg(I.logout); _ln.style.display=state.settings.codigo?'inline-flex':'none';
   const _main=document.getElementById('main');
@@ -1400,7 +1406,7 @@ function expForecast(){ if(!_lastProj)return; const rows=[['Ano','Receita','Desp
 /* ================= DEFINIÇÕES ================= */
 function vDefs(m){
   const [a,b]=P();
-  const dh=(ic,t,sub)=>`<h3 class="dh">${svg(ic)} ${t}</h3>${sub?`<p class="dsub">${sub}</p>`:''}`;
+  const dh=(ic,t,sub)=>`<h3 class="dh">${svg(ic)} ${t}${sub?hlp(sub):''}</h3>`;
   m.innerHTML=`
   <div class="defs-wrap">
   <details class="defgroup" data-dg="pessoas" ${defGroupsOpen.has('pessoas')?'open':''}><summary>${svg(I.scale)} Pessoas & aparência</summary>
@@ -1459,15 +1465,12 @@ function vDefs(m){
     <div class="card span2">${dh(I.scan,'Faturas por email (Gmail)','Importa as faturas em PDF que recebes por email (NOS, Endesa, Gascan, Inframoura, seguros…) direto para a Caixa de entrada. Acesso só de leitura e temporário — nada fica guardado.')}
       <div class="f2">
         <div><label>Remetentes (opcional, separados por vírgula)</label><input id="mailFrom" value="${esc((state.mailCfg&&state.mailCfg.from)||'')}" placeholder="ex: nos.pt, endesa, inframoura, gascan"></div>
-        <div><label>A partir de</label><input id="mailSince" type="date" value="${(state.mailCfg&&state.mailCfg.since)||isoToday()}"></div>
+        <div><label>A partir de ${hlp('Só importa faturas recebidas a partir desta data — por defeito hoje, para ignorar o que já lançaste. Vai correndo Importar quando chegarem novas; as repetidas são ignoradas.')}</label><input id="mailSince" type="date" value="${(state.mailCfg&&state.mailCfg.since)||isoToday()}"></div>
       </div>
-      <p class="dsub" style="margin-top:6px">Só importa faturas recebidas <b>a partir desta data</b> — por defeito hoje, para ignorar o que já lançaste. Vai correndo "Importar" quando chegarem novas (as repetidas são ignoradas).</p>
-      <button class="btn primary sm" id="mailImport" style="margin-top:8px">${svg(I.scan)}Importar faturas do Gmail</button>
-      <p class="dsub" style="margin-top:6px">A importação do Gmail é <b>manual</b> (a Google exige um clique para o login — não dá para ser silenciosa). Para faturas <b>100% automáticas</b> seria preciso o modo de <i>reencaminhamento de email</i> (com servidor) — diz se queres avançar com isso.</p>
+      <button class="btn primary sm" id="mailImport" style="margin-top:8px">${svg(I.scan)}Importar faturas do Gmail ${hlp('A importação do Gmail é manual (a Google exige um clique para o login — não dá para ser silenciosa). Para faturas 100% automáticas seria preciso o modo de reencaminhamento de email com servidor.')}</button>
       ${!GMAIL_CLIENT_ID?`<p class="dsub" style="margin-top:6px;color:var(--warn)">Falta configurar o Client ID do Google — a importação ainda não funciona.</p>`:''}
       ${(state.providers&&state.providers.length)?`<div style="margin-top:16px">
-        <label>Fornecedores aprendidos</label>
-        <p class="dsub" style="margin-top:2px">Liga <b>Auto</b> para esse fornecedor passar a entrar direto na grelha (depois de validares as primeiras). Sem Auto, vai à Caixa de entrada para confirmares.</p>
+        <label>Fornecedores aprendidos ${hlp('Liga Auto para o fornecedor passar a entrar direto na grelha (depois de validares os primeiros). Sem Auto, vai à Caixa de entrada para confirmares. Em cada linha podes editar etiqueta, remetente, categoria e fonte; a lupa procura o último email desse remetente para validar.')}</label>
         <div class="catedit" style="padding:2px 0;gap:6px;flex-wrap:wrap;font-size:10.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px">
           <span class="dot" style="visibility:hidden"></span>
           <span style="flex:1 1 90px;min-width:80px">Etiqueta</span>
@@ -1489,8 +1492,7 @@ function vDefs(m){
         </div>`).join('')}
       </div>`:''}
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-        <label>Adicionar fornecedor à mão</label>
-        <p class="dsub" style="margin-top:2px">A app procura só estes remetentes. Fonte: <b>PDF anexo</b> ou (para notificações sem PDF, ex. banco) <b>corpo do email</b>.</p>
+        <label>Adicionar fornecedor à mão ${hlp('A app procura só estes remetentes. Fonte: PDF anexo ou (para notificações sem PDF, ex. banco) corpo do email.')}</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
           <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Remetente (email/domínio)</label><input id="pvFrom" placeholder="ex: nos.pt"></div>
           <div style="flex:1 1 130px"><label style="font-size:11px;color:var(--mut)">Categoria</label><select id="pvCat">${catOptions('despesa')}</select></div>
@@ -1500,13 +1502,11 @@ function vDefs(m){
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
           <button class="btn sm" data-pvseed="1">${svg(I.plus)}Sugerir conhecidos</button>
-          <button class="btn sm" data-pvdetect="1">${svg(I.scan)}Detetar remetentes do Gmail</button>
+          <button class="btn sm" data-pvdetect="1">${svg(I.scan)}Detetar remetentes do Gmail ${hlp('Lê os remetentes reais dos teus emails com PDF (último ano) e deixa-te ligá-los — para teres o endereço exato.')}</button>
         </div>
-        <p class="dsub" style="margin-top:6px">"Detetar" lê os remetentes reais dos teus emails com PDF (último ano) e deixa-te ligá-los — para teres o endereço exato.</p>
       </div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
-        <label>Testar leitura</label>
-        <p class="dsub" style="margin-top:2px">Cola o texto de uma fatura/email e vê o que a app deteta (valor, data, categoria) — útil antes de confiar no automático.</p>
+        <label>Testar leitura ${hlp('Cola o texto de uma fatura/email e vê o que a app deteta (valor, data, categoria) — útil antes de confiar no automático.')}</label>
         <textarea id="mailTestText" rows="3" style="width:100%" placeholder="cola aqui o texto da fatura/notificação…"></textarea>
         <button class="btn sm" data-mailtest="1" style="margin-top:6px">${svg(I.scan)}Analisar</button>
         <div id="mailTestOut" style="font-size:13px;color:var(--mut);margin-top:6px"></div>
@@ -1515,10 +1515,9 @@ function vDefs(m){
     <div class="card span2">${dh(I.scan,'Importar extrato (CSV)','Para contas sem ligação automática (ex.: Coverflex). Exporta o CSV (ex.: extensão coverflex-downloader) e importa aqui — gastos descontam, carregamentos somam. Vão para a Caixa de entrada para confirmares.')}
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">
         <div style="flex:1 1 200px"><label style="font-size:11px;color:var(--mut)">Categoria por defeito (a ligada à conta, ex. Coverflex)</label><select id="csvCat"><option value="">— deixar por classificar —</option>${catOptions('despesa')}</select></div>
-        <button class="btn sm" id="csvImport" style="height:38px">${svg(I.scan)}Escolher CSV…</button>
+        <button class="btn sm" id="csvImport" style="height:38px">${svg(I.scan)}Escolher CSV… ${hlp('Deteta as colunas (data, valor, descrição). Sinal do valor: negativo = gasto (despesa), positivo = carregamento (receita).')}</button>
         <input type="file" id="csvIn" accept=".csv,text/csv,text/plain" style="display:none">
       </div>
-      <p class="dsub" style="margin-top:6px">Deteta as colunas (data, valor, descrição). Sinal do valor: <b>negativo = gasto</b> (despesa), <b>positivo = carregamento</b> (receita). Se as colunas não forem reconhecidas, envia-me o cabeçalho do teu CSV.</p>
     </div>
   </div></details>
   <details class="defgroup" data-dg="categorias" ${defGroupsOpen.has('categorias')?'open':''}><summary>${svg(I.cat)} Categorias & regras</summary>
@@ -1636,6 +1635,7 @@ function catTree(tipo){return topCats(tipo).map(c=>{
 
 /* ================= EVENTS ================= */
 document.addEventListener('click',e=>{
+  const _hb=e.target.closest('[data-hlp]'); if(_hb){toast(_hb.getAttribute('title'));return;}
   const t=e.target.closest('button,a,[data-cell],[data-delmov],[data-movmov],[data-newcat]');
   // cell click (td) handled separately:
   const ren=e.target.closest('[data-rencat]');
@@ -1711,7 +1711,7 @@ document.addEventListener('click',e=>{
   if(t.id==='impFatura'){const f=document.getElementById('pdfIn');if(f)f.click();return;}
   if(t.id==='impRecibo'){const f=document.getElementById('reciboIn');if(f)f.click();return;}
   if(t.id==='impFoto'){const f=document.getElementById('fotoIn');if(f)f.click();return;}
-  if(t.id==='inboxBtn'){openInbox();return;}
+  if(t.id==='inboxBtn'||t.id==='inboxTop'){openInbox();return;}
   if(d.ibadd){inboxAdd(d.ibadd);return;}
   if(d.ibdel){inboxDiscard(d.ibdel);return;}
   if(d.ibclear){ if((state.inbox||[]).length&&confirm('Descartar TODAS as '+state.inbox.length+' entradas da Caixa de entrada? (não são lançadas na grelha)')){state.inbox=[];save();render();openInbox();} return; }
