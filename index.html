@@ -1485,6 +1485,7 @@ function vDefs(m){
           <div><label style="font-size:11px;color:var(--mut)">Fonte</label><select id="pvSource"><option value="pdf">PDF anexo</option><option value="body">Corpo do email</option></select></div>
           <button class="btn sm" data-pvadd="1" style="height:38px">${svg(I.plus)}Adicionar</button>
         </div>
+        <button class="btn sm" data-pvseed="1" style="margin-top:10px">${svg(I.plus)}Sugerir conhecidos (NOS, Endesa, Gascan, Inframoura, seguros…)</button>
       </div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
         <label>Testar leitura</label>
@@ -1706,6 +1707,7 @@ document.addEventListener('click',e=>{
   if(t.id==='bankDisc'){bankDisconnect();return;}
   if(t.id==='mailImport'){state.mailCfg=Object.assign({},state.mailCfg,{from:val('mailFrom'),since:val('mailSince')||isoToday()});save();mailImport();return;}
   if(d.pvadd){const f=(val('pvFrom')||'').trim().toLowerCase();if(!f){toast('Indica o remetente (email/domínio)');return;}if(findProvider(f)){toast('Já existe um fornecedor com esse remetente');return;}const c=(document.getElementById('pvCat')||{}).value;const lbl=(val('pvLabel')||'').trim()||f;const src=(document.getElementById('pvSource')||{}).value||'pdf';state.providers=state.providers||[];state.providers.push({id:nid('pv'),label:lbl,from:f,catId:c,auto:false,source:src,n:0,last:null});save();render();toast('Fornecedor adicionado: '+lbl);return;}
+  if(d.pvseed){state.providers=state.providers||[];let n=0;SUGGESTED_PROVIDERS.forEach(s=>{if(findProvider(s.from))return;const c=findCatByName(s.cat);state.providers.push({id:nid('pv'),label:s.label,from:s.from,catId:c?c.id:null,auto:false,source:s.source||'pdf',n:0,last:null});n++;});save();render();toast(n?n+' fornecedor(es) adicionados — confirma a categoria/fonte e liga o Auto':'Já tinhas todos os sugeridos');return;}
   if(d.mailtest){const txt=val('mailTestText');const out=document.getElementById('mailTestOut');if(!txt){if(out)out.textContent='Cola algum texto primeiro.';return;}const pf=parseFatura(txt);if(out)out.innerHTML=(pf&&pf.total!=null)?`Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''}${pf.forn?' · '+esc(pf.forn):''} → ${pf.catId?esc(catName(pf.catId)):'(sem categoria detetada)'}`:'Não detetei um valor. Cola mais texto (incl. a linha do total/valor a pagar).';return;}
   if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
   if(d.pvdel){const p=(state.providers||[]).find(x=>x.id===d.pvdel);if(p&&confirm('Esquecer o fornecedor "'+(p.label||p.from)+'"? (as faturas já lançadas mantêm-se)')){state.providers=state.providers.filter(x=>x.id!==d.pvdel);save();render();}return;}
@@ -2783,6 +2785,15 @@ function bankDisconnect(){
    Sem backend e sem guardar tokens: cada importação pede um access token de sessão.
    Reaproveita extractPdfText()+parseFatura() (que já mapeia NOS/Endesa/Gascan/Inframoura/Mudum…). */
 const GMAIL_CLIENT_ID='269930969792-4484p5did4jcr11efu04c2but770gbff.apps.googleusercontent.com'; // OAuth Client ID (público) do projeto Google "My Project"
+/* fornecedores conhecidos sugeridos (remetente aproximado + categoria por nome) — o utilizador ajusta se preciso */
+const SUGGESTED_PROVIDERS=[
+  {from:'nos.pt', label:'NOS', cat:'Telecom', source:'pdf'},
+  {from:'endesa', label:'Endesa', cat:'Luz', source:'pdf'},
+  {from:'gascan', label:'Gascan', cat:'Gás', source:'pdf'},
+  {from:'inframoura', label:'Inframoura', cat:'Água', source:'pdf'},
+  {from:'mudum', label:'Mudum (seguro casa)', cat:'Seguro da casa', source:'pdf'},
+  {from:'prevoir', label:'Prévoir (seguro vida)', cat:'Seguro de vida', source:'pdf'},
+];
 let _gisLoaded=null;
 function loadGIS(){
   if(_gisLoaded)return _gisLoaded;
