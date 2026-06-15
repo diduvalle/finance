@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pt">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>CASA · Política de Privacidade</title>
+<style>
+  :root{color-scheme:light dark}
+  body{font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;max-width:760px;margin:0 auto;padding:32px 20px;color:#222;background:#faf8f4}
+  @media(prefers-color-scheme:dark){body{color:#e7e3da;background:#15181a}a{color:#9cc3a6}}
+  h1{font-size:24px} h2{font-size:18px;margin-top:28px} p,li{color:inherit}
+  .muted{opacity:.7;font-size:14px}
+</style>
+</head>
+<body>
+<h1>Política de Privacidade — CASA</h1>
+<p class="muted">Última atualização: 2026-06-15</p>
+
+<p>A <strong>CASA</strong> é uma aplicação <strong>pessoal</strong> de gestão financeira doméstica, de utilização privada pelo seu titular. Esta página descreve como os dados são tratados.</p>
+
+<h2>1. Que dados são tratados</h2>
+<ul>
+  <li>Movimentos financeiros, categorias e saldos introduzidos pelo utilizador.</li>
+  <li>Quando o utilizador opta por ligar uma conta bancária, são obtidos <strong>apenas para leitura</strong> (AIS) os dados de conta e transações, com o seu consentimento explícito.</li>
+</ul>
+
+<h2>2. Acesso bancário (open banking)</h2>
+<p>O acesso às contas é feito através da <strong>Enable Banking</strong>, prestador de serviços de informação sobre contas (AISP) licenciado, ao abrigo da diretiva PSD2. A autenticação é efetuada <strong>diretamente no banco do utilizador</strong> (autenticação forte/SCA); a aplicação <strong>nunca tem acesso às credenciais bancárias</strong>. O acesso é exclusivamente de <strong>leitura</strong> — a aplicação não inicia pagamentos nem movimenta fundos. O consentimento é temporário (tipicamente 90 dias) e renovável pelo utilizador.</p>
+
+<h2>3. Onde ficam os dados</h2>
+<ul>
+  <li>Os dados financeiros são guardados <strong>localmente no dispositivo</strong> do utilizador (armazenamento do navegador) e, opcionalmente, sincronizados na <strong>conta Dropbox pessoal</strong> do utilizador.</li>
+  <li>Uma função intermediária (Supabase Edge Function) serve apenas para comunicar com a API do banco; <strong>não armazena</strong> dados financeiros nem transações.</li>
+  <li>Os dados <strong>não são partilhados</strong> com terceiros nem usados para publicidade ou perfilagem.</li>
+</ul>
+
+<h2>4. Direitos do utilizador</h2>
+<p>O utilizador pode, a qualquer momento, desligar o acesso bancário, apagar os dados locais e revogar o consentimento junto do banco ou da Enable Banking.</p>
+
+<h2>5. Contacto</h2>
+<p>Para questões de privacidade, contacte o titular da aplicação.</p>
+
+<p class="muted"><a href="./">← Voltar à aplicação</a></p>
+</body>
+</html>
