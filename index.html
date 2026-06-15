@@ -492,6 +492,7 @@ function load(){
   // Pessoa 2 = a ex/devedora (só relevante na aba de Dívida). Catarina = parceira atual, sem obrigações.
   if(!state._pessoasV2){ if(state.settings.pessoas[1])state.settings.pessoas[1].nome='DA'; state._pessoasV2=true; }
   state.settings.parceira = state.settings.parceira || 'Catarina';
+  if(state.settings.autoLockMin==null) state.settings.autoLockMin = 3; // bloqueio automático por inatividade (min); 0 = desligado
   state.faturaMap = state.faturaMap || {}; // fornecedor (assinatura) -> categoria aprendida
   state.nifMap = state.nifMap || {};       // NIF do emitente (QR) -> categoria aprendida
   state.inbox = state.inbox || [];         // caixa de entrada de faturas lidas por QR (por classificar)
@@ -1421,7 +1422,8 @@ function vDefs(m){
         <div><label>Tema</label><div class="seg"><button data-theme="dark" class="${state.settings.tema==='dark'?'on-out':''}">Escuro</button><button data-theme="light" class="${state.settings.tema==='light'?'on-out':''}">Claro</button></div></div>
         <div><label>Moeda</label><div style="display:flex;gap:8px"><input id="moedaIn" value="${esc(moeda())}" style="max-width:80px"><button class="btn sm" id="saveMoeda">OK</button></div></div>
       </div>
-      <div style="margin-top:12px"><label>Código de acesso (bloqueio ao abrir)</label><div style="display:flex;gap:8px"><input id="codigoIn" inputmode="numeric" value="${esc(state.settings.codigo||'')}" style="max-width:140px"><button class="btn sm" id="saveCodigo">Guardar</button></div><p class="dsub" style="margin-top:4px">Pedido sempre que abres a app. Deixa vazio para desligar. É um bloqueio simples (não é segurança forte).</p></div>
+      <div style="margin-top:12px"><label>Código de acesso (bloqueio ao abrir) ${hlp('Pedido sempre que abres a app. Deixa vazio para desligar. É um bloqueio simples (não é segurança forte).')}</label><div style="display:flex;gap:8px"><input id="codigoIn" inputmode="numeric" value="${esc(state.settings.codigo||'')}" style="max-width:140px"><button class="btn sm" id="saveCodigo">Guardar</button></div></div>
+      <div style="margin-top:12px"><label>Bloqueio automático por inatividade ${hlp('Ao fim de X minutos sem mexeres na app, ela bloqueia e pede o código. 0 = desligado. Só funciona com código definido.')}</label><div style="display:flex;gap:8px;align-items:center"><input id="autoLockIn" type="number" min="0" max="120" value="${state.settings.autoLockMin!=null?state.settings.autoLockMin:3}" style="max-width:90px"> <span style="color:var(--mut);font-size:13px">min (0 = desligado)</span></div></div>
       <div style="margin-top:12px"><label>Biometria (Face ID / impressão digital)</label>
         ${bioSupported()?(bioCfg()?`<div style="display:flex;gap:8px;align-items:center"><span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">● Ativa neste dispositivo</span><button class="btn sm" id="bioRem">Remover</button></div>`:`<div><button class="btn sm" id="bioReg">${svg(I.finger)}Ativar neste dispositivo</button></div>`)
           :`<p class="dsub">Indisponível aqui (precisa de abrir pelo link https e de o dispositivo ter biometria).</p>`}
@@ -1787,6 +1789,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='bankAuto'){if(state.bank){state.bank.auto=e.target.checked;save();render();toast(e.target.checked?'Banco: automático ligado (1×/dia)':'Banco: automático desligado');}}
   if(e.target.id==='bankSince'){if(state.bank){state.bank.since=e.target.value||isoToday();save();}}
   if(e.target.id==='bankHour'){if(state.bank){state.bank.autoHour=parseInt((e.target.value||'20:00').split(':')[0])||0;save();}}
+  if(e.target.id==='autoLockIn'){state.settings.autoLockMin=Math.max(0,Math.min(120,parseInt(e.target.value)||0));save();resetIdle();toast(state.settings.autoLockMin?('Bloqueio automático: '+state.settings.autoLockMin+' min'):'Bloqueio automático desligado');}
   if(e.target.id==='mailFrom'){state.mailCfg=state.mailCfg||{};state.mailCfg.from=e.target.value;save();}
   if(ds.pvcat!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvcat);if(p){p.catId=e.target.value||null;save();render();}}
   if(ds.pvsrc!=null){const p=(state.providers||[]).find(x=>x.id===ds.pvsrc);if(p){p.source=e.target.value;save();render();}}
@@ -3068,7 +3071,7 @@ async function bioUnlock(silent){
     const pk={ challenge:crypto.getRandomValues(new Uint8Array(32)), rpId:location.hostname, userVerification:'required', timeout:60000 };
     if(c.id) pk.allowCredentials=[{type:'public-key',id:_b64urlBuf(c.id)}]; // ajuda o telemóvel a encontrar a passkey
     await navigator.credentials.get({publicKey:pk});
-    sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){} return true;
+    sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){} try{resetIdle();}catch(_){} return true;
   }catch(e){ if(!silent){ const m=document.getElementById('lockMsg'); if(m)m.textContent='Biometria: '+(e.name||'cancelada')+' — usa o código'; } return false; }
 }
 
@@ -3122,7 +3125,7 @@ function pinBack(){ _pinEntry=_pinEntry.slice(0,-1); pinUpdate(); }
 function pinSubmit(){
   if(_pinEntry===String(state.settings.codigo)){
     sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove();
-    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){}
+    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){} try{resetIdle();}catch(_){}
   } else {
     const box=document.getElementById('lockBox'); if(box){box.classList.add('shake');setTimeout(()=>box.classList.remove('shake'),420);}
     const m=document.getElementById('lockMsg'); if(m)m.textContent='PIN errado';
@@ -3131,10 +3134,31 @@ function pinSubmit(){
 }
 document.addEventListener('keydown',e=>{ if(!document.getElementById('lock'))return; if(/^[0-9]$/.test(e.key))pinPress(e.key); else if(e.key==='Backspace'){e.preventDefault();pinBack();} });
 
+/* ===== Bloqueio automático por inatividade ===== */
+let _idleTimer=null,_idleArmed=0;
+function resetIdle(){
+  if(_idleTimer){clearTimeout(_idleTimer);_idleTimer=null;}
+  const min=+((state&&state.settings&&state.settings.autoLockMin))||0;
+  if(!min || !(state&&state.settings&&state.settings.codigo)) return; // desligado ou sem código
+  if(document.getElementById('lock')) return;                          // já bloqueado
+  _idleTimer=setTimeout(autoLock, min*60000);
+}
+function autoLock(){
+  if(!(state&&state.settings&&state.settings.codigo)) return;
+  if(document.getElementById('lock')) return;
+  sessionStorage.removeItem('casa-unlock');
+  try{closePop();}catch(e){} try{closeBack();}catch(e){}
+  showLock();
+}
+function _bumpIdle(){ const n=Date.now(); if(n-_idleArmed<1500)return; _idleArmed=n; resetIdle(); }
+['mousedown','keydown','touchstart','scroll','mousemove'].forEach(ev=>document.addEventListener(ev,_bumpIdle,{passive:true,capture:true}));
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden)_bumpIdle(); });
+
 load();try{bankCaptureCallback();}catch(e){}try{liquidarPendentes();}catch(e){}render();showLock();
 try{lembreteBoot();}catch(e){}
 try{bankTryProcess();}catch(e){}
 try{bankAutoImport();}catch(e){}
+try{resetIdle();}catch(e){}
 if(dbxOn()) syncOpen().then(dailyBackup).catch(()=>{});
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 /* desvanece a splash depois da casa se desenhar (a app já está pronta por baixo) */
