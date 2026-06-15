@@ -1444,6 +1444,7 @@ function vDefs(m){
         <div style="font-size:13px;color:var(--mut);margin-bottom:10px">${(state.bank.accounts||[]).map(a=>'• '+esc(a.name)).join('<br>')||'sem contas'}</div>
         <div style="margin-bottom:10px"><label style="font-size:11px;color:var(--mut)">Importar a partir de</label><br><input id="bankSince" type="date" value="${state.bank.since||isoToday()}" style="max-width:160px"></div>
         <p class="dsub" style="margin-top:0">Só traz movimentos <b>a partir desta data</b> — por defeito o dia em que ligaste, para não duplicar o passado já lançado. As repetições são ignoradas.</p>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);margin:6px 0 10px;cursor:pointer"><input type="checkbox" id="bankAuto" ${state.bank.auto!==false?'checked':''}> Importar automaticamente ao abrir a app (1×/dia)</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn primary sm" id="bankImport">${svg(I.repeat)}Importar movimentos</button>
           <button class="btn sm" id="bankDisc">Desligar banco</button>
@@ -1727,6 +1728,8 @@ document.addEventListener('change',e=>{
   if(ds.poupval!=null){const[y,i]=ds.poupval.split('|');state.poupancas[y].contas[+i].valor=parseFloat(e.target.value)||0;save();render();}
   if(ds.contq!=null){const[y,i]=ds.contq.split('|');state.poupancas[y].contagem[+i].q=parseFloat(e.target.value)||0;state.poupancas[y].contagemData=Date.now();save();render();}
   if(ds.orc!=null){const v=parseFloat(e.target.value); if(v>0)state.orcamentos[ds.orc]=v; else delete state.orcamentos[ds.orc]; save();}
+  if(e.target.id==='bankAuto'){if(state.bank){state.bank.auto=e.target.checked;save();toast(e.target.checked?'Importação automática ligada (1×/dia)':'Importação automática desligada');}}
+  if(e.target.id==='bankSince'){if(state.bank){state.bank.since=e.target.value||isoToday();save();}}
   if(e.target.id==='fcBase'){state.forecast.baseAno=e.target.value;save();render();}
   if(e.target.id==='fcGRec'){state.forecast.gRec=parseFloat(e.target.value)||0;save();render();}
   if(e.target.id==='fcGDesp'){state.forecast.gDesp=parseFloat(e.target.value)||0;save();render();}
@@ -2680,6 +2683,7 @@ async function bankTryProcess(){
       validUntil:(s.access&&s.access.valid_until)||null,
       accounts:(s.accounts||[]).map(a=>({uid:a.uid, name:bankAcctName(a), iban:(a.account_id&&a.account_id.iban)||null, sel:true})),
       since:isoToday(), // só importa movimentos a partir de hoje (o passado já está lançado)
+      auto:true, // importação automática 1×/dia ao abrir (interruptor nas Definições)
       connectedAt:Date.now(), lastImport:null
     };
     save(); render();
@@ -2707,27 +2711,41 @@ function bankTxToInbox(t){
   return { id:nid('ib'), source:'bank', tipo, total, desc, year:y, mi:(mm-1), dia:d,
            catId: guessCatFromDesc(desc,tipo), txId: bankTxId(t), pend:(t.status==='PEND'), ts:Date.now() };
 }
-/* importa transações das contas ligadas para a Caixa de entrada (dedup por txId) */
-async function bankImport(){
-  if(!state.bank||!(state.bank.accounts||[]).length){toast('Banco não ligado');return;}
-  state.bankSeen=state.bankSeen||[]; const seen=new Set(state.bankSeen);
-  const dateFrom=(state.bank&&state.bank.since)||isoToday(); // só a partir da data definida (default: dia da ligação) — não puxa o passado já lançado
-  let added=0, dup=0, err=0;
-  for(const acc of state.bank.accounts){
-    if(acc.sel===false)continue;
-    try{
-      const r=await bankFn('/transactions?account_id='+encodeURIComponent(acc.uid)+'&date_from='+dateFrom);
-      for(const t of (r.transactions||[])){
-        const id=bankTxId(t);
-        if(seen.has(id)){dup++;continue;}
-        seen.add(id); state.bankSeen.push(id);
-        const it=bankTxToInbox(t); it.acct=acc.name; state.inbox.push(it); added++;
-      }
-    }catch(e){ err++; }
-  }
-  state.bank.lastImport=Date.now(); save(); render();
-  toast(`Importados ${added} · ${dup} repetidos`+(err?` · ${err} conta(s) com erro`:''));
-  if(added) openInbox();
+/* importa transações das contas ligadas para a Caixa de entrada (dedup por txId).
+   silent=true (auto): não abre o modal nem toca quando não há novidades. */
+async function bankImport(silent){
+  if(!state.bank||!(state.bank.accounts||[]).length){ if(!silent)toast('Banco não ligado'); return; }
+  if(_bankBusy)return; _bankBusy=true;
+  try{
+    state.bankSeen=state.bankSeen||[]; const seen=new Set(state.bankSeen);
+    const dateFrom=(state.bank&&state.bank.since)||isoToday(); // só a partir da data definida (default: dia da ligação) — não puxa o passado já lançado
+    let added=0, dup=0, err=0;
+    for(const acc of state.bank.accounts){
+      if(acc.sel===false)continue;
+      try{
+        const r=await bankFn('/transactions?account_id='+encodeURIComponent(acc.uid)+'&date_from='+dateFrom);
+        for(const t of (r.transactions||[])){
+          const id=bankTxId(t);
+          if(seen.has(id)){dup++;continue;}
+          seen.add(id); state.bankSeen.push(id);
+          const it=bankTxToInbox(t); it.acct=acc.name; state.inbox.push(it); added++;
+        }
+      }catch(e){ err++; }
+    }
+    state.bank.lastImport=Date.now(); save(); render();
+    if(silent){ if(added) toast(`Banco: ${added} novo(s) movimento(s) na Caixa de entrada`); }
+    else { toast(`Importados ${added} · ${dup} repetidos`+(err?` · ${err} conta(s) com erro`:'')); if(added) openInbox(); }
+  } finally { _bankBusy=false; }
+}
+/* importação automática 1×/dia ao abrir a app (silenciosa; respeita o limite de 4 acessos/dia) */
+function _localDay(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function bankAutoImport(){
+  if(!state.bank||!(state.bank.accounts||[]).length)return;
+  if(state.bank.auto===false)return;          // interruptor desligado
+  if(_bankPending||_bankBusy)return;          // não colidir com uma ligação em curso
+  const last=state.bank.lastImport||0;
+  if(last && _localDay(last)===isoToday())return; // já importou hoje
+  bankImport(true);
 }
 function bankDisconnect(){
   if(!confirm('Desligar o banco?\nOs movimentos já adicionados à grelha mantêm-se. Os itens do banco ainda por classificar na Caixa de entrada são removidos.'))return;
@@ -2853,7 +2871,7 @@ async function bioUnlock(silent){
     const pk={ challenge:crypto.getRandomValues(new Uint8Array(32)), rpId:location.hostname, userVerification:'required', timeout:60000 };
     if(c.id) pk.allowCredentials=[{type:'public-key',id:_b64urlBuf(c.id)}]; // ajuda o telemóvel a encontrar a passkey
     await navigator.credentials.get({publicKey:pk});
-    sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} return true;
+    sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){} return true;
   }catch(e){ if(!silent){ const m=document.getElementById('lockMsg'); if(m)m.textContent='Biometria: '+(e.name||'cancelada')+' — usa o código'; } return false; }
 }
 
@@ -2907,7 +2925,7 @@ function pinBack(){ _pinEntry=_pinEntry.slice(0,-1); pinUpdate(); }
 function pinSubmit(){
   if(_pinEntry===String(state.settings.codigo)){
     sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove();
-    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){}
+    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){}
   } else {
     const box=document.getElementById('lockBox'); if(box){box.classList.add('shake');setTimeout(()=>box.classList.remove('shake'),420);}
     const m=document.getElementById('lockMsg'); if(m)m.textContent='PIN errado';
@@ -2919,6 +2937,7 @@ document.addEventListener('keydown',e=>{ if(!document.getElementById('lock'))ret
 load();try{bankCaptureCallback();}catch(e){}try{liquidarPendentes();}catch(e){}render();showLock();
 try{lembreteBoot();}catch(e){}
 try{bankTryProcess();}catch(e){}
+try{bankAutoImport();}catch(e){}
 if(dbxOn()) syncOpen().then(dailyBackup).catch(()=>{});
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
 /* desvanece a splash depois da casa se desenhar (a app já está pronta por baixo) */
