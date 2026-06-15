@@ -1444,7 +1444,10 @@ function vDefs(m){
         <div style="font-size:13px;color:var(--mut);margin-bottom:10px">${(state.bank.accounts||[]).map(a=>'• '+esc(a.name)).join('<br>')||'sem contas'}</div>
         <div style="margin-bottom:10px"><label style="font-size:11px;color:var(--mut)">Importar a partir de</label><br><input id="bankSince" type="date" value="${state.bank.since||isoToday()}" style="max-width:160px"></div>
         <p class="dsub" style="margin-top:0">Só traz movimentos <b>a partir desta data</b> — por defeito o dia em que ligaste, para não duplicar o passado já lançado. As repetições são ignoradas.</p>
-        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);margin:6px 0 10px;cursor:pointer"><input type="checkbox" id="bankAuto" ${state.bank.auto!==false?'checked':''}> Importar automaticamente ao abrir a app (1×/dia)</label>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:6px 0 10px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);cursor:pointer"><input type="checkbox" id="bankAuto" ${state.bank.auto!==false?'checked':''}> Importar automaticamente (1×/dia)</label>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--mut)">a partir das <input type="time" id="bankHour" value="${String(state.bank.autoHour!=null?state.bank.autoHour:20).padStart(2,'0')}:00" style="max-width:110px" ${state.bank.auto===false?'disabled':''}></label>
+        </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn primary sm" id="bankImport">${svg(I.repeat)}Importar movimentos</button>
           <button class="btn sm" id="bankDisc">Desligar banco</button>
@@ -1460,6 +1463,7 @@ function vDefs(m){
       </div>
       <p class="dsub" style="margin-top:6px">Só importa faturas recebidas <b>a partir desta data</b> — por defeito hoje, para ignorar o que já lançaste. Vai correndo "Importar" quando chegarem novas (as repetidas são ignoradas).</p>
       <button class="btn primary sm" id="mailImport" style="margin-top:8px">${svg(I.scan)}Importar faturas do Gmail</button>
+      <p class="dsub" style="margin-top:6px">A importação do Gmail é <b>manual</b> (a Google exige um clique para o login — não dá para ser silenciosa). Para faturas <b>100% automáticas</b> seria preciso o modo de <i>reencaminhamento de email</i> (com servidor) — diz se queres avançar com isso.</p>
       ${!GMAIL_CLIENT_ID?`<p class="dsub" style="margin-top:6px;color:var(--warn)">Falta configurar o Client ID do Google — a importação ainda não funciona.</p>`:''}
       ${(state.providers&&state.providers.length)?`<div style="margin-top:16px">
         <label>Fornecedores aprendidos</label>
@@ -1682,7 +1686,7 @@ document.addEventListener('click',e=>{
   if(d.bankpick){closeBack();bankStartAuth(d.bankpick);return;}
   if(t.id==='bankImport'){if(state.bank){const s=val('bankSince');if(s)state.bank.since=s;save();}bankImport();return;}
   if(t.id==='bankDisc'){bankDisconnect();return;}
-  if(t.id==='mailImport'){state.mailCfg={from:val('mailFrom'),since:val('mailSince')||isoToday()};save();mailImport();return;}
+  if(t.id==='mailImport'){state.mailCfg=Object.assign({},state.mailCfg,{from:val('mailFrom'),since:val('mailSince')||isoToday()});save();mailImport();return;}
   if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
   if(d.pvdel){const p=(state.providers||[]).find(x=>x.id===d.pvdel);if(p&&confirm('Esquecer o fornecedor "'+(p.label||p.from)+'"? (as faturas já lançadas mantêm-se)')){state.providers=state.providers.filter(x=>x.id!==d.pvdel);save();render();}return;}
   if(t.id==='recAdd'){openRec();return;}
@@ -1728,8 +1732,11 @@ document.addEventListener('change',e=>{
   if(ds.poupval!=null){const[y,i]=ds.poupval.split('|');state.poupancas[y].contas[+i].valor=parseFloat(e.target.value)||0;save();render();}
   if(ds.contq!=null){const[y,i]=ds.contq.split('|');state.poupancas[y].contagem[+i].q=parseFloat(e.target.value)||0;state.poupancas[y].contagemData=Date.now();save();render();}
   if(ds.orc!=null){const v=parseFloat(e.target.value); if(v>0)state.orcamentos[ds.orc]=v; else delete state.orcamentos[ds.orc]; save();}
-  if(e.target.id==='bankAuto'){if(state.bank){state.bank.auto=e.target.checked;save();toast(e.target.checked?'Importação automática ligada (1×/dia)':'Importação automática desligada');}}
+  if(e.target.id==='bankAuto'){if(state.bank){state.bank.auto=e.target.checked;save();render();toast(e.target.checked?'Banco: automático ligado (1×/dia)':'Banco: automático desligado');}}
   if(e.target.id==='bankSince'){if(state.bank){state.bank.since=e.target.value||isoToday();save();}}
+  if(e.target.id==='bankHour'){if(state.bank){state.bank.autoHour=parseInt((e.target.value||'20:00').split(':')[0])||0;save();}}
+  if(e.target.id==='mailFrom'){state.mailCfg=state.mailCfg||{};state.mailCfg.from=e.target.value;save();}
+  if(e.target.id==='mailSince'){state.mailCfg=state.mailCfg||{};state.mailCfg.since=e.target.value||isoToday();save();}
   if(e.target.id==='fcBase'){state.forecast.baseAno=e.target.value;save();render();}
   if(e.target.id==='fcGRec'){state.forecast.gRec=parseFloat(e.target.value)||0;save();render();}
   if(e.target.id==='fcGDesp'){state.forecast.gDesp=parseFloat(e.target.value)||0;save();render();}
@@ -2683,7 +2690,7 @@ async function bankTryProcess(){
       validUntil:(s.access&&s.access.valid_until)||null,
       accounts:(s.accounts||[]).map(a=>({uid:a.uid, name:bankAcctName(a), iban:(a.account_id&&a.account_id.iban)||null, sel:true})),
       since:isoToday(), // só importa movimentos a partir de hoje (o passado já está lançado)
-      auto:true, // importação automática 1×/dia ao abrir (interruptor nas Definições)
+      auto:true, autoHour:20, // importação automática 1×/dia ao abrir, a partir das 20:00 (interruptor/hora nas Definições)
       connectedAt:Date.now(), lastImport:null
     };
     save(); render();
@@ -2743,8 +2750,7 @@ function bankAutoImport(){
   if(!state.bank||!(state.bank.accounts||[]).length)return;
   if(state.bank.auto===false)return;          // interruptor desligado
   if(_bankPending||_bankBusy)return;          // não colidir com uma ligação em curso
-  const last=state.bank.lastImport||0;
-  if(last && _localDay(last)===isoToday())return; // já importou hoje
+  if(!_autoDue(state.bank.lastImport, state.bank.autoHour))return; // 1×/dia, a partir da hora preferida
   bankImport(true);
 }
 function bankDisconnect(){
@@ -2767,15 +2773,18 @@ function loadGIS(){
   });
   return _gisLoaded;
 }
-function gmailToken(){
+/* silent=true: tenta obter token SEM pop-up (prompt:none), reutilizando a sessão Google já iniciada;
+   se não der (sem sessão/consentimento), resolve null em vez de erro visível. */
+function gmailToken(silent){
   return new Promise(async(resolve,reject)=>{
-    if(!GMAIL_CLIENT_ID){toast('Falta o Client ID do Google');return reject(new Error('sem client id'));}
-    try{await loadGIS();}catch(e){return reject(e);}
+    if(!GMAIL_CLIENT_ID){ if(!silent)toast('Falta o Client ID do Google'); return silent?resolve(null):reject(new Error('sem client id')); }
+    try{await loadGIS();}catch(e){ return silent?resolve(null):reject(e); }
     const tc=google.accounts.oauth2.initTokenClient({
       client_id:GMAIL_CLIENT_ID,
       scope:'https://www.googleapis.com/auth/gmail.readonly',
-      callback:(resp)=>{ if(resp&&resp.access_token)resolve(resp.access_token); else reject(new Error('sem token')); },
-      error_callback:(e)=>reject(e)
+      prompt: silent?'none':'',
+      callback:(resp)=>{ if(resp&&resp.access_token)resolve(resp.access_token); else (silent?resolve(null):reject(new Error('sem token'))); },
+      error_callback:(e)=>{ silent?resolve(null):reject(e); }
     });
     tc.requestAccessToken();
   });
@@ -2788,10 +2797,10 @@ function _findPdfPart(payload){
 function _emailDomain(h){const m=String(h||'').match(/@([A-Za-z0-9.\-]+)/);return m?m[1].toLowerCase():'';}
 function _emailName(h){h=String(h||'').trim();const m=h.match(/^"?([^"<]+?)"?\s*</);return m?m[1].trim():(_emailDomain(h)||h);}
 function findProvider(fromHdr){const dom=_emailDomain(fromHdr);const fl=String(fromHdr||'').toLowerCase();return (state.providers||[]).find(x=>x.from&&((dom&&x.from===dom)||fl.includes(String(x.from).toLowerCase())))||null;}
-async function mailImport(){
-  let token; try{ token=await gmailToken(); }catch(e){ toast('Gmail: '+(e.message||'cancelado')); return; }
-  if(!token)return;
-  toast('A procurar faturas no Gmail…');
+async function mailImport(silent){
+  let token; try{ token=await gmailToken(silent); }catch(e){ if(!silent)toast('Gmail: '+(e.message||'cancelado')); return; }
+  if(!token){ return; } // silencioso sem sessão/consentimento — fica para a próxima
+  if(!silent)toast('A procurar faturas no Gmail…');
   state.mailSeen=state.mailSeen||[]; const seen=new Set(state.mailSeen);
   const since=((state.mailCfg&&state.mailCfg.since)||isoToday());
   const from=((state.mailCfg&&state.mailCfg.from)||'').trim();
@@ -2830,10 +2839,17 @@ async function mailImport(){
         prov.n=(prov.n||0)+1; prov.last={total:it.total,ym}; auto++;
       } else { state.inbox.push(it); added++; }
     }
-    save(); render();
-    toast(`Gmail: ${added} p/ rever${auto?' · '+auto+' auto-lançadas':''} · ${dup} repetidas`+(skip?` · ${skip} ignoradas`:''));
-    if(added)openInbox();
-  }catch(e){ toast('Falha no Gmail: '+(e.message||e)); }
+    state.mailCfg.lastAuto=Date.now(); save(); render();
+    if(silent){ if(added||auto)toast(`Email: ${added} p/ rever${auto?' · '+auto+' auto-lançadas':''}`); }
+    else { toast(`Gmail: ${added} p/ rever${auto?' · '+auto+' auto-lançadas':''} · ${dup} repetidas`+(skip?` · ${skip} ignoradas`:'')); if(added)openInbox(); }
+  }catch(e){ if(!silent)toast('Falha no Gmail: '+(e.message||e)); }
+}
+/* shared: a importação automática é "devida" hoje? (1×/dia, a partir da hora preferida, com rede de segurança >34h) */
+function _autoDue(last,hour){
+  if(last && _localDay(last)===isoToday())return false;
+  const h=new Date().getHours();
+  const stale=!last||(Date.now()-last)>34*3600*1000;
+  return h>=(hour!=null?hour:20) || stale;
 }
 
 /* ----- boot ----- */
