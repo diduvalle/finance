@@ -493,6 +493,8 @@ function load(){
   state.nifMap = state.nifMap || {};       // NIF do emitente (QR) -> categoria aprendida
   state.inbox = state.inbox || [];         // caixa de entrada de faturas lidas por QR (por classificar)
   state.bankSeen = state.bankSeen || [];   // ids de transações do banco já importadas (dedup)
+  state.mailSeen = state.mailSeen || [];   // ids de emails (faturas) já importados (dedup)
+  state.mailCfg = state.mailCfg || {from:'',days:60}; // config da importação de faturas do Gmail
   state.metas = state.metas || [];         // objetivos de poupança (envelopes)
   // dia do mês de cada despesa fixa (para a previsão de tesouraria do Valete)
   if(!state._recdiaV1){
@@ -1446,6 +1448,14 @@ function vDefs(m){
         <p class="dsub" style="margin-top:0">Atualmente em modo de <b>teste (sandbox)</b> com um banco simulado. Quando estiver tudo validado, passamos ao <b>Novobanco</b> real.</p>
         <button class="btn primary sm" id="bankConnect">${svg(I.wallet)}Ligar banco</button>`}
     </div>
+    <div class="card span2">${dh(I.scan,'Faturas por email (Gmail)','Importa as faturas em PDF que recebes por email (NOS, Endesa, Gascan, Inframoura, seguros…) direto para a Caixa de entrada. Acesso só de leitura e temporário — nada fica guardado.')}
+      <div class="f2">
+        <div><label>Remetentes (opcional, separados por vírgula)</label><input id="mailFrom" value="${esc((state.mailCfg&&state.mailCfg.from)||'')}" placeholder="ex: nos.pt, endesa, inframoura, gascan"></div>
+        <div><label>Últimos dias</label><input id="mailDays" type="number" min="1" max="365" value="${(state.mailCfg&&state.mailCfg.days)||60}" style="max-width:90px"></div>
+      </div>
+      <button class="btn primary sm" id="mailImport" style="margin-top:12px">${svg(I.scan)}Importar faturas do Gmail</button>
+      ${!GMAIL_CLIENT_ID?`<p class="dsub" style="margin-top:6px;color:var(--warn)">Falta configurar o Client ID do Google — a importação ainda não funciona.</p>`:''}
+    </div>
   </div></details>
   <details class="defgroup" data-dg="categorias" ${defGroupsOpen.has('categorias')?'open':''}><summary>${svg(I.cat)} Categorias & regras</summary>
   <div class="defs-grid">
@@ -1655,6 +1665,7 @@ document.addEventListener('click',e=>{
   if(d.bankpick){closeBack();bankStartAuth(d.bankpick);return;}
   if(t.id==='bankImport'){bankImport();return;}
   if(t.id==='bankDisc'){bankDisconnect();return;}
+  if(t.id==='mailImport'){state.mailCfg={from:val('mailFrom'),days:Math.max(1,Math.min(365,parseInt(val('mailDays'))||60))};save();mailImport();return;}
   if(t.id==='recAdd'){openRec();return;}
   if(d.recdel){state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render();return;}
   if(t.id==='searchBtn'){openSearch();return;}
@@ -2153,9 +2164,10 @@ function openInbox(){
   const items=(state.inbox||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
   const row=(it)=>{
     const tipo = it.tipo||'despesa';
-    const label = it.source==='bank' ? (it.desc||it.acct||'movimento do banco') : (it.catId?catName(it.catId):(it.nif?('NIF '+it.nif):'desconhecido'));
+    const isFeed = it.source==='bank'||it.source==='mail';
+    const label = isFeed ? (it.desc||it.acct||(it.source==='mail'?'fatura (email)':'movimento')) : (it.catId?catName(it.catId):(it.nif?('NIF '+it.nif):'desconhecido'));
     const ym = (it.mi!=null?it.mi:new Date().getMonth());
-    const badge = it.source==='bank' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🏦 ${tipo==='receita'?'crédito':'débito'}${it.pend?' · pendente':''}</span> ` : '';
+    const badge = it.source==='bank' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🏦 ${tipo==='receita'?'crédito':'débito'}${it.pend?' · pendente':''}</span> ` : (it.source==='mail' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">📧 fatura</span> ` : '');
     return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
         <div style="min-width:0"><b style="font-size:15px;color:${tipo==='receita'?'var(--acc)':'inherit'}">${tipo==='receita'?'+':''}${fmt(it.total)}</b> <span style="color:var(--mut);font-size:12px">· ${badge}${esc(label)}${it.acct&&it.source==='bank'?' · '+esc(it.acct):''}${it.year?(' · '+(it.mi!=null?MESES[it.mi].slice(0,3)+'/':'' )+it.year):''}</span></div>
@@ -2186,21 +2198,23 @@ function inboxAdd(id){
   const year=+((document.getElementById('ibano_'+id)||{}).value)||ano;
   const tipo=it.tipo||'despesa';
   const isBank=it.source==='bank';
+  const isMail=it.source==='mail';
+  const useExact=isBank||isMail; // banco e faturas de email já trazem a data real
   const cash=tipo==='despesa' && !!(document.getElementById('ibcash_'+id)||{}).checked;
   if(isFrozenMi(year,mi)){toast('Mês congelado — desbloqueia na grelha');return;}
   // banco => usa a data real do movimento; QR despesa recorrente => dia de débito aprendido
   const rec=tipo==='despesa'?(state.recorrencias||[]).find(r=>r.categoriaId===catId&&r.ativo!==false):null;
-  const recorrente = !isBank && !!(rec&&rec.dia);
+  const recorrente = !useExact && !!(rec&&rec.dia);
   const dia = recorrente ? Math.min(rec.dia,28) : (it.dia&&it.dia>=1&&it.dia<=28?it.dia:15);
   const ym=`${year}-${String(mi+1).padStart(2,'0')}`;
   const dataStr=`${ym}-${String(dia).padStart(2,'0')}`;
   const dupe=isDupMov(tipo,catId,it.total,ym);
   if(dupe&&!confirm('Já existe um movimento igual neste mês ('+catName(catId)+' · '+fmt(Math.abs(dupe.valor))+').\nAdicionar à mesma?'))return;
-  const mv={id:nid('m'),data:dataStr,tipo,categoriaId:catId,valor:valorComSinal(catId,tipo,it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:isBank?(it.desc||'banco'):'fatura'};
+  const mv={id:nid('m'),data:dataStr,tipo,categoriaId:catId,valor:valorComSinal(catId,tipo,it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:(isBank||isMail)?(it.desc||(isMail?'fatura':'banco')):'fatura'};
   if(rec)mv.recId=rec.id;
   if(cash){mv.cash=true;mv.ts=Date.now();}
   // banco pendente (não cobrado) ou QR recorrente com débito futuro => agendado
-  const futuro = (isBank ? it.pend : (recorrente && !cash && dataStr>isoToday())) && !isPastMonth(year,mi);
+  const futuro = (isBank ? it.pend : ((isMail||recorrente) && !cash && dataStr>isoToday())) && !isPastMonth(year,mi);
   if(futuro)mv.pendente=true;
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
   if(it.nif)state.nifMap[it.nif]=catId; // aprende NIF -> categoria
@@ -2695,6 +2709,73 @@ function bankDisconnect(){
   if(!confirm('Desligar o banco?\nOs movimentos já adicionados à grelha mantêm-se. Os itens do banco ainda por classificar na Caixa de entrada são removidos.'))return;
   state.inbox=(state.inbox||[]).filter(x=>x.source!=='bank');
   state.bank=null; save(); render(); toast('Banco desligado');
+}
+
+/* ===== FATURAS POR EMAIL (Gmail, só leitura, token temporário via Google Identity Services) =====
+   Sem backend e sem guardar tokens: cada importação pede um access token de sessão.
+   Reaproveita extractPdfText()+parseFatura() (que já mapeia NOS/Endesa/Gascan/Inframoura/Mudum…). */
+const GMAIL_CLIENT_ID='269930969792-4484p5did4jcr11efu04c2but770gbff.apps.googleusercontent.com'; // OAuth Client ID (público) do projeto Google "My Project"
+let _gisLoaded=null;
+function loadGIS(){
+  if(_gisLoaded)return _gisLoaded;
+  _gisLoaded=new Promise((res,rej)=>{
+    if(window.google&&google.accounts&&google.accounts.oauth2)return res();
+    const s=document.createElement('script'); s.src='https://accounts.google.com/gsi/client'; s.async=true;
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('Google Identity não carregou')); document.head.appendChild(s);
+  });
+  return _gisLoaded;
+}
+function gmailToken(){
+  return new Promise(async(resolve,reject)=>{
+    if(!GMAIL_CLIENT_ID){toast('Falta o Client ID do Google');return reject(new Error('sem client id'));}
+    try{await loadGIS();}catch(e){return reject(e);}
+    const tc=google.accounts.oauth2.initTokenClient({
+      client_id:GMAIL_CLIENT_ID,
+      scope:'https://www.googleapis.com/auth/gmail.readonly',
+      callback:(resp)=>{ if(resp&&resp.access_token)resolve(resp.access_token); else reject(new Error('sem token')); },
+      error_callback:(e)=>reject(e)
+    });
+    tc.requestAccessToken();
+  });
+}
+function _b64urlToBlob(data,type){const b=atob(String(data).replace(/-/g,'+').replace(/_/g,'/'));const a=new Uint8Array(b.length);for(let i=0;i<b.length;i++)a[i]=b.charCodeAt(i);return new Blob([a],{type});}
+function _findPdfPart(payload){
+  const walk=(p)=>{ if(!p)return null; if(p.filename&&/\.pdf$/i.test(p.filename)&&p.body&&p.body.attachmentId)return p; if(p.parts){for(const c of p.parts){const r=walk(c);if(r)return r;}} return null; };
+  return walk(payload);
+}
+async function mailImport(){
+  let token; try{ token=await gmailToken(); }catch(e){ toast('Gmail: '+(e.message||'cancelado')); return; }
+  if(!token)return;
+  toast('A procurar faturas no Gmail…');
+  state.mailSeen=state.mailSeen||[]; const seen=new Set(state.mailSeen);
+  const days=(state.mailCfg&&state.mailCfg.days)||60;
+  const from=((state.mailCfg&&state.mailCfg.from)||'').trim();
+  let q='has:attachment filename:pdf newer_than:'+days+'d';
+  if(from){const list=from.split(/[,\n;]+/).map(s=>s.trim()).filter(Boolean);if(list.length)q+=' from:('+list.join(' OR ')+')';}
+  const gh={'Authorization':'Bearer '+token};
+  try{
+    const lr=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=30&q='+encodeURIComponent(q),{headers:gh})).json();
+    if(lr.error)throw new Error(lr.error.message||'erro Gmail');
+    const msgs=lr.messages||[]; let added=0,dup=0,skip=0;
+    for(const mref of msgs){
+      if(seen.has(mref.id)){dup++;continue;}
+      const msg=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'?format=full',{headers:gh})).json();
+      const part=_findPdfPart(msg.payload); if(!part){seen.add(mref.id);state.mailSeen.push(mref.id);skip++;continue;}
+      const att=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'/attachments/'+part.body.attachmentId,{headers:gh})).json();
+      let p=null; try{ p=parseFatura(await extractPdfText(_b64urlToBlob(att.data,'application/pdf'))); }catch(e){}
+      seen.add(mref.id); state.mailSeen.push(mref.id);
+      if(!p||p.total==null){skip++;continue;}
+      const hdr=(n)=>((msg.payload.headers||[]).find(h=>(h.name||'').toLowerCase()===n)||{}).value||'';
+      const ed=new Date(+msg.internalDate||Date.now());
+      const year=p.year!=null?p.year:ed.getFullYear();
+      const mi=p.mi!=null?p.mi:ed.getMonth();
+      state.inbox.push({id:nid('ib'),source:'mail',tipo:'despesa',total:p.total,desc:p.forn||hdr('subject')||'fatura',year,mi,dia:p.dia||null,catId:p.catId,mailId:mref.id,ts:Date.now()});
+      added++;
+    }
+    save(); render();
+    toast(`Gmail: ${added} fatura(s) · ${dup} repetidas`+(skip?` · ${skip} ignoradas`:''));
+    if(added)openInbox();
+  }catch(e){ toast('Falha no Gmail: '+(e.message||e)); }
 }
 
 /* ----- boot ----- */
