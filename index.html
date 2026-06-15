@@ -494,6 +494,7 @@ function load(){
   state.inbox = state.inbox || [];         // caixa de entrada de faturas lidas por QR (por classificar)
   state.bankSeen = state.bankSeen || [];   // ids de transações do banco já importadas (dedup)
   state.mailSeen = state.mailSeen || [];   // ids de emails (faturas) já importados (dedup)
+  state.providers = state.providers || []; // fornecedores aprendidos: {id,label,from(domínio),catId,auto,n,last} — auto=lançar direto na grelha
   state.mailCfg = state.mailCfg || {from:''}; // config da importação de faturas do Gmail
   if(!state.mailCfg.since) state.mailCfg.since = isoToday(); // só faturas a partir desta data (default: hoje — ignora o passado já lançado)
   state.metas = state.metas || [];         // objetivos de poupança (envelopes)
@@ -1457,6 +1458,16 @@ function vDefs(m){
       <p class="dsub" style="margin-top:6px">Só importa faturas recebidas <b>a partir desta data</b> — por defeito hoje, para ignorar o que já lançaste. Vai correndo "Importar" quando chegarem novas (as repetidas são ignoradas).</p>
       <button class="btn primary sm" id="mailImport" style="margin-top:8px">${svg(I.scan)}Importar faturas do Gmail</button>
       ${!GMAIL_CLIENT_ID?`<p class="dsub" style="margin-top:6px;color:var(--warn)">Falta configurar o Client ID do Google — a importação ainda não funciona.</p>`:''}
+      ${(state.providers&&state.providers.length)?`<div style="margin-top:16px">
+        <label>Fornecedores aprendidos</label>
+        <p class="dsub" style="margin-top:2px">Liga <b>Auto</b> para esse fornecedor passar a entrar direto na grelha (depois de validares as primeiras). Sem Auto, vai à Caixa de entrada para confirmares.</p>
+        ${state.providers.map(p=>`<div class="catedit" style="padding:7px 0">
+          <span class="dot" style="background:${cat(p.catId)?cat(p.catId).cor:'#888'}"></span>
+          <span style="flex:1;min-width:0">${esc(p.label||p.from)} <span style="color:var(--mut);font-size:11px">· ${esc(p.from)} → ${p.catId?esc(catName(p.catId)):'(por classificar)'} · ${p.n||0} importada(s)${p.last?' · última '+fmt(p.last.total):''}</span></span>
+          <button class="btn sm ${p.auto?'primary':''}" data-pvauto="${p.id}" title="${p.auto?'Auto-lançar ativo (clica para desligar)':'Ativar auto-lançar na grelha'}">${p.auto?'Auto ✓':'Auto'}</button>
+          <button class="iconbtn" data-pvdel="${p.id}" title="Esquecer este fornecedor">${svg(I.trash)}</button>
+        </div>`).join('')}
+      </div>`:''}
     </div>
   </div></details>
   <details class="defgroup" data-dg="categorias" ${defGroupsOpen.has('categorias')?'open':''}><summary>${svg(I.cat)} Categorias & regras</summary>
@@ -1669,6 +1680,8 @@ document.addEventListener('click',e=>{
   if(t.id==='bankImport'){bankImport();return;}
   if(t.id==='bankDisc'){bankDisconnect();return;}
   if(t.id==='mailImport'){state.mailCfg={from:val('mailFrom'),since:val('mailSince')||isoToday()};save();mailImport();return;}
+  if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
+  if(d.pvdel){const p=(state.providers||[]).find(x=>x.id===d.pvdel);if(p&&confirm('Esquecer o fornecedor "'+(p.label||p.from)+'"? (as faturas já lançadas mantêm-se)')){state.providers=state.providers.filter(x=>x.id!==d.pvdel);save();render();}return;}
   if(t.id==='recAdd'){openRec();return;}
   if(d.recdel){state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render();return;}
   if(t.id==='searchBtn'){openSearch();return;}
@@ -2221,6 +2234,11 @@ function inboxAdd(id){
   if(futuro)mv.pendente=true;
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
   if(it.nif)state.nifMap[it.nif]=catId; // aprende NIF -> categoria
+  if(isMail && it.from){ // aprende remetente -> categoria (cria/atualiza o fornecedor)
+    state.providers=state.providers||[];
+    let pv=findProvider(it.from); if(!pv){pv={id:nid('pv'),label:it.fromName||it.from,from:it.from,catId,auto:false,n:0,last:null};state.providers.push(pv);}
+    pv.catId=catId; pv.n=(pv.n||0)+1; pv.last={total:it.total,ym};
+  }
   state.inbox=state.inbox.filter(x=>x.id!==id);
   save(); render(); openInbox();
   toast((futuro?'Agendado p/ '+dia+'/'+String(mi+1).padStart(2,'0')+': ':(cash?'Dinheiro: ':(tipo==='receita'?'Receita: ':'Adicionada: ')))+fmt(Math.abs(it.total))+' · '+catName(catId));
@@ -2746,6 +2764,9 @@ function _findPdfPart(payload){
   const walk=(p)=>{ if(!p)return null; if(p.filename&&/\.pdf$/i.test(p.filename)&&p.body&&p.body.attachmentId)return p; if(p.parts){for(const c of p.parts){const r=walk(c);if(r)return r;}} return null; };
   return walk(payload);
 }
+function _emailDomain(h){const m=String(h||'').match(/@([A-Za-z0-9.\-]+)/);return m?m[1].toLowerCase():'';}
+function _emailName(h){h=String(h||'').trim();const m=h.match(/^"?([^"<]+?)"?\s*</);return m?m[1].trim():(_emailDomain(h)||h);}
+function findProvider(fromHdr){const dom=_emailDomain(fromHdr);const fl=String(fromHdr||'').toLowerCase();return (state.providers||[]).find(x=>x.from&&((dom&&x.from===dom)||fl.includes(String(x.from).toLowerCase())))||null;}
 async function mailImport(){
   let token; try{ token=await gmailToken(); }catch(e){ toast('Gmail: '+(e.message||'cancelado')); return; }
   if(!token)return;
@@ -2754,29 +2775,42 @@ async function mailImport(){
   const since=((state.mailCfg&&state.mailCfg.since)||isoToday());
   const from=((state.mailCfg&&state.mailCfg.from)||'').trim();
   let q='has:attachment filename:pdf after:'+since.replace(/-/g,'/');
-  if(from){const list=from.split(/[,\n;]+/).map(s=>s.trim()).filter(Boolean);if(list.length)q+=' from:('+list.join(' OR ')+')';}
+  let senders=[]; if(from)senders.push(...from.split(/[,\n;]+/).map(s=>s.trim()).filter(Boolean));
+  (state.providers||[]).forEach(p=>{if(p.from)senders.push(p.from);}); senders=[...new Set(senders)];
+  if(senders.length)q+=' from:('+senders.join(' OR ')+')';
   const gh={'Authorization':'Bearer '+token};
   try{
     const lr=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages?maxResults=30&q='+encodeURIComponent(q),{headers:gh})).json();
     if(lr.error)throw new Error(lr.error.message||'erro Gmail');
-    const msgs=lr.messages||[]; let added=0,dup=0,skip=0;
+    const msgs=lr.messages||[]; let added=0,auto=0,dup=0,skip=0;
     for(const mref of msgs){
       if(seen.has(mref.id)){dup++;continue;}
       const msg=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'?format=full',{headers:gh})).json();
       const part=_findPdfPart(msg.payload); if(!part){seen.add(mref.id);state.mailSeen.push(mref.id);skip++;continue;}
       const att=await (await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/'+mref.id+'/attachments/'+part.body.attachmentId,{headers:gh})).json();
-      let p=null; try{ p=parseFatura(await extractPdfText(_b64urlToBlob(att.data,'application/pdf'))); }catch(e){}
+      let pf=null; try{ pf=parseFatura(await extractPdfText(_b64urlToBlob(att.data,'application/pdf'))); }catch(e){}
       seen.add(mref.id); state.mailSeen.push(mref.id);
-      if(!p||p.total==null){skip++;continue;}
+      if(!pf||pf.total==null){skip++;continue;}
       const hdr=(n)=>((msg.payload.headers||[]).find(h=>(h.name||'').toLowerCase()===n)||{}).value||'';
+      const fromHdr=hdr('from'); const fromDom=_emailDomain(fromHdr); const fromName=_emailName(fromHdr);
       const ed=new Date(+msg.internalDate||Date.now());
-      const year=p.year!=null?p.year:ed.getFullYear();
-      const mi=p.mi!=null?p.mi:ed.getMonth();
-      state.inbox.push({id:nid('ib'),source:'mail',tipo:'despesa',total:p.total,desc:p.forn||hdr('subject')||'fatura',year,mi,dia:p.dia||null,catId:p.catId,mailId:mref.id,ts:Date.now()});
-      added++;
+      const year=pf.year!=null?pf.year:ed.getFullYear();
+      const mi=pf.mi!=null?pf.mi:ed.getMonth();
+      const prov=findProvider(fromHdr);
+      const it={id:nid('ib'),source:'mail',tipo:'despesa',total:pf.total,desc:pf.forn||fromName||hdr('subject')||'fatura',year,mi,dia:pf.dia||null,catId:(prov&&prov.catId)||pf.catId,from:fromDom||fromHdr,fromName,providerId:prov?prov.id:null,mailId:mref.id,ts:Date.now()};
+      // fornecedor com Auto ligado e categoria => lança direto na grelha (salta a revisão)
+      if(prov&&prov.auto&&it.catId&&!isFrozenMi(year,mi)){
+        const dia=(it.dia&&it.dia>=1&&it.dia<=28)?it.dia:15;
+        const ym=`${year}-${String(mi+1).padStart(2,'0')}`; const dataStr=`${ym}-${String(dia).padStart(2,'0')}`;
+        if(isDupMov('despesa',it.catId,it.total,ym)){dup++;continue;}
+        const mv={id:nid('m'),data:dataStr,tipo:'despesa',categoriaId:it.catId,valor:valorComSinal(it.catId,'despesa',it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:it.desc};
+        const futuro=dataStr>isoToday()&&!isPastMonth(year,mi); if(futuro)mv.pendente=true;
+        state.movimentos.push(mv); if(!futuro&&!isPastMonth(year,mi))aplicaValete(mv);
+        prov.n=(prov.n||0)+1; prov.last={total:it.total,ym}; auto++;
+      } else { state.inbox.push(it); added++; }
     }
     save(); render();
-    toast(`Gmail: ${added} fatura(s) · ${dup} repetidas`+(skip?` · ${skip} ignoradas`:''));
+    toast(`Gmail: ${added} p/ rever${auto?' · '+auto+' auto-lançadas':''} · ${dup} repetidas`+(skip?` · ${skip} ignoradas`:''));
     if(added)openInbox();
   }catch(e){ toast('Falha no Gmail: '+(e.message||e)); }
 }
