@@ -1075,8 +1075,10 @@ function openAcertoDetail(ym){
   body+=`<div style="display:flex;justify-content:space-between;margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><span>Quota dela${row.fwd?' (½ dos movimentos)':' (valor do Excel)'}</span><b>${fmt(row.deve)}</b></div>
   <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Pago por ela</span><span>${fmt(row.pago)}</span></div>
   <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Saldo do mês</span><b class="${row.saldo>0?'neg':(row.saldo<0?'pos':'')}">${fmt(row.saldo)}</b></div>`;
-  if(!row.fwd && movs.length && Math.abs(meio-row.deve)>=0.02){
-    body+=`<div class="hint" style="border-left:3px solid var(--warn);margin-top:10px">⚠️ A metade dos movimentos na grelha (<b>${fmt(meio)}</b>) não coincide com o valor do Excel (<b>${fmt(row.deve)}</b>). A folha de acerto incluía itens (ex.: condomínio, seguros) que não estão lançados na grelha deste mês — por isso o histórico usa o valor do Excel.</div>`;
+  if(!row.fwd && movs.length && Math.abs(meio-row.deve)>=5){
+    body+=`<div class="hint" style="border-left:3px solid var(--warn);margin-top:10px">⚠️ Diferença relevante: a ½ dos movimentos na grelha (<b>${fmt(meio)}</b>) é menor que o valor do Excel (<b>${fmt(row.deve)}</b>). A folha de acerto incluía mais despesas partilhadas neste mês (ex.: condomínio/seguros) que não estão lançadas na grelha. O histórico usa o valor do Excel.</div>`;
+  } else if(!row.fwd && movs.length && Math.abs(meio-row.deve)>=0.5){
+    body+=`<p class="dsub" style="margin-top:8px">Pequena diferença (${fmt(meio)} vs Excel ${fmt(row.deve)}): a folha de acerto do Excel incluía um item menor a mais (ex.: NB) que não está nas 4 categorias partilhadas. O histórico usa o valor do Excel.</p>`;
   }
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scale)} ${mesNome} · origem do valor <button class="close" data-close="1">&times;</button></h2>
   <div class="body">${body}<p class="dsub" style="margin-top:12px">Contas partilhadas (50/50): ${flagged.map(esc).join(', ')||'(nenhuma definida — vê em Definições)'}.</p></div>
