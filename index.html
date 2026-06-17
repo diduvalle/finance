@@ -98,6 +98,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 #bell svg,#inboxTop svg{width:19px;height:19px;display:block}
 .hlp{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--card2);color:var(--mut);font-size:11px;font-weight:800;cursor:help;border:1px solid var(--line);vertical-align:middle;margin-left:6px;user-select:none}
 .hlp:hover{color:var(--acc);border-color:var(--acc)}
+.acmrow{cursor:pointer}
+.acmrow:hover td{background:var(--acc-12)}
 #refreshBtn,#searchBtn{background:none;border:0;color:var(--mut);cursor:pointer;padding:6px;border-radius:9px;display:inline-flex}
 #refreshBtn:hover,#searchBtn:hover{color:var(--txt);background:var(--card)}
 #refreshBtn svg,#searchBtn svg{width:18px;height:18px;display:block}
@@ -1016,7 +1018,7 @@ function vAcerto(m){
       <td class="num"><b>${fmtn(accFim)}</b></td></tr>`;
     const months=isOpen?rs.map(r=>{
       const cur=r.ym===nowYm;
-      return `<tr class="${cur?'now':''}" style="color:var(--mut)">
+      return `<tr class="acmrow${cur?' now':''}" data-acmonth="${r.ym}" title="Ver a origem deste valor" style="color:var(--mut)">
         <td style="padding-left:26px">${MESES[+r.ym.slice(5,7)-1]}${r.fwd?' <span class="pill" style="background:rgba(56,189,248,.16);color:var(--info)">app</span>':''}</td>
         <td class="num">${fmtn(r.deve)}</td>
         <td class="num">${r.pago?fmtn(r.pago):'·'}</td>
@@ -1051,6 +1053,30 @@ function vAcerto(m){
   </table></div>
 
   <div class="hint" style="margin-top:14px"><b>Registo de dívida</b> (não um acerto mútuo). ${esc(a.nome)} suporta as despesas; ${esc(b.nome)} é responsável por <b>metade das contas partilhadas</b> (prestação da casa, condomínio, seguro de vida e seguro da casa). Os valores até <b>jun/2026</b> vêm do teu Excel (quota dela − transferências); ela pagou regularmente até <b>set/2022</b> e desde então nunca mais pagou. Meses marcados <span class="pill" style="background:rgba(56,189,248,.16);color:var(--info)">app</span> são calculados a partir dos lançamentos que fazes nestas categorias. Clica num ano para ver/ocultar os meses.</div>`;
+}
+/* detalhe da origem do valor de um mês na Dívida */
+function openAcertoDetail(ym){
+  const led=acertoLedger(); const row=led.find(r=>r.ym===ym); if(!row)return;
+  const mesNome=MESES[+ym.slice(5,7)-1]+' '+ym.slice(0,4);
+  const acIds=acertoCatIds();
+  const flagged=state.categorias.filter(c=>c.acerto).map(c=>catName(c.id));
+  let body;
+  if(row.fwd){
+    const movs=state.movimentos.filter(x=>x.tipo==='despesa'&&acIds.has(x.categoriaId)&&x.data.slice(0,7)===ym).sort((a,b)=>a.data.localeCompare(b.data));
+    const tot=round2(movs.reduce((s,x)=>s+x.valor,0));
+    body=`<div class="hint" style="border-left:3px solid var(--acc)">A quota dela é <b>metade</b> das despesas das contas partilhadas lançadas neste mês.</div>
+    <div class="plist" style="max-height:46vh;margin-top:10px">${movs.length?movs.map(x=>`<div class="pe"><span style="font-weight:700">${fmt(Math.abs(x.valor))}</span><span style="color:var(--mut)">${esc(catName(x.categoriaId))} · ${x.data.slice(8,10)}/${x.data.slice(5,7)}${x.nota?' · '+esc(x.nota):''}</span><span style="margin-left:auto;color:var(--acc)">½ ${fmt(x.valor/2)}</span></div>`).join(''):'<div class="pempty">Sem despesas de contas partilhadas neste mês.</div>'}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><span>Total das contas partilhadas</span><span>${fmt(tot)}</span></div>`;
+  } else {
+    body=`<div class="hint" style="border-left:3px solid var(--info)">Valor do <b>histórico</b> importado do Excel (quota dela registada na folha do ano − transferências). O detalhe por movimento não está disponível para meses anteriores a jul/2026.</div>`;
+  }
+  body+=`<div style="display:flex;justify-content:space-between;margin-top:${row.fwd?'4':'12'}px"><span>Quota dela${row.fwd?' (metade)':''}</span><b>${fmt(row.deve)}</b></div>
+  <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Pago por ela</span><span>${fmt(row.pago)}</span></div>
+  <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Saldo do mês</span><b class="${row.saldo>0?'neg':(row.saldo<0?'pos':'')}">${fmt(row.saldo)}</b></div>`;
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scale)} ${mesNome} · origem do valor <button class="close" data-close="1">&times;</button></h2>
+  <div class="body">${body}<p class="dsub" style="margin-top:12px">Contas partilhadas (50/50): ${flagged.map(esc).join(', ')||'(nenhuma definida — vê em Definições)'}.</p></div>
+  <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
+  openBack();
 }
 function expAcertoCSV(){
   const led=acertoLedger();
@@ -1645,6 +1671,7 @@ document.addEventListener('click',e=>{
   const tog=e.target.closest('[data-toggle]');
   if(tog){ const id=tog.dataset.toggle; if(expandedCols.has(id))expandedCols.delete(id); else expandedCols.add(id); render(); return; }
   if(e.target.closest('[data-poupcont]')){ poupCont=!poupCont; render(); return; }
+  const acm=e.target.closest('[data-acmonth]'); if(acm){ openAcertoDetail(acm.dataset.acmonth); return; }
   const acy=e.target.closest('[data-acyear]'); if(acy){ const led=acertoLedger(); if(!acAnosOpen)acAnosOpen=new Set([Math.max(...led.map(r=>+r.ym.slice(0,4)))]); const y=+acy.dataset.acyear; if(acAnosOpen.has(y))acAnosOpen.delete(y); else acAnosOpen.add(y); render(); return; }
   const pl=e.target.closest('[data-poupledger]'); if(pl){ const a=pl.dataset.poupledger.split('|'); openContaLedger(a[0],+a[1]); return; }
   const dco=e.target.closest('[data-defcatopen]'); if(dco){ const id=dco.dataset.defcatopen; defCatOpen.has(id)?defCatOpen.delete(id):defCatOpen.add(id); render(); return; }
