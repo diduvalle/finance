@@ -1060,19 +1060,24 @@ function openAcertoDetail(ym){
   const mesNome=MESES[+ym.slice(5,7)-1]+' '+ym.slice(0,4);
   const acIds=acertoCatIds();
   const flagged=state.categorias.filter(c=>c.acerto).map(c=>catName(c.id));
-  let body;
-  if(row.fwd){
-    const movs=state.movimentos.filter(x=>x.tipo==='despesa'&&acIds.has(x.categoriaId)&&x.data.slice(0,7)===ym).sort((a,b)=>a.data.localeCompare(b.data));
-    const tot=round2(movs.reduce((s,x)=>s+x.valor,0));
-    body=`<div class="hint" style="border-left:3px solid var(--acc)">A quota dela é <b>metade</b> das despesas das contas partilhadas lançadas neste mês.</div>
-    <div class="plist" style="max-height:46vh;margin-top:10px">${movs.length?movs.map(x=>`<div class="pe"><span style="font-weight:700">${fmt(Math.abs(x.valor))}</span><span style="color:var(--mut)">${esc(catName(x.categoriaId))} · ${x.data.slice(8,10)}/${x.data.slice(5,7)}${x.nota?' · '+esc(x.nota):''}</span><span style="margin-left:auto;color:var(--acc)">½ ${fmt(x.valor/2)}</span></div>`).join(''):'<div class="pempty">Sem despesas de contas partilhadas neste mês.</div>'}</div>
-    <div style="display:flex;justify-content:space-between;margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><span>Total das contas partilhadas</span><span>${fmt(tot)}</span></div>`;
-  } else {
-    body=`<div class="hint" style="border-left:3px solid var(--info)">Valor do <b>histórico</b> importado do Excel (quota dela registada na folha do ano − transferências). O detalhe por movimento não está disponível para meses anteriores a jul/2026.</div>`;
+  const movs=state.movimentos.filter(x=>x.tipo==='despesa'&&acIds.has(x.categoriaId)&&x.data.slice(0,7)===ym).sort((a,b)=>a.data.localeCompare(b.data));
+  const tot=round2(movs.reduce((s,x)=>s+x.valor,0)); const meio=round2(tot/2);
+  let body = row.fwd
+    ? `<div class="hint" style="border-left:3px solid var(--acc)">A quota dela é <b>metade (50%)</b> das despesas das contas partilhadas lançadas neste mês.</div>`
+    : `<div class="hint" style="border-left:3px solid var(--info)">Valor do <b>histórico</b>: quota dela registada na folha de acerto do Excel (= 50% das despesas partilhadas que o Excel tinha nesse mês − transferências).</div>`;
+  if(movs.length){
+    body+=`<p class="dsub" style="margin-top:10px">Movimentos das contas partilhadas neste mês (½ de cada):</p>
+    <div class="plist" style="max-height:40vh">${movs.map(x=>`<div class="pe"><span style="font-weight:700">${fmt(Math.abs(x.valor))}</span><span style="color:var(--mut)">${esc(catName(x.categoriaId))} · ${x.data.slice(8,10)}/${x.data.slice(5,7)}${x.nota?' · '+esc(x.nota):''}</span><span style="margin-left:auto;color:var(--acc)">½ ${fmt(x.valor/2)}</span></div>`).join('')}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px"><span>Total destes movimentos</span><span>${fmt(tot)} → ½ <b>${fmt(meio)}</b></span></div>`;
+  } else if(!row.fwd){
+    body+=`<p class="dsub" style="margin-top:10px">Não há movimentos destas categorias lançados na grelha deste mês — o valor vem só da folha de acerto do Excel.</p>`;
   }
-  body+=`<div style="display:flex;justify-content:space-between;margin-top:${row.fwd?'4':'12'}px"><span>Quota dela${row.fwd?' (metade)':''}</span><b>${fmt(row.deve)}</b></div>
+  body+=`<div style="display:flex;justify-content:space-between;margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><span>Quota dela${row.fwd?' (½ dos movimentos)':' (valor do Excel)'}</span><b>${fmt(row.deve)}</b></div>
   <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Pago por ela</span><span>${fmt(row.pago)}</span></div>
   <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Saldo do mês</span><b class="${row.saldo>0?'neg':(row.saldo<0?'pos':'')}">${fmt(row.saldo)}</b></div>`;
+  if(!row.fwd && movs.length && Math.abs(meio-row.deve)>=0.02){
+    body+=`<div class="hint" style="border-left:3px solid var(--warn);margin-top:10px">⚠️ A metade dos movimentos na grelha (<b>${fmt(meio)}</b>) não coincide com o valor do Excel (<b>${fmt(row.deve)}</b>). A folha de acerto incluía itens (ex.: condomínio, seguros) que não estão lançados na grelha deste mês — por isso o histórico usa o valor do Excel.</div>`;
+  }
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scale)} ${mesNome} · origem do valor <button class="close" data-close="1">&times;</button></h2>
   <div class="body">${body}<p class="dsub" style="margin-top:12px">Contas partilhadas (50/50): ${flagged.map(esc).join(', ')||'(nenhuma definida — vê em Definições)'}.</p></div>
   <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
