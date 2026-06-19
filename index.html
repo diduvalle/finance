@@ -1016,6 +1016,7 @@ function acertoCatIds(){
 /* a partir deste mês (inclusive) a dívida vem da GRELHA (input manual); antes, do histórico do Excel.
    Data FIXA (não "mês atual") para os meses já lançados não voltarem ao Excel quando o mês roda. */
 const ACERTO_GRID_FROM='2026-06';
+const ACERTO_DIVIDA_FROM='2022-10'; /* a dívida só acumula a partir de out/2022 — antes disso estava saldada */
 /* Constrói o livro de dívida: histórico do Excel (até ACERTO_GRID_FROM) + meses da grelha (a partir daí). */
 function acertoLedger(){
   const src=(state.acerto&&state.acerto.length?state.acerto:EMBED_ACERTO);
@@ -1027,8 +1028,10 @@ function acertoLedger(){
   state.movimentos.filter(x=>x.tipo==='despesa'&&acIds.has(x.categoriaId)&&x.data.slice(0,7)>=ACERTO_GRID_FROM)
     .forEach(x=>{const ym=x.data.slice(0,7);fwd[ym]=(fwd[ym]||0)+x.valor/2;});
   [...new Set([...Object.keys(fwd),...Object.keys(pagosFwd)])].sort().forEach(ym=>base.push({ym,deve:round2(fwd[ym]||0),pago:round2(pagosFwd[ym]||0),fwd:true}));
-  let run=0; base.forEach(r=>{r.saldo=round2(r.deve-r.pago);run=round2(run+r.saldo);r.acc=run;});
-  return base;
+  /* a dívida só conta a partir de outubro de 2022 — tudo o que é anterior é ignorado */
+  const rows=base.filter(r=>r.ym>=ACERTO_DIVIDA_FROM);
+  let run=0; rows.forEach(r=>{r.saldo=round2(r.deve-r.pago);run=round2(run+r.saldo);r.acc=run;});
+  return rows;
 }
 function vAcerto(m){
   const [a,b]=P(); // a = Diogo (DV), b = ela (DA)
@@ -1097,7 +1100,7 @@ function vAcerto(m){
     <tfoot><tr><td>Total</td><td class="num">${fmtn(totalDeve)}</td><td class="num">${fmtn(totalPago)}</td><td class="num ${divida>0?'neg':'pos'}">${fmtn(totalDeve-totalPago)}</td><td class="num"><b>${fmtn(divida)}</b></td></tr></tfoot>
   </table></div>
 
-  <div class="hint" style="margin-top:14px"><b>Registo de dívida</b> (não um acerto mútuo). ${esc(a.nome)} suporta as despesas; ${esc(b.nome)} é responsável por <b>metade das contas partilhadas</b> (prestação da casa, condomínio, seguro de vida e seguro da casa). Os valores até <b>mai/2026</b> vêm do teu Excel (quota dela − transferências); ela pagou regularmente até <b>set/2022</b> e desde então nunca mais pagou. A partir de <b>jun/2026</b> (marcados <span class="pill" style="background:rgba(56,189,248,.16);color:var(--info)">app</span>) o valor é calculado a partir dos lançamentos que fazes nestas categorias na grelha. Clica num ano para ver/ocultar os meses.</div>`;
+  <div class="hint" style="margin-top:14px"><b>Registo de dívida</b> (não um acerto mútuo). ${esc(a.nome)} suporta as despesas; ${esc(b.nome)} é responsável por <b>metade das contas partilhadas</b> (prestação da casa, condomínio, seguro de vida e seguro da casa). Os valores até <b>mai/2026</b> vêm do teu Excel (quota dela − transferências). Ela pagou regularmente até <b>set/2022</b> (período saldado); por isso a dívida só conta <b>a partir de out/2022</b>. A partir de <b>jun/2026</b> (marcados <span class="pill" style="background:rgba(56,189,248,.16);color:var(--info)">app</span>) o valor é calculado a partir dos lançamentos que fazes nestas categorias na grelha. Clica num ano para ver/ocultar os meses.</div>`;
 }
 /* detalhe da origem do valor de um mês na Dívida */
 function openAcertoDetail(ym){
