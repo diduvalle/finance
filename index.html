@@ -141,10 +141,11 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .savebar{height:11px;border-radius:999px;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
 .savebar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--acc),var(--accd));transition:width .4s}
 /* Quick add */
-.qadd{display:flex;gap:11px;align-items:flex-end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r-lg);padding:17px 19px;margin-bottom:16px;flex-wrap:wrap;box-shadow:var(--sh)}
-.qadd .fld{display:flex;flex-direction:column}
-.qadd input,.qadd select{padding:11px 12px}
-.qadd .v{width:120px;font-weight:800;font-size:18px}
+.qadd{display:flex;gap:10px;align-items:flex-end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin-bottom:16px;flex-wrap:wrap;box-shadow:var(--sh)}
+.qadd .fld{display:flex;flex-direction:column;min-width:0}
+.qadd .fld-cat{flex:1 1 160px} .qadd .fld-mes{flex:0 0 116px} .qadd .fld-nota{flex:1 1 150px}
+.qadd input,.qadd select{padding:10px 12px}
+.qadd .v{width:108px;font-weight:800;font-size:17px}
 /* Grid */
 .gridwrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:auto;box-shadow:var(--sh)}
 table.grid{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
@@ -870,9 +871,9 @@ function vGrelha(m){
 
   <div class="qadd">
     <div class="fld"><label>Valor</label><input id="qVal" class="v" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
-    <div class="fld"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
-    <div class="fld"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
-    <div class="fld" style="flex:1 1 150px"><label>Nota (opcional)</label><input id="qNota" type="text" maxlength="80" placeholder="ex: o que foi"></div>
+    <div class="fld fld-cat"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
+    <div class="fld fld-mes"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
+    <div class="fld fld-nota"><label>Nota (opcional)</label><input id="qNota" type="text" maxlength="80" placeholder="ex: o que foi"></div>
     ${gridTipo==='despesa'?`<button class="btn" id="qAddCash" title="Pagar em dinheiro (sai do Cofre, não do Valete)" style="height:38px">${svg(I.cash)}</button>`:''}
     <button class="btn primary" id="qAdd" style="height:38px">${svg(I.plus)}Adicionar</button>
   </div>
@@ -1115,14 +1116,8 @@ function vAcerto(m){
     <div class="acerto-note">Registo mensal ${fmt(dividaMensal)} + acertos pontuais ${fmt(extrasTotal)} = <b>${fmt(divida)}</b>.${ultimoPago?` Último pagamento dela em <b>${MESES[+ultimoPago.ym.slice(5,7)-1]} ${ultimoPago.ym.slice(0,4)}</b>.`:''}</div>
   </div>
 
-  <div class="kstrip">
-    <div class="kbox"><div class="l">Em dívida (hoje)</div><div class="v ${divida>0?'neg':'pos'}">${fmt0(divida)}</div></div>
-    <div class="kbox"><div class="l">Quota dela (total)</div><div class="v">${fmt0(round2(totalDeve+extrasTotal))}</div></div>
-    <div class="kbox"><div class="l">Pago por ela (total)</div><div class="v">${fmt0(totalPago)}</div></div>
-  </div>
-
-  <div class="section-h" style="margin-top:18px;display:flex;align-items:center;gap:10px">
-    <span style="flex:1">Registo mês a mês · saldo acumulado</span>
+  <div class="section-h" style="margin-top:2px;display:flex;align-items:center;gap:10px">
+    <span style="flex:1">Registo mês a mês · saldo acumulado${hlp(`Registo de dívida (não um acerto mútuo). ${a.nome} suporta as despesas; ${b.nome} é responsável por metade das contas partilhadas (prestação da casa, condomínio, seguro de vida e seguro da casa). Os valores até mai/2026 vêm do Excel; ${b.nome} pagou regularmente até set/2022, por isso a dívida só conta a partir de out/2022. A partir de jun/2026 (marcados como app) o valor vem dos lançamentos na grelha. Clica num ano para ver/ocultar os meses.`)}</span>
     <button class="btn sm" data-acexpand="1">Expandir tudo</button>
     <button class="btn sm" data-accollapse="1">Recolher</button>
     <button class="btn sm" id="acCsv">${svg(I.download||I.export)}CSV</button>
@@ -1149,7 +1144,7 @@ function vAcerto(m){
     </div>
   </div>
 
-  <div class="hint" style="margin-top:14px"><b>Registo de dívida</b> (não um acerto mútuo). ${esc(a.nome)} suporta as despesas; ${esc(b.nome)} é responsável por <b>metade das contas partilhadas</b> (prestação da casa, condomínio, seguro de vida e seguro da casa). Os valores até <b>mai/2026</b> vêm do teu Excel (quota dela − transferências). Ela pagou regularmente até <b>set/2022</b> (período saldado); por isso a dívida só conta <b>a partir de out/2022</b>. A partir de <b>jun/2026</b> (marcados <span class="pill" style="background:rgba(56,189,248,.16);color:var(--info)">app</span>) o valor é calculado a partir dos lançamentos que fazes nestas categorias na grelha. Clica num ano para ver/ocultar os meses.</div>`;
+  `;
 }
 /* detalhe da origem do valor de um mês na Dívida */
 function openAcertoDetail(ym){
@@ -1268,6 +1263,7 @@ function vPoupancas(m){
   const cont = p.contagem||[];
   const cofre = contagemTotal(cont);
   const moedas = cont.filter(r=>+r.d<=2).reduce((a,r)=>a+(+r.d)*(parseFloat(r.q)||0),0);
+  const nMoedas = cont.filter(r=>+r.d<=2).reduce((a,r)=>a+(parseInt(r.q)||0),0); // nº de moedas (taxa do banco > 99)
   const totalContas = (p.contas||[]).reduce((a,c)=>a+(parseFloat(c.valor)||0),0);
   const total = totalContas + cofre;
   const liveYear = ano===+ultimoAnoPoup();
@@ -1280,10 +1276,9 @@ function vPoupancas(m){
   m.innerHTML=`
   <div class="kstrip">
     <div class="kbox"><div class="l">Património total ${ano}</div><div class="v pos">${fmt(total)}</div></div>
-    ${valete?`<div class="kbox"><div class="l">Valete · saldo real</div><div class="v">${fmt(valete.valor)}</div></div>`:''}
     <div class="kbox"><div class="l">Cofre (dinheiro)</div><div class="v">${fmt(cofre)}</div>${hasDisc?`<div style="font-size:12px;color:var(--warn)">esperado ${fmt(esperado)}</div>`:''}</div>
   </div>
-  <div class="hint" style="margin-bottom:14px">Controlo das poupanças. Usa o botão <b>+ / −</b> de cada conta para <b>reforçar</b>, <b>mobilizar</b> (levantar) ou <b>definir o saldo exato</b> (ex.: igualar o Valete ao banco). O <b>Valete</b> é o saldo real e o <b>Cofre</b> é o dinheiro físico (contado por denominação). Setas ‹ › em cima mudam de ano.</div>
+  <div class="section-h" style="display:flex;align-items:center;gap:8px;margin-top:2px">Contas &amp; dinheiro${hlp(`Usa o botão +/− de cada conta para reforçar, mobilizar (levantar) ou definir o saldo exato (ex.: igualar o Valete ao banco). O Valete é o saldo real e o Cofre é o dinheiro físico (contado por denominação). As setas ‹ › em cima mudam de ano.`)}</div>
   <div class="gridwrap">
     <table class="sumtable">
       <thead><tr><th>Conta</th><th class="num">Valor</th><th style="width:36px"></th></tr></thead>
@@ -1303,7 +1298,7 @@ function vPoupancas(m){
   ${metasHtml()}
 
   <div class="section-h" style="display:flex;align-items:center;gap:8px;cursor:pointer" data-poupcont="1">
-    <span class="exptog">${poupCont?'▾':'▸'}</span> Contagem do Cofre · notas e moedas ${cont.length?`(${fmt(cofre)}, dos quais ${fmt(moedas)} em moedas)`:''}${hasDisc?` <span style="color:var(--warn);font-weight:600">· esperado ${fmt(esperado)}</span>`:''}
+    <span class="exptog">${poupCont?'▾':'▸'}</span> <span style="flex:1">Contagem do Cofre</span>${nMoedas?`<span class="pill" title="Total de moedas contadas. Depósitos no banco com mais de 99 moedas pagam taxa." style="background:${nMoedas>99?'rgba(223,140,125,.16)':'var(--card2)'};color:${nMoedas>99?'var(--out)':'var(--mut)'};border:1px solid ${nMoedas>99?'var(--out)':'var(--line)'};font-weight:700">${nMoedas>99?'⚠ ':''}${nMoedas} moeda${nMoedas===1?'':'s'}</span>`:''}
   </div>
   ${poupCont?`<div class="gridwrap" style="max-width:420px">
     <table class="sumtable">
@@ -1314,6 +1309,7 @@ function vPoupancas(m){
           <td class="num">${fmtn((+r.d)*(parseFloat(r.q)||0))}</td></tr>`).join(''):`<tr><td colspan="3" style="text-align:center;color:var(--mut);padding:14px">Sem contagem em ${ano}.</td></tr>`}
       </tbody>
       <tfoot>
+        <tr${nMoedas>99?' style="color:var(--out)"':''} title="Depósitos no banco com mais de 99 moedas pagam taxa."><td>Moedas (nº)${nMoedas>99?' · &gt; 99, taxa do banco ⚠':''}</td><td class="num"><b>${nMoedas}</b></td><td class="num">${fmtn(moedas)}&nbsp;${moeda()}</td></tr>
         <tr><td>Total Cofre · contado</td><td></td><td class="num">${fmtn(cofre)}&nbsp;${moeda()}</td></tr>
         ${hasDisc?`<tr style="color:var(--warn)"><td>${svg(I.cash)} Esperado · após ${fmt(saidas)} em dinheiro</td><td></td><td class="num">${fmtn(esperado)}&nbsp;${moeda()}</td></tr>`:''}
       </tfoot>
