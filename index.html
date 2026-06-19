@@ -1191,10 +1191,6 @@ let defGroupsOpen=new Set(['pessoas']); // secções <details> abertas em Defini
 function contagemTotal(c){return (c||[]).reduce((a,r)=>a+(+r.d)*(parseFloat(r.q)||0),0);}
 /* ===== METAS / objetivos de poupança ===== */
 let _metaId=null,_metaAddId=null;
-function progRing(pct,size,col){
-  const r=42,C=2*Math.PI*r,len=Math.max(0,Math.min(100,pct))/100*C,s=size||106;
-  return `<svg viewBox="0 0 100 100" style="width:${s}px;height:${s}px"><circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--card2)" stroke-width="11"/><circle cx="50" cy="50" r="${r}" fill="none" stroke="${col||'var(--acc)'}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${(C-len).toFixed(1)}" transform="rotate(-90 50 50)"/><text x="50" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="var(--txt)">${Math.round(pct)}%</text></svg>`;
-}
 function metasHtml(){
   const _tA=(state.metas||[]).reduce((s,g)=>s+(+g.alvo||0),0);
   const _tG=(state.metas||[]).reduce((s,g)=>s+(+g.guardado||0),0);
@@ -1270,7 +1266,6 @@ function vPoupancas(m){
   const saidas = liveYear ? saidasDinheiro() : 0;       // dinheiro gasto desde a última contagem
   const esperado = round2(cofre - saidas);
   const hasDisc = saidas>0.001;                          // há divergência (pagamentos em dinheiro por descontar)
-  const valete = (p.contas||[]).find(c=>(c.nome||'').trim().toLowerCase()==='valete');
   const isV=n=>(n||'').trim().toLowerCase()==='valete';
   const denomLabel=d=> (d>=1? String(d) : String(d).replace('.',',')) + ' €';
   m.innerHTML=`
