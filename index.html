@@ -580,7 +580,7 @@ function save(){state._updated=Date.now();persist();_dirty=true;syncSchedule();}
 const P=()=>state.settings.pessoas;
 const pname=id=>(P().find(p=>p.id===id)||{}).nome||id;
 const moeda=()=>state.settings.moeda;
-function fmt(n){return (Math.round((n||0)*100)/100).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+moeda();}
+function fmt(n){return (Math.round((n||0)*100)/100).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+moeda();}
 function fmt0(n){return fmt(n);} /* mantido por compatibilidade: agora ao cêntimo */
 function fmtn(n){return (Math.round((n||0)*100)/100).toLocaleString('pt-PT',{minimumFractionDigits:2,maximumFractionDigits:2});} /* número sem símbolo, para as células */
 const cat=id=>state.categorias.find(c=>c.id===id);
@@ -1240,7 +1240,7 @@ function vPoupancas(m){
           <td style="text-align:right;white-space:nowrap"><button class="btn sm" data-poupledger="${ano}|${i}" title="Adicionar / remover valores">+ / −</button><button class="iconbtn" data-poupdel="${ano}|${i}">${svg(I.trash)}</button></td></tr>`).join('')}
         <tr><td>Cofre <span style="color:var(--mut);font-size:12px">· contado à mão</span></td><td class="num">${fmtn(cofre)}${hasDisc?` <span style="color:var(--warn);font-size:11px">(esperado ${fmtn(esperado)})</span>`:''}</td><td></td></tr>
       </tbody>
-      <tfoot><tr><td>Património total</td><td class="num">${fmtn(total)} ${moeda()}</td><td></td></tr></tfoot>
+      <tfoot><tr><td>Património total</td><td class="num">${fmtn(total)}&nbsp;${moeda()}</td><td></td></tr></tfoot>
     </table>
   </div>
   ${hasDisc?`<div class="hint" style="margin-top:10px;border-left:3px solid var(--warn)">Gastaste <b>${fmt(saidas)}</b> em dinheiro (💵) desde a última contagem. O <b>Esperado</b> mostra quanto deverá estar no Cofre. Quando recontares, acerta as quantidades na "Contagem do Cofre" (ou carrega em <b>recontei</b>) para limpar o aviso.</div>`:''}
@@ -1260,8 +1260,8 @@ function vPoupancas(m){
           <td class="num">${fmtn((+r.d)*(parseFloat(r.q)||0))}</td></tr>`).join(''):`<tr><td colspan="3" style="text-align:center;color:var(--mut);padding:14px">Sem contagem em ${ano}.</td></tr>`}
       </tbody>
       <tfoot>
-        <tr><td>Total Cofre · contado</td><td></td><td class="num">${fmtn(cofre)} ${moeda()}</td></tr>
-        ${hasDisc?`<tr style="color:var(--warn)"><td>${svg(I.cash)} Esperado · após ${fmt(saidas)} em dinheiro</td><td></td><td class="num">${fmtn(esperado)} ${moeda()}</td></tr>`:''}
+        <tr><td>Total Cofre · contado</td><td></td><td class="num">${fmtn(cofre)}&nbsp;${moeda()}</td></tr>
+        ${hasDisc?`<tr style="color:var(--warn)"><td>${svg(I.cash)} Esperado · após ${fmt(saidas)} em dinheiro</td><td></td><td class="num">${fmtn(esperado)}&nbsp;${moeda()}</td></tr>`:''}
       </tfoot>
     </table>
   </div>
@@ -1375,7 +1375,7 @@ function tendenciasCard(){
   const barsC=catTot.map(c=>`<div style="display:flex;align-items:center;gap:8px;margin:5px 0">
       <span style="width:88px;font-size:12px;color:var(--mut);text-align:right;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(c.nome)}">${esc(c.nome)}</span>
       <div style="flex:1;background:var(--card2);border-radius:5px;height:14px;overflow:hidden"><div style="height:100%;width:${(c.v/maxC*100).toFixed(1)}%;background:${c.cor||'var(--acc)'};border-radius:5px"></div></div>
-      <span style="width:64px;font-size:12px;text-align:right">${fmtK(c.v)} €</span></div>`).join('');
+      <span style="width:64px;font-size:12px;text-align:right">${fmtK(c.v)}&nbsp;€</span></div>`).join('');
   return `<div class="card" style="margin-bottom:14px">
     <h2 style="border:0;padding:0;margin:0 0 12px;font-size:15px">${svg(I.trend)} Tendências</h2>
     <div class="cols-2">
