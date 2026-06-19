@@ -1017,6 +1017,21 @@ function acertoCatIds(){
    Data FIXA (não "mês atual") para os meses já lançados não voltarem ao Excel quando o mês roda. */
 const ACERTO_GRID_FROM='2026-06';
 const ACERTO_DIVIDA_FROM='2022-10'; /* a dívida só acumula a partir de out/2022 — antes disso estava saldada */
+/* acertos pontuais (fora do registo mensal): valores one-off em que ela deve 50%.
+   2016 — impostos da compra da casa: preto = pago por ti; vermelho/negativo = devolvido no ajuste dos impostos. */
+const ACERTO_EXTRAS=[{
+  id:'casa2016', ano:2016, titulo:'Impostos da compra da casa',
+  itens:[
+    {nm:'Avaliação r/c',v:239.20},{nm:'Avaliação Casa',v:239.20},{nm:'Comissão Processo',v:290.00},
+    {nm:'Imposto Processo',v:11.60},{nm:'Despesas Cheque',v:11.75},{nm:'Imposto Despesas C.',v:0.47},
+    {nm:'Imposto Processo',v:1083.00},{nm:'Pag Estado',v:2948.63},{nm:'Pag Estado',v:856.25},
+    {nm:'Pag Estado',v:2948.63},{nm:'Pag Estado',v:856.25},{nm:'Notário',v:450.00},
+    {nm:'Notário',v:569.50},{nm:'Comissão Processo',v:120.00},{nm:'Imposto Processo',v:4.80},
+    {nm:'Devolvido DA',v:-100.00},{nm:'Devolvido DA2',v:-1174.74},{nm:'Devolvido DV',v:-134.25},{nm:'Devolvido DV2',v:-1174.74}
+  ]
+}];
+function acertoExtras(){return ACERTO_EXTRAS.map(e=>{const total=round2(e.itens.reduce((s,i)=>s+i.v,0));return Object.assign({},e,{total,metade:round2(total/2)});});}
+function acertoExtrasTotal(){return round2(acertoExtras().reduce((s,e)=>s+e.metade,0));}
 /* Constrói o livro de dívida: histórico do Excel (até ACERTO_GRID_FROM) + meses da grelha (a partir daí). */
 function acertoLedger(){
   const src=(state.acerto&&state.acerto.length?state.acerto:EMBED_ACERTO);
@@ -1038,7 +1053,9 @@ function vAcerto(m){
   const led=acertoLedger();
   const totalDeve=round2(led.reduce((s,r)=>s+r.deve,0));
   const totalPago=round2(led.reduce((s,r)=>s+r.pago,0));
-  const divida=led.length?led[led.length-1].acc:0;
+  const dividaMensal=led.length?led[led.length-1].acc:0;
+  const extras=acertoExtras(); const extrasTotal=acertoExtrasTotal();
+  const divida=round2(dividaMensal+extrasTotal); // total = registo mensal + acertos pontuais
   const ultimoPago=[...led].reverse().find(r=>r.pago>0);
   const nowYm=(function(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');})();
   // agrupar por ano
@@ -1079,12 +1096,12 @@ function vAcerto(m){
       <span class="ar">→</span>
       <div class="acerto-av acc" title="${esc(a.nome)}">${ini(a.nome)}</div>
     </div>
-    <div class="acerto-note">Quota dela acumulada ${fmt(totalDeve)} − pago por ela ${fmt(totalPago)}.${ultimoPago?` Último pagamento em <b>${MESES[+ultimoPago.ym.slice(5,7)-1]} ${ultimoPago.ym.slice(0,4)}</b>.`:''}</div>
+    <div class="acerto-note">Registo mensal ${fmt(dividaMensal)} + acertos pontuais ${fmt(extrasTotal)} = <b>${fmt(divida)}</b>.${ultimoPago?` Último pagamento dela em <b>${MESES[+ultimoPago.ym.slice(5,7)-1]} ${ultimoPago.ym.slice(0,4)}</b>.`:''}</div>
   </div>
 
   <div class="kstrip">
     <div class="kbox"><div class="l">Em dívida (hoje)</div><div class="v ${divida>0?'neg':'pos'}">${fmt0(divida)}</div></div>
-    <div class="kbox"><div class="l">Quota dela (total)</div><div class="v">${fmt0(totalDeve)}</div></div>
+    <div class="kbox"><div class="l">Quota dela (total)</div><div class="v">${fmt0(round2(totalDeve+extrasTotal))}</div></div>
     <div class="kbox"><div class="l">Pago por ela (total)</div><div class="v">${fmt0(totalPago)}</div></div>
   </div>
 
@@ -1097,8 +1114,24 @@ function vAcerto(m){
   <div class="gridwrap"><table class="sumtable acerto-table">
     <thead><tr><th>Período</th><th class="num">Quota dela</th><th class="num">Pago</th><th class="num">Saldo do mês</th><th class="num">Em dívida (acum.)</th></tr></thead>
     <tbody>${anos.map(yearBlock).join('')}</tbody>
-    <tfoot><tr><td>Total</td><td class="num">${fmtn(totalDeve)}</td><td class="num">${fmtn(totalPago)}</td><td class="num ${divida>0?'neg':'pos'}">${fmtn(totalDeve-totalPago)}</td><td class="num"><b>${fmtn(divida)}</b></td></tr></tfoot>
+    <tfoot><tr><td>Total mensal</td><td class="num">${fmtn(totalDeve)}</td><td class="num">${fmtn(totalPago)}</td><td class="num ${dividaMensal>0?'neg':'pos'}">${fmtn(totalDeve-totalPago)}</td><td class="num"><b>${fmtn(dividaMensal)}</b></td></tr></tfoot>
   </table></div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 class="dh">${svg(I.scale)} Acertos pontuais <span style="color:var(--mut);font-weight:600;font-size:13px">(fora do registo mensal)</span></h3>
+    <p class="dsub">Valores one-off somados à dívida — ${esc(b.nome)} deve 50% de cada. Preto = pago por ${esc(a.nome)}; <span class="pos">verde</span> = devolvido no ajuste.</p>
+    ${extras.map(e=>`<details class="defgroup" open style="margin-bottom:0">
+      <summary><span style="flex:1">${esc(e.titulo)} <span style="color:var(--mut);font-weight:400">· ${e.ano}</span></span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(e.metade)}</b></summary>
+      <div style="padding:12px 14px">
+        <div class="plist" style="max-height:none">${e.itens.map(it=>`<div class="pe"><span style="flex:1">${esc(it.nm)}</span><span class="${it.v<0?'pos':''}" style="font-variant-numeric:tabular-nums;font-weight:${it.v<0?'500':'600'}">${fmt(it.v)}</span></div>`).join('')}</div>
+        <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><span>Total líquido pago por ${esc(a.nome)}</span><b style="font-variant-numeric:tabular-nums">${fmt(e.total)}</b></div>
+        <div style="display:flex;justify-content:space-between;margin-top:5px"><span>Metade (50%) — quota de ${esc(b.nome)}</span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(e.metade)}</b></div>
+      </div></details>`).join('')}
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:13px;border-top:1px solid var(--line2)">
+      <span style="color:var(--mut);font-size:13px">Registo mensal <b style="color:var(--txt)">${fmt(dividaMensal)}</b> + pontuais <b style="color:var(--txt)">${fmt(extrasTotal)}</b></span>
+      <span style="font-weight:800;font-size:17px">Total em dívida&nbsp;<span class="neg">${fmt(divida)}</span></span>
+    </div>
+  </div>
 
   <div class="hint" style="margin-top:14px"><b>Registo de dívida</b> (não um acerto mútuo). ${esc(a.nome)} suporta as despesas; ${esc(b.nome)} é responsável por <b>metade das contas partilhadas</b> (prestação da casa, condomínio, seguro de vida e seguro da casa). Os valores até <b>mai/2026</b> vêm do teu Excel (quota dela − transferências). Ela pagou regularmente até <b>set/2022</b> (período saldado); por isso a dívida só conta <b>a partir de out/2022</b>. A partir de <b>jun/2026</b> (marcados <span class="pill" style="background:rgba(56,189,248,.16);color:var(--info)">app</span>) o valor é calculado a partir dos lançamentos que fazes nestas categorias na grelha. Clica num ano para ver/ocultar os meses.</div>`;
 }
