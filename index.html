@@ -146,6 +146,7 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .qadd .fld-cat{flex:1 1 160px} .qadd .fld-mes{flex:0 0 116px} .qadd .fld-nota{flex:1 1 150px}
 .qadd input,.qadd select{padding:10px 12px}
 .qadd .v{width:108px;font-weight:800;font-size:17px}
+#qAddCash.on{background:var(--acc-15);box-shadow:inset 0 0 0 1.5px var(--acc)}#qAddCash.on svg{color:var(--acc)}
 /* Grid */
 .gridwrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:auto;box-shadow:var(--sh)}
 table.grid{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
@@ -343,7 +344,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   #searchBtn{order:3;margin-left:auto}
   #inboxTop{order:4} #refreshBtn{order:5} #bell{order:6} #lockNow{order:7}
   #topright{order:8}
-  .tabs{order:9;flex:1 1 0;width:auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs{order:9;flex:1 1 auto;width:auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .topbar .yearnav{height:32px}
   .topbar .yearnav button{width:26px;height:26px;font-size:15px}
   .topbar .yearnav .y{min-width:42px;font-size:14px}
@@ -504,7 +505,7 @@ function guessIcon(nome){const n=(nome||'').toLowerCase();for(const [k,v] of ICO
 function catIconHtml(c,size){const k=c&&c.icon&&CAT_ICONS[c.icon];const cor=(c&&c.cor)||'var(--acc)';const s=size||26;return k?`<span class="cicon" style="width:${s}px;height:${s}px;background:${cor};color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${k}"/></svg></span>`:`<span class="cicon dotcol" style="width:${s}px;height:${s}px;background:${cor}"></span>`;}
 let _seq=0; const nid=p=>(p||'i')+'_'+Date.now().toString(36)+(_seq++);
 
-let state=null, tab='grelha', ano=2026, gridTipo='despesa';
+let state=null, tab='grelha', ano=2026, gridTipo='despesa', qCashMode=false;
 let expandedCols=new Set();
 let gridView='',gmOpen=null; // vista da Grelha: ''=auto (lista no telemóvel, tabela no PC) · meses abertos na lista
 function catOptions(tipo,sel){return topCats(tipo).map(c=>{const kids=childrenOf(c.id);if(!kids.length)return `<option value="${c.id}" ${c.id===sel?'selected':''}>${c.nome}</option>`;return `<optgroup label="${c.nome}"><option value="${c.id}" ${c.id===sel?'selected':''}>${c.nome} (geral)</option>${kids.map(k=>`<option value="${k.id}" ${k.id===sel?'selected':''}>— ${k.nome}</option>`).join('')}</optgroup>`;}).join('');}
@@ -825,7 +826,7 @@ function render(){
   document.getElementById('refreshBtn').innerHTML=svg(I.repeat);
   const _ln=document.getElementById('lockNow'); _ln.innerHTML=svg(I.logout); _ln.style.display=state.settings.codigo?'inline-flex':'none';
   const _main=document.getElementById('main');
-  if(window._lastTab!==tab){ _main.classList.remove('view-in'); void _main.offsetWidth; _main.classList.add('view-in'); window._lastTab=tab; }
+  if(window._lastTab!==tab){ _main.classList.remove('view-in'); void _main.offsetWidth; _main.classList.add('view-in'); window._lastTab=tab; window.scrollTo(0,0); }
   ({grelha:vGrelha,acerto:vAcerto,poup:vPoupancas,previsao:vPrevisao,defs:vDefs}[tab])(_main);
 }
 
@@ -874,8 +875,8 @@ function vGrelha(m){
     <div class="fld fld-cat"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
     <div class="fld fld-mes"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
     <div class="fld fld-nota"><label>Nota (opcional)</label><input id="qNota" type="text" maxlength="80" placeholder="ex: o que foi"></div>
-    ${gridTipo==='despesa'?`<button class="btn" id="qAddCash" title="Pagar em dinheiro (sai do Cofre, não do Valete)" style="height:38px">${svg(I.cash)}</button>`:''}
-    <button class="btn primary" id="qAdd" style="height:38px">${svg(I.plus)}Adicionar</button>
+    ${gridTipo==='despesa'?`<button class="btn${qCashMode?' on':''}" id="qAddCash" title="Pagar em dinheiro (sai do Cofre, não do Valete) — seleciona e depois Adicionar" style="height:38px">${svg(I.cash)}</button>`:''}
+    <button class="btn primary" id="qAdd" style="height:38px">${qCashMode?svg(I.cash)+'Adicionar (dinheiro)':svg(I.plus)+'Adicionar'}</button>
   </div>
 
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
@@ -1787,7 +1788,7 @@ document.addEventListener('click',e=>{
   const d=t.dataset;
   if(d.tab){tab=d.tab;closePop();render();return;}
   if(d.year){ano+=+d.year;render();return;}
-  if(d.gt){gridTipo=d.gt;render();return;}
+  if(d.gt){gridTipo=d.gt;qCashMode=false;render();return;}
   if(d.gview){gridView=d.gview;render();return;}
   if(d.gmmonth!=null){const _i=+d.gmmonth;gmOpen.has(_i)?gmOpen.delete(_i):gmOpen.add(_i);render();return;}
   if(d.acexpand){const led=acertoLedger();acAnosOpen=new Set(led.map(r=>+r.ym.slice(0,4)));render();return;}
@@ -1833,8 +1834,8 @@ document.addEventListener('click',e=>{
   if(t.id==='lgAuto'){ poupAutoReforco(); return; }
   if(t.id==='lgSetBtn'){ poupSetSaldo(); return; }
   if(d.poupmovdel){ const[y,i,j]=d.poupmovdel.split('|'); const yp=state.poupancas[y]; const c=yp.contas[+i]; const mo=c.mov[+j]; if(mo){ c.valor=round2((+c.valor||0)-mo.valor); c.mov.splice(+j,1); if(!c.real){ const ri=yp.contas.findIndex(x=>x.real); if(ri>=0&&ri!==+i){ yp.contas[ri].valor=round2((+yp.contas[ri].valor||0)+mo.valor); } } save(); render(); openContaLedger(y,+i);} return; }
-  if(t.id==='qAdd'){quickAdd(false);return;}
-  if(t.id==='qAddCash'){quickAdd(true);return;}
+  if(t.id==='qAdd'){quickAdd(qCashMode);return;}
+  if(t.id==='qAddCash'){ qCashMode=!qCashMode; t.classList.toggle('on',qCashMode); const _a=document.getElementById('qAdd'); if(_a)_a.innerHTML=(qCashMode?svg(I.cash)+'Adicionar (dinheiro)':svg(I.plus)+'Adicionar'); return; }
   if(t.id==='relock'){ editHist=false; render(); toast('Histórico bloqueado'); return; }
   if(t.id==='pUnlock'){ editHist=true; const pc=popCell; render(); if(pc){const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`); if(an)openCellPop(pc.catId,pc.mi,an);} toast('Histórico desbloqueado (até recarregares)'); return; }
   if(t.id==='pAdd'){popAdd(false);return;}
@@ -2066,6 +2067,7 @@ function quickAdd(cash){
   const mv={id:nid('m'),data:dateFor(mi),tipo:gridTipo,categoriaId:catId,valor:valorComSinal(catId,gridTipo,v),pagador,split,nota:val('qNota')||''};
   if(cash&&gridTipo==='despesa'){mv.cash=true;mv.ts=Date.now();}
   state.movimentos.push(mv); if(!isPastMonth(ano,mi)) aplicaValete(mv);
+  qCashMode=false;
   save();render();toast((cash?'Dinheiro: ':'Adicionado: ')+fmt(Math.abs(v))+' · '+c.nome+(mv.nota?' · '+mv.nota:''));
   setTimeout(()=>{const q=document.getElementById('qVal');if(q)q.focus();},20);
 }
