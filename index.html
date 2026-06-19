@@ -29,7 +29,7 @@
   --txt:#ecefe8; --mut:#9aa79e; --acc:#7aa183; --accd:#5f7a6b;
   --in:#8cba98; --out:#df8c7d; --warn:#d9a85c; --info:#87a9c0;
   --acc-10:rgba(122,161,131,.10); --acc-12:rgba(122,161,131,.12); --acc-15:rgba(122,161,131,.15); --acc-16:rgba(122,161,131,.16);
-  --r:18px; --r-sm:12px; --r-lg:24px;
+  --r:20px; --r-sm:13px; --r-lg:26px;
   --sh-sm:0 1px 2px rgba(0,0,0,.22);
   --sh:0 1px 2px rgba(0,0,0,.18),0 14px 34px -16px rgba(0,0,0,.55);
   --sh-lg:0 24px 60px -16px rgba(0,0,0,.6);
@@ -79,8 +79,8 @@ body{background:
 .btn.sm{padding:7px 12px;font-size:12px;border-radius:10px}
 .btn.danger{color:var(--out)} .btn.danger svg{color:var(--out)}
 .btn.danger:hover{background:color-mix(in srgb,var(--card2) 82%,var(--out));color:var(--out)}
-.seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:13px;padding:4px;gap:3px;box-shadow:var(--sh-sm)}
-.seg button{background:none;border:0;color:var(--mut);padding:7px 16px;cursor:pointer;font-size:13px;font-weight:700;border-radius:9px;transition:background .16s,color .16s,box-shadow .16s}
+.seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:4px;gap:3px;box-shadow:var(--sh-sm)}
+.seg button{background:none;border:0;color:var(--mut);padding:7px 18px;cursor:pointer;font-size:13px;font-weight:700;border-radius:999px;transition:background .16s,color .16s,box-shadow .16s}
 .seg button:hover{color:var(--txt)}
 .seg button.on{background:var(--card);color:var(--acc);box-shadow:var(--sh-sm)}
 .seg button.on-out{background:var(--card);color:var(--out);box-shadow:var(--sh-sm)}
@@ -112,15 +112,32 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 @keyframes viewIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){#main.view-in{animation:none}}
 /* KPI strip */
-.kstrip{display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap}
-.kbox{position:relative;overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 92%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:13px 17px;flex:1;min-width:158px;box-shadow:var(--sh)}
+.kstrip{display:flex;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.kbox{position:relative;overflow:hidden;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 92%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:18px 22px;flex:1;min-width:182px;box-shadow:var(--sh)}
 .kbox::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 1px 0 var(--hair);pointer-events:none}
 .kbox.k-accent{padding-left:20px}
 .kbox.k-accent::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--acc)}
 .kbox.k-in::before{background:var(--in)} .kbox.k-out::before{background:var(--out)} .kbox.k-info::before{background:var(--info)} .kbox.k-warn::before{background:var(--warn)}
 .kbox .l{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
-.kbox .v{font-size:22px;font-weight:800;letter-spacing:-.5px;margin-top:2px}
+.kbox .v{font-size:29px;font-weight:800;letter-spacing:-.5px;margin-top:6px}
 .pos{color:var(--in)} .neg{color:var(--out)}
+/* Dívida — hero com avatares */
+.acerto-flow{display:flex;align-items:center;justify-content:center;gap:16px;flex-wrap:nowrap}
+.acerto-av{width:62px;height:62px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:20px;background:var(--card2);color:var(--mut);box-shadow:inset 0 0 0 1px var(--line);flex:none}
+.acerto-av.acc{background:linear-gradient(135deg,var(--acc),var(--accd));color:#fff;box-shadow:0 6px 16px -8px var(--acc)}
+.acerto-mid{display:flex;flex-direction:column;align-items:center;min-width:0}
+.acerto-cap{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:3px;text-align:center}
+.acerto-amt{font-size:38px;font-weight:800;letter-spacing:-1px;line-height:1}
+.acerto-flow .ar{color:var(--mut);flex:none;opacity:.6;font-size:22px;line-height:1}
+.acerto-note{text-align:center;font-size:13px;color:var(--mut);margin-top:14px;line-height:1.4}
+/* Poupanças — barra de progresso total */
+.savetot .savetop{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-bottom:11px;flex-wrap:wrap}
+.savetot .l{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.savetot .savebig{font-size:26px;font-weight:800;letter-spacing:-.5px;margin-top:3px}
+.savetot .savebig small{font-size:14px;font-weight:600;color:var(--mut);letter-spacing:0}
+.savetot .savepct{font-size:22px;font-weight:800;color:var(--acc)}
+.savebar{height:11px;border-radius:999px;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
+.savebar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--acc),var(--accd));transition:width .4s}
 /* Quick add */
 .qadd{display:flex;gap:11px;align-items:flex-end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r-lg);padding:17px 19px;margin-bottom:16px;flex-wrap:wrap;box-shadow:var(--sh)}
 .qadd .fld{display:flex;flex-direction:column}
@@ -169,16 +186,16 @@ table.grid thead th:hover .thedit{opacity:.7}
 .poupval{cursor:pointer;font-weight:700;font-variant-numeric:tabular-nums;border-bottom:1px dashed var(--line);padding-bottom:1px}
 .poupval:hover{border-color:var(--acc);color:var(--acc)}
 /* vista Lista da Grelha (um cartão por mês, colapsável) */
-.gm{display:flex;flex-direction:column;gap:9px}
+.gm{display:flex;flex-direction:column;gap:10px}
 .gm-month{background:linear-gradient(180deg,color-mix(in srgb,var(--card) 92%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-sm);overflow:hidden;position:relative;transition:box-shadow .18s,border-color .18s}
 .gm-month::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 1px 0 var(--hair);pointer-events:none}
 .gm-month:hover{box-shadow:var(--sh);border-color:var(--line2)}
 .gm-month.now{box-shadow:inset 3px 0 0 var(--acc),var(--sh)}
-.gm-head{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:13px 15px;cursor:pointer;font-size:14px;color:var(--txt)}
+.gm-head{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:16px 18px;cursor:pointer;font-size:15px;color:var(--txt)}
 .gm-nm{font-weight:800;min-width:92px;text-align:left;flex:none}
 .gm-month.now .gm-nm{color:var(--acc)}
 .gm-lock{font-size:11px;opacity:.7;width:16px;flex:none;text-align:left}
-.gm-tot{margin-left:auto;font-weight:700;font-variant-numeric:tabular-nums}
+.gm-tot{margin-left:auto;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums}
 .gm-tot.neg{color:var(--out)} .gm-tot.pos{color:var(--in)}
 .gm-tot.mut{color:var(--mut);opacity:.45;font-weight:500}
 .gm-chev{color:var(--mut);font-size:11px;width:12px;flex:none}
@@ -199,15 +216,18 @@ table.grid thead th:hover .thedit{opacity:.7}
 /* metas / objetivos de poupança */
 .metagrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
 @media(max-width:720px){.metagrid{grid-template-columns:1fr}}
-.meta-card{position:relative;display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh)}
+.meta-card{position:relative;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh)}
 .meta-card::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 1px 0 var(--hair);pointer-events:none}
-.meta-ring{flex:none}
-.meta-body{min-width:0;flex:1}
-.meta-nm{font-weight:700;display:flex;align-items:center;gap:7px}
-.meta-amt{font-size:13px;color:var(--mut);margin-top:2px}
-.meta-amt b{color:var(--txt);font-size:15px}
-.meta-sub{font-size:12.5px;color:var(--mut);margin-top:1px}
-.meta-actions{display:flex;align-items:center;gap:6px;margin-top:9px}
+.meta-top{display:flex;align-items:center;gap:8px}
+.meta-nm{font-weight:700;display:flex;align-items:center;gap:7px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.meta-nm .dot{flex:none}
+.meta-pct{font-weight:800;font-size:13px;color:var(--mut);flex:none}
+.meta-falta{font-size:12.5px;color:var(--mut);margin:4px 0 11px}
+.meta-card .savebar{height:9px}
+.meta-bottom{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-top:13px}
+.meta-big{font-size:22px;font-weight:800;letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.meta-de{font-size:12.5px;color:var(--mut);flex:none}
+.meta-actions{display:flex;align-items:center;gap:6px;margin-top:13px;padding-top:12px;border-top:1px solid var(--line)}
 .defs-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;max-width:1120px;align-items:start}
 .defs-grid .span2{grid-column:1/-1}
 .defs-grid>.card{min-width:0}
@@ -246,7 +266,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .modal h2 svg{width:19px;height:19px}
 /* Resumo anual */
 .sumtable{width:100%;border-collapse:collapse;margin-top:0}
-.sumtable th,.sumtable td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;font-size:13px}
+.sumtable th,.sumtable td{padding:8px 12px;border-bottom:1px solid var(--line);text-align:right;font-variant-numeric:tabular-nums;font-size:13px;white-space:nowrap}
 .sumtable th:first-child,.sumtable td:first-child{text-align:left}
 .sumtable thead th{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
 .sumtable tfoot td{font-weight:800;border-top:2px solid var(--line2)}
@@ -318,9 +338,18 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .tabs button{flex:0 0 auto;padding:8px 14px;font-size:13.5px;white-space:nowrap}
   .qadd{gap:6px}.qadd .v{width:90px}
   .qadd .fld{flex:1 1 calc(50% - 6px)}
-  .kbox{min-width:calc(50% - 5px);padding:9px 12px}.kbox .v{font-size:18px}
+  .kbox{min-width:calc(50% - 7px);padding:13px 15px}.kbox .v{font-size:22px}
   .brand small{display:none}
   .f2{grid-template-columns:1fr}
+  .acerto-flow{gap:10px}
+  .acerto-av{width:50px;height:50px;font-size:17px}
+  .acerto-amt{font-size:30px}
+  .savetot .savebig{font-size:22px}
+  .sumtable th,.sumtable td{padding:7px 7px;font-size:12px}
+  .sumtable th:first-child,.sumtable td:first-child{padding-left:10px;white-space:normal}
+}
+@media(max-width:380px){
+  .sumtable th,.sumtable td{padding:6px 5px;font-size:11px}
 }
 /* ----- Splash de arranque: a casa emerge do fundo sálvia (igual ao ícone) ----- */
 #splash{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;
@@ -1032,11 +1061,20 @@ function vAcerto(m){
     return head+months;
   };
 
+  const ini=s=>{s=(s||'').trim();if(!s)return '?';const w=s.split(/\s+/);return (w.length>1?w.map(x=>x[0]||'').join(''):s).slice(0,2).toUpperCase();};
   m.innerHTML=`
-  <div class="card acerto-hero" style="text-align:center;padding:28px 20px;margin-bottom:14px">
-    <div style="font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">${esc(b.nome)} deve a ${esc(a.nome)} · total em dívida</div>
-    <div style="font-size:34px;font-weight:800" class="${divida>0?'neg':'pos'}">${fmt(divida)}</div>
-    <div style="font-size:13px;color:var(--mut);margin-top:8px">Quota dela acumulada ${fmt(totalDeve)} − pago por ela ${fmt(totalPago)}.${ultimoPago?` Último pagamento em <b>${MESES[+ultimoPago.ym.slice(5,7)-1]} ${ultimoPago.ym.slice(0,4)}</b>.`:''}</div>
+  <div class="card acerto-hero" style="padding:24px 20px;margin-bottom:14px">
+    <div class="acerto-flow">
+      <div class="acerto-av" title="${esc(b.nome)}">${ini(b.nome)}</div>
+      <span class="ar">→</span>
+      <div class="acerto-mid">
+        <div class="acerto-cap">${esc(b.nome)} deve a ${esc(a.nome)}</div>
+        <div class="acerto-amt ${divida>0?'neg':'pos'}">${fmt(divida)}</div>
+      </div>
+      <span class="ar">→</span>
+      <div class="acerto-av acc" title="${esc(a.nome)}">${ini(a.nome)}</div>
+    </div>
+    <div class="acerto-note">Quota dela acumulada ${fmt(totalDeve)} − pago por ela ${fmt(totalPago)}.${ultimoPago?` Último pagamento em <b>${MESES[+ultimoPago.ym.slice(5,7)-1]} ${ultimoPago.ym.slice(0,4)}</b>.`:''}</div>
   </div>
 
   <div class="kstrip">
@@ -1109,15 +1147,23 @@ function progRing(pct,size,col){
   return `<svg viewBox="0 0 100 100" style="width:${s}px;height:${s}px"><circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--card2)" stroke-width="11"/><circle cx="50" cy="50" r="${r}" fill="none" stroke="${col||'var(--acc)'}" stroke-width="11" stroke-linecap="round" stroke-dasharray="${len.toFixed(1)} ${(C-len).toFixed(1)}" transform="rotate(-90 50 50)"/><text x="50" y="56" text-anchor="middle" font-size="17" font-weight="800" fill="var(--txt)">${Math.round(pct)}%</text></svg>`;
 }
 function metasHtml(){
+  const _tA=(state.metas||[]).reduce((s,g)=>s+(+g.alvo||0),0);
+  const _tG=(state.metas||[]).reduce((s,g)=>s+(+g.guardado||0),0);
+  const _tP=_tA>0?Math.min(100,Math.round(_tG/_tA*100)):0;
   return `<div class="section-h" style="margin-top:22px;display:flex;align-items:center;gap:8px">${svg(I.target)} Objetivos de poupança<div class="spacer"></div><button class="btn sm" data-novameta="1">${svg(I.plus)}Nova meta</button></div>
-  ${(state.metas&&state.metas.length)?`<div class="metagrid">${state.metas.map(g=>{const alvo=+g.alvo||0,guard=+g.guardado||0;const pct=alvo>0?Math.min(100,Math.round(guard/alvo*100)):0;const falta=round2(alvo-guard);return `<div class="meta-card">
-    <div class="meta-ring">${progRing(pct,72,g.cor||'var(--acc)')}</div>
-    <div class="meta-body">
-      <div class="meta-nm"><span class="dot" style="background:${g.cor||'var(--acc)'}"></span>${esc(g.nome||'Objetivo')}</div>
-      <div class="meta-amt"><b>${fmt0(guard)}</b> de ${fmt0(alvo)}</div>
-      <div class="meta-sub">${falta<=0?`<span class="pos">Objetivo atingido 🎉</span>`:`Faltam ${fmt0(falta)}`}</div>
-      <div class="meta-actions"><button class="btn sm" data-metaadd="${g.id}">${svg(I.plus)}Reforçar</button><button class="iconbtn" data-metaedit="${g.id}" title="Editar">${svg(I.edit)}</button><button class="iconbtn" data-metadel="${g.id}" title="Eliminar">${svg(I.trash)}</button></div>
-    </div></div>`;}).join('')}</div>`:`<div class="card" style="padding:18px;text-align:center;color:var(--mut)">Sem objetivos. Cria metas (Férias, Fundo de emergência, Carro…) e acompanha o progresso. <button class="btn sm" data-novameta="1" style="margin-top:8px">${svg(I.plus)}Criar a primeira</button></div>`}`;
+  ${(state.metas&&state.metas.length)?`<div class="card savetot" style="margin-bottom:14px">
+    <div class="savetop"><div><div class="l">Poupado no total</div><div class="savebig">${fmt0(_tG)} <small>/ ${fmt0(_tA)}</small></div></div><div class="savepct">${_tP}%</div></div>
+    <div class="savebar"><i style="width:${_tP}%"></i></div>
+  </div><div class="metagrid">${state.metas.map(g=>{const alvo=+g.alvo||0,guard=+g.guardado||0;const pct=alvo>0?Math.min(100,Math.round(guard/alvo*100)):0;const falta=round2(alvo-guard);const cor=g.cor||'var(--acc)';return `<div class="meta-card">
+    <div class="meta-top">
+      <div class="meta-nm"><span class="dot" style="background:${cor}"></span>${esc(g.nome||'Objetivo')}</div>
+      <span class="meta-pct">${pct}%</span>
+    </div>
+    <div class="meta-falta">${falta<=0?`<span class="pos">Objetivo atingido 🎉</span>`:`Faltam ${fmt0(falta)}`}</div>
+    <div class="savebar"><i style="width:${pct}%;background:${cor}"></i></div>
+    <div class="meta-bottom"><span class="meta-big">${fmt0(guard)}</span><span class="meta-de">de ${fmt0(alvo)}</span></div>
+    <div class="meta-actions"><button class="btn sm" data-metaadd="${g.id}">${svg(I.plus)}Reforçar</button><div class="spacer" style="flex:1"></div><button class="iconbtn" data-metaedit="${g.id}" title="Editar">${svg(I.edit)}</button><button class="iconbtn" data-metadel="${g.id}" title="Eliminar">${svg(I.trash)}</button></div>
+  </div>`;}).join('')}</div>`:`<div class="card" style="padding:18px;text-align:center;color:var(--mut)">Sem objetivos. Cria metas (Férias, Fundo de emergência, Carro…) e acompanha o progresso. <button class="btn sm" data-novameta="1" style="margin-top:8px">${svg(I.plus)}Criar a primeira</button></div>`}`;
 }
 function openMeta(id){
   const g=id?(state.metas||[]).find(x=>x.id===id):null; _metaId=id||null;
