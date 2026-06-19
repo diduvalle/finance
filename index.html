@@ -367,6 +367,8 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 @keyframes splashPop{0%{transform:scale(.9);opacity:0}42%{opacity:1}100%{transform:scale(1)}}
 @media (prefers-reduced-motion:reduce){#splash .house{animation:none;stroke-dashoffset:0}#splash .splash-mark,#splash .splash-mark::before{animation:none}}
 /* ----- Teclado de PIN do bloqueio ----- */
+/* enquanto o overlay de bloqueio (ou splash) está presente, trava o scroll do documento por trás */
+html:has(#lock),html:has(#splash){overflow:hidden}
 #lock .dots{display:flex;gap:13px;justify-content:center;height:14px;margin:2px 0}
 #lock .dots span{width:12px;height:12px;border-radius:50%;border:2px solid var(--line2);transition:background .1s,border-color .1s}
 #lock .dots span.on{background:var(--acc);border-color:var(--acc)}
