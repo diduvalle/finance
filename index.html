@@ -346,8 +346,8 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   #valeteHead{order:2;min-width:0}
   #searchBtn{order:3;margin-left:auto}
   #inboxTop{order:4} #refreshBtn{order:5} #bell{order:6} #lockNow{order:7}
-  #topright{order:8}
-  .tabs{order:9;flex:1 1 auto;width:auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs{order:8;flex:1 1 auto;width:auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #topright{order:9}
   .topbar .yearnav{height:32px}
   .topbar .yearnav button{width:26px;height:26px;font-size:15px}
   .topbar .yearnav .y{min-width:42px;font-size:14px}
@@ -1816,7 +1816,7 @@ document.addEventListener('click',e=>{
   if(t.id==='saveMoveCat'){saveMoveCat();return;}
   if(t.id==='doMerge'){mergeCat();return;}
   if(d.poupadd){ state.poupancas[d.poupadd]=state.poupancas[d.poupadd]||{contas:[],contagem:[]}; state.poupancas[d.poupadd].contas.push({nome:'Nova conta',valor:0}); save(); render(); return; }
-  if(d.poupdel){ const [y,i]=d.poupdel.split('|'); state.poupancas[y].contas.splice(+i,1); save(); render(); return; }
+  if(d.poupdel){ const [y,i]=d.poupdel.split('|'); const _c=state.poupancas[y].contas[+i]; if(!confirm('Eliminar a conta "'+((_c&&_c.nome)||'')+'"? Perde-se o histórico de movimentos dela.'))return; state.poupancas[y].contas.splice(+i,1); save(); render(); return; }
   if(d.poupcont){ poupCont=!poupCont; render(); return; }
   if(d.recontei){ state.poupancas[d.recontei]=state.poupancas[d.recontei]||{contas:[],contagem:[]}; state.poupancas[d.recontei].contagemData=Date.now(); save(); render(); toast('Contagem marcada como atual'); return; }
   if(d.fch){ state.forecast.horizonte=+d.fch; save(); render(); return; }
@@ -1844,7 +1844,7 @@ document.addEventListener('click',e=>{
   if(t.id==='lgMob'){ poupMovAdd(-1); return; }
   if(t.id==='lgAuto'){ poupAutoReforco(); return; }
   if(t.id==='lgSetBtn'){ poupSetSaldo(); return; }
-  if(d.poupmovdel){ const[y,i,j]=d.poupmovdel.split('|'); const yp=state.poupancas[y]; const c=yp.contas[+i]; const mo=c.mov[+j]; if(mo){ c.valor=round2((+c.valor||0)-mo.valor); c.mov.splice(+j,1); if(!c.real){ const ri=yp.contas.findIndex(x=>x.real); if(ri>=0&&ri!==+i){ yp.contas[ri].valor=round2((+yp.contas[ri].valor||0)+mo.valor); } } save(); render(); openContaLedger(y,+i);} return; }
+  if(d.poupmovdel){ const[y,i,j]=d.poupmovdel.split('|'); const yp=state.poupancas[y]; const c=yp.contas[+i]; const mo=c.mov[+j]; if(mo){ if(!confirm('Apagar este movimento de '+fmt(mo.valor)+'? O saldo da conta é reajustado.'))return; c.valor=round2((+c.valor||0)-mo.valor); c.mov.splice(+j,1); if(!c.real){ const ri=yp.contas.findIndex(x=>x.real); if(ri>=0&&ri!==+i){ yp.contas[ri].valor=round2((+yp.contas[ri].valor||0)+mo.valor); } } save(); render(); openContaLedger(y,+i);} return; }
   if(t.id==='qAdd'){quickAdd(qCashMode);return;}
   if(d.qconta){ qCashMode=(d.qconta==='cash'); document.querySelectorAll('.qconta button').forEach(b=>b.classList.toggle('on', b.dataset.qconta===d.qconta)); const _a=document.getElementById('qAdd'); if(_a)_a.innerHTML=(qCashMode?svg(I.cash)+'Adicionar (dinheiro)':svg(I.plus)+'Adicionar'); return; }
   if(t.id==='relock'){ editHist=false; render(); toast('Histórico bloqueado'); return; }
@@ -1886,7 +1886,7 @@ document.addEventListener('click',e=>{
   if(d.pvauto){const p=(state.providers||[]).find(x=>x.id===d.pvauto);if(p){p.auto=!p.auto;save();render();toast(p.auto?'Auto-lançar ligado: '+(p.label||p.from):'Auto-lançar desligado');}return;}
   if(d.pvdel){const p=(state.providers||[]).find(x=>x.id===d.pvdel);if(p&&confirm('Esquecer o fornecedor "'+(p.label||p.from)+'"? (as faturas já lançadas mantêm-se)')){state.providers=state.providers.filter(x=>x.id!==d.pvdel);save();render();}return;}
   if(t.id==='recAdd'){openRec();return;}
-  if(d.recdel){state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render();return;}
+  if(d.recdel){const _r=(state.recorrencias||[]).find(r=>r.id===d.recdel); if(!confirm('Eliminar esta despesa fixa'+(_r?' ('+catName(_r.categoriaId)+' · '+fmt(_r.valor)+')':'')+'? Os lançamentos já feitos mantêm-se.'))return; state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render();return;}
   if(t.id==='searchBtn'){openSearch();return;}
   if(t.id==='refreshBtn'){hardRefresh();return;}
   if(t.id==='lockNow'){ if(!state.settings.codigo){toast('Define um código em Definições primeiro');return;} sessionStorage.removeItem('casa-unlock'); closePop(); showLock(); return; }
@@ -2229,7 +2229,7 @@ async function dbxFinishAuth(){
     toast('Dropbox ligada ✓'); await syncOpen(); render();
   }catch(e){toast('Falha a ligar: '+e.message); _syncErr=e.message; render();}
 }
-function dbxDisconnect(){localStorage.removeItem('casa-dropbox');_dbxTok=null;_lastSync=null;_syncErr=null;toast('Dropbox desligada');render();}
+function dbxDisconnect(){ if(!confirm('Desligar a sincronização com a Dropbox? Os dados na Dropbox mantêm-se; este dispositivo deixa de sincronizar.'))return; localStorage.removeItem('casa-dropbox');_dbxTok=null;_lastSync=null;_syncErr=null;toast('Dropbox desligada');render();}
 async function dbxToken(){
   const c=dbxCfg(); if(!c||!c.refresh)return null;
   if(_dbxTok&&Date.now()<_dbxTokExp)return _dbxTok;
@@ -3239,7 +3239,7 @@ async function bioRegister(){
     toast('Biometria ativada neste dispositivo'); render();
   }catch(e){ toast('Não ativou: '+(e.name||e.message)); }
 }
-function bioRemove(){ localStorage.removeItem('casa-bio'); toast('Biometria removida'); render(); }
+function bioRemove(){ if(!confirm('Remover a biometria deste dispositivo? Voltarás a entrar apenas com o código.'))return; localStorage.removeItem('casa-bio'); toast('Biometria removida'); render(); }
 async function bioUnlock(silent){
   const c=bioCfg(); if(!c)return false;
   try{
