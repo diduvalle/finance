@@ -390,6 +390,9 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .sumtable th:first-child,.sumtable td:first-child{padding-left:10px;white-space:normal}
   /* Dívida: em mobile esconde "Pago" e "Saldo do mês" (redundantes — Pago=0) p/ caber sem scroll horizontal */
   .acerto-table th:nth-child(3),.acerto-table td:nth-child(3),.acerto-table th:nth-child(4),.acerto-table td:nth-child(4){display:none}
+  /* Previsão: em mobile esconde colunas para caber sem scroll horizontal */
+  .comp-table th:nth-child(4),.comp-table td:nth-child(4){display:none}
+  .proj-table th:nth-child(2),.proj-table td:nth-child(2),.proj-table th:nth-child(3),.proj-table td:nth-child(3){display:none}
 }
 @media(max-width:380px){
   .sumtable th,.sumtable td{padding:6px 5px;font-size:11px}
@@ -1548,7 +1551,7 @@ function vPrevisao(m){
 
   <div class="cols-2" style="margin-bottom:14px">
     <div class="card"><h2 style="border:0;padding:0;margin:0 0 10px;font-size:15px">${svg(I.report)} Comparação de anos</h2>
-      <table class="sumtable"><thead><tr><th>Ano</th><th class="num">Receita</th><th class="num">Despesa</th><th class="num">Saldo</th></tr></thead>
+      <table class="sumtable comp-table"><thead><tr><th>Ano</th><th class="num">Receita</th><th class="num">Despesa</th><th class="num">Saldo</th></tr></thead>
       <tbody>${comp.map((c,i)=>{const pr=i>0?comp[i-1]:null;return `<tr><td>${c.y}</td><td class="num pos">${fmt0(c.r)} ${pr?pct(c.r,pr.r):''}</td><td class="num neg">${fmt0(c.d)} ${pr?pct(c.d,pr.d):''}</td><td class="num ${c.r-c.d>=0?'pos':'neg'}">${fmt0(c.r-c.d)}</td></tr>`;}).join('')}</tbody></table>
     </div>
     <div class="card"><h2 style="border:0;padding:0;margin:0 0 10px;font-size:15px">${svg(I.report)} Património projetado</h2>
@@ -1563,7 +1566,7 @@ function vPrevisao(m){
   </div>
 
   <div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><h2 style="border:0;padding:0;margin:0;font-size:15px">${svg(I.report)} Projeção a ${f.horizonte} anos</h2><button class="btn sm" id="fcExport">${svg(I.download)}Exportar CSV</button></div>
-    <div class="gridwrap"><table class="sumtable">
+    <div class="gridwrap"><table class="sumtable proj-table">
       <thead><tr><th>Ano</th><th class="num">Receita</th><th class="num">Despesa</th><th class="num">Poupança no ano</th><th class="num">Património (fim)</th></tr></thead>
       <tbody><tr style="opacity:.7"><td>${patrAno} (hoje)</td><td class="num">—</td><td class="num">—</td><td class="num">—</td><td class="num">${fmt0(patr0)}</td></tr>
       ${proj.map(p=>`<tr${meta.valor>0&&p.patr>=meta.valor?' class="now"':''}><td>${p.ano}</td><td class="num pos">${fmt0(p.rec)}</td><td class="num neg">${fmt0(p.desp)}</td><td class="num ${p.poup>=0?'pos':'neg'}">${fmt0(p.poup)}</td><td class="num"><b>${fmt0(p.patr)}</b></td></tr>`).join('')}</tbody>
