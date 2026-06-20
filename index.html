@@ -79,6 +79,7 @@ body{background:
 .btn.primary:hover{filter:brightness(1.07);transform:translateY(-1px);box-shadow:0 1px 0 rgba(255,255,255,.16) inset,0 12px 22px -10px var(--acc)}
 .btn.primary svg{color:#fff}
 .btn.sm{padding:7px 12px;font-size:12px;border-radius:10px}
+.btn.icon-only{padding:7px 10px}.btn.icon-only svg{margin:0}
 .btn.danger{color:var(--out)} .btn.danger svg{color:var(--out)}
 .btn.danger:hover{background:color-mix(in srgb,var(--card2) 82%,var(--out));color:var(--out)}
 .seg{display:inline-flex;background:var(--card2);border:1px solid var(--line);border-radius:999px;padding:4px;gap:3px;box-shadow:var(--sh-sm)}
@@ -374,6 +375,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .qadd #qAdd{grid-column:2;grid-row:3;align-self:end}
   .qadd .v{width:100%}
   .qadd:not(:has(.fld-tipo)) .fld-val{grid-column:1/-1}
+  .gvtoggle{margin-left:auto}
   .kbox{min-width:calc(50% - 7px);padding:13px 15px}.kbox .v{font-size:22px}
   .brand small{display:none}
   .f2{grid-template-columns:1fr}
@@ -476,6 +478,7 @@ const I={
   bell:'<path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 01-3.4 0"/>',
   star:'<path d="M12 2l3 6.5 7 .9-5 4.8 1.3 7L12 17.8 5.4 21.2 6.7 14.2 1.7 9.4l7-.9z"/>',
   grid:'<path d="M3 3h18v18H3zM3 9h18M3 15h18M9 9v12M15 9v12"/>',
+  list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
   wallet:'<path d="M3 7h15a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2h12M17 13h.01"/>',
   trend:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
   finger:'<path d="M12 11v3a8 8 0 01-1 4M8 14a4 4 0 014-4 4 4 0 014 4v1M6 12a6 6 0 0112 0v2a10 10 0 01-1 4M15 17a14 14 0 01-1 4M9.5 7.5a6 6 0 015 0"/>',
@@ -922,10 +925,6 @@ function vGrelha(m){
       <button class="${gridTipo==='despesa'?'on-out':''}" data-gt="despesa">Despesas</button>
       <button class="${gridTipo==='receita'?'on-in':''}" data-gt="receita">Receitas</button>
     </div>
-    <div class="seg" title="Como mostrar a grelha">
-      <button class="${view==='lista'?'on':''}" data-gview="lista">Lista</button>
-      <button class="${view==='tabela'?'on':''}" data-gview="tabela">Tabela</button>
-    </div>
     <div class="spacer"></div>
     ${gridTipo==='despesa'?`<button class="btn sm" id="genfix">${svg(I.repeat)}Lançar fixas em ${MESES[miv]}</button>`:''}
     ${gridTipo==='despesa'?`<button class="btn sm" id="impFatura">${svg(I.scan)}Importar fatura (PDF)</button><input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple style="display:none">`:''}
@@ -933,6 +932,7 @@ function vGrelha(m){
     ${state.inbox&&state.inbox.length?`<button class="btn sm" id="inboxBtn" style="border-color:var(--warn);color:var(--warn)">${svg(I.inbox)}Caixa de entrada (${state.inbox.length})</button>`:''}
     ${gridTipo==='receita'?`<button class="btn sm" id="impRecibo">${svg(I.scan)}Importar recibo (PDF)</button><input type="file" id="reciboIn" accept="application/pdf,.pdf" style="display:none">`:''}
     <button class="btn sm" data-newcat="${gridTipo}">${svg(I.plus)}Nova categoria</button>
+    <button class="btn sm icon-only gvtoggle" data-gviewtoggle="1" title="${view==='lista'?'Ver em tabela':'Ver em lista'}" aria-label="Alternar vista (lista/tabela)">${svg(view==='lista'?I.grid:I.list)}</button>
   </div>
 
   ${gridTipo==='receita'?(()=>{
@@ -1833,6 +1833,7 @@ document.addEventListener('click',e=>{
   if(d.year){ano+=+d.year;render();return;}
   if(d.gt){gridTipo=d.gt;qCashMode=false;render();return;}
   if(d.gview){gridView=d.gview;render();return;}
+  if(d.gviewtoggle){gridView=((gridView||'lista')==='lista')?'tabela':'lista';render();return;}
   if(d.gmmonth!=null){const _i=+d.gmmonth;gmOpen.has(_i)?gmOpen.delete(_i):gmOpen.add(_i);render();return;}
   if(d.acexpand){const led=acertoLedger();acAnosOpen=new Set(led.map(r=>+r.ym.slice(0,4)));render();return;}
   if(d.accollapse){acAnosOpen=new Set();render();return;}
