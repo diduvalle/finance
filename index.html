@@ -143,15 +143,15 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .savebar{height:11px;border-radius:999px;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
 .savebar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--acc),var(--accd));transition:width .4s}
 /* Quick add */
-/* Desktop: fila única que preenche a largura (Valor+switch · Categoria · Mês · Adicionar) + Nota em baixo */
-.qadd{display:flex;flex-wrap:wrap;gap:11px;align-items:flex-end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin-bottom:16px;box-shadow:var(--sh)}
+/* Desktop: grelha fixa — Valor+switch · Categoria · Mês · Adicionar | Nota em baixo (nunca parte mal) */
+.qadd{display:grid;grid-template-columns:auto minmax(0,2fr) minmax(0,1fr) auto;gap:11px;align-items:end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin-bottom:16px;box-shadow:var(--sh)}
 .qadd .qrow{display:contents}
 .qadd .fld{display:flex;flex-direction:column;min-width:0}
-.qadd .fld-val{flex:0 0 auto;order:1}
+.qadd .fld-val{grid-column:1;grid-row:1}
 .qadd .qval-wrap{display:flex;align-items:center;gap:8px}
-.qadd .fld-cat{flex:2 1 190px;order:2} .qadd .fld-mes{flex:1 1 140px;order:3}
-.qadd #qAdd{order:4;height:42px}
-.qadd .fld-nota{flex:1 1 100%;order:5}
+.qadd .fld-cat{grid-column:2;grid-row:1} .qadd .fld-mes{grid-column:3;grid-row:1}
+.qadd #qAdd{grid-column:4;grid-row:1;height:42px;align-self:end}
+.qadd .fld-nota{grid-column:1/-1;grid-row:2}
 .qadd .qconta{padding:4px;height:42px;flex:none}
 .qadd .qconta button{padding:0 13px;display:inline-flex;align-items:center;justify-content:center}
 .qadd .qconta button svg{width:18px;height:18px;color:currentColor}
@@ -366,7 +366,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .topbar .chip{height:30px;padding:0 9px;font-size:11.5px}
   #valeteHead{gap:4px}
   /* mobile: volta às 3 linhas (Valor+switch+Adicionar · Cat+Mês · Nota) */
-  .qadd{flex-direction:column;gap:9px}
+  .qadd{display:flex;flex-direction:column;gap:9px}
   .qadd .qrow{display:flex;gap:8px;align-items:flex-end}
   .qadd #qAdd{margin-left:auto}
   .qadd .fld-cat,.qadd .fld-mes{flex:1 1 0}
