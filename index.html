@@ -143,17 +143,16 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .savebar{height:11px;border-radius:999px;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
 .savebar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--acc),var(--accd));transition:width .4s}
 /* Quick add */
-/* Desktop: grelha fixa — Valor+switch · Categoria · Mês · Adicionar | Nota em baixo (nunca parte mal) */
-.qadd{display:grid;grid-template-columns:auto minmax(0,2fr) minmax(0,1fr) auto;gap:11px;align-items:end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin-bottom:16px;box-shadow:var(--sh)}
-.qadd .qrow{display:contents}
+/* Desktop: grelha fixa — Valor · Sai de · Categoria · Mês · Adicionar | Nota em baixo */
+.qadd{display:grid;grid-template-columns:auto auto minmax(0,2fr) minmax(0,1fr) auto;gap:11px;align-items:end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin-bottom:16px;box-shadow:var(--sh)}
 .qadd .fld{display:flex;flex-direction:column;min-width:0}
 .qadd .fld-val{grid-column:1;grid-row:1}
-.qadd .qval-wrap{display:flex;align-items:center;gap:8px}
-.qadd .fld-cat{grid-column:2;grid-row:1} .qadd .fld-mes{grid-column:3;grid-row:1}
-.qadd #qAdd{grid-column:4;grid-row:1;height:42px;align-self:end}
+.qadd .fld-tipo{grid-column:2;grid-row:1}
+.qadd .fld-cat{grid-column:3;grid-row:1} .qadd .fld-mes{grid-column:4;grid-row:1}
+.qadd #qAdd{grid-column:5;grid-row:1;height:42px;align-self:end}
 .qadd .fld-nota{grid-column:1/-1;grid-row:2}
-.qadd .qconta{padding:4px;height:42px;flex:none}
-.qadd .qconta button{padding:0 13px;display:inline-flex;align-items:center;justify-content:center}
+.qadd .qconta{display:flex;width:100%;height:42px;border-radius:11px;padding:4px;gap:4px}
+.qadd .qconta button{flex:1;border-radius:8px;padding:0;display:inline-flex;align-items:center;justify-content:center}
 .qadd .qconta button svg{width:18px;height:18px;color:currentColor}
 .qadd input,.qadd select{padding:10px 12px}
 .qadd .v{width:120px;height:42px;font-weight:800;font-size:17px}
@@ -365,14 +364,16 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .topbar #refreshBtn svg,.topbar #bell svg,.topbar #lockNow svg,.topbar #searchBtn svg,.topbar #inboxTop svg{width:17px;height:17px}
   .topbar .chip{height:30px;padding:0 9px;font-size:11.5px}
   #valeteHead{gap:4px}
-  /* mobile: volta às 3 linhas (Valor+switch+Adicionar · Cat+Mês · Nota) */
-  .qadd{display:flex;flex-direction:column;gap:9px}
-  .qadd .qrow{display:flex;gap:8px;align-items:flex-end}
-  .qadd #qAdd{margin-left:auto}
-  .qadd .fld-cat,.qadd .fld-mes{flex:1 1 0}
-  .qadd .fld-nota{flex:0 0 auto}
-  .qadd .v{width:104px}
-  .qadd .qconta button{padding:0 11px}
+  /* mobile: grelha 50/50 — Valor·Sai de / Mês·Categoria / Nota·Adicionar */
+  .qadd{grid-template-columns:1fr 1fr;gap:9px}
+  .qadd .fld-val{grid-column:1;grid-row:1}
+  .qadd .fld-tipo{grid-column:2;grid-row:1}
+  .qadd .fld-mes{grid-column:1;grid-row:2}
+  .qadd .fld-cat{grid-column:2;grid-row:2}
+  .qadd .fld-nota{grid-column:1;grid-row:3}
+  .qadd #qAdd{grid-column:2;grid-row:3;align-self:end}
+  .qadd .v{width:100%}
+  .qadd:not(:has(.fld-tipo)) .fld-val{grid-column:1/-1}
   .kbox{min-width:calc(50% - 7px);padding:13px 15px}.kbox .v{font-size:22px}
   .brand small{display:none}
   .f2{grid-template-columns:1fr}
@@ -905,23 +906,15 @@ function vGrelha(m){
   ${editHist?`<div class="hint" style="border-left:3px solid var(--warn);display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap"><span>🔓 <b>Histórico desbloqueado</b> — podes editar meses anteriores. Editar o passado <b>não</b> mexe nos saldos atuais (Valete/Cofre).</span><button class="btn sm" id="relock">${svg(I.check)}Voltar a bloquear</button></div>`:''}
 
   <div class="qadd">
-    <div class="qrow qrow-top">
-      <div class="fld fld-val"><label>Valor</label>
-        <div class="qval-wrap">
-          <input id="qVal" class="v" type="number" step="0.01" inputmode="decimal" placeholder="0,00">
-          ${gridTipo==='despesa'?`<div class="seg qconta">
-            <button class="${!qCashMode?'on':''}" data-qconta="banco" title="Desconta da conta (banco / Valete)">${svg(I.bank)}</button>
-            <button class="${qCashMode?'on':''}" data-qconta="cash" title="Sai do Cofre (dinheiro físico)">${svg(I.cash)}</button>
-          </div>`:''}
-        </div>
-      </div>
-      <button class="btn primary" id="qAdd">${svg(I.plus)}Adicionar</button>
-    </div>
-    <div class="qrow">
-      <div class="fld fld-cat"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
-      <div class="fld fld-mes"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
-    </div>
+    <div class="fld fld-val"><label>Valor</label><input id="qVal" class="v" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
+    ${gridTipo==='despesa'?`<div class="fld fld-tipo"><label>Sai de</label><div class="seg qconta">
+      <button class="${!qCashMode?'on':''}" data-qconta="banco" title="Desconta da conta (banco / Valete)">${svg(I.bank)}</button>
+      <button class="${qCashMode?'on':''}" data-qconta="cash" title="Sai do Cofre (dinheiro físico)">${svg(I.cash)}</button>
+    </div></div>`:''}
+    <div class="fld fld-cat"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
+    <div class="fld fld-mes"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
     <div class="fld fld-nota"><label>Nota (opcional)</label><input id="qNota" type="text" maxlength="80" placeholder="ex: o que foi"></div>
+    <button class="btn primary" id="qAdd">${svg(I.plus)}Adicionar</button>
   </div>
 
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
