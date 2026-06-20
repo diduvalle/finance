@@ -3437,13 +3437,13 @@ function pinSubmit(){
 document.addEventListener('keydown',e=>{ if(!document.getElementById('lock'))return; if(/^[0-9]$/.test(e.key))pinPress(e.key); else if(e.key==='Backspace'){e.preventDefault();pinBack();} });
 
 /* ===== Bloqueio automático por inatividade ===== */
-let _idleTimer=null,_idleArmed=0;
+let _idleTimer=null,_idleArmed=0,_lastActive=Date.now();
+function _idleMs(){return (+((state&&state.settings&&state.settings.autoLockMin))||0)*60000;}
+function _idleOn(){return _idleMs()>0 && state&&state.settings&&state.settings.codigo && !document.getElementById('lock');}
 function resetIdle(){
   if(_idleTimer){clearTimeout(_idleTimer);_idleTimer=null;}
-  const min=+((state&&state.settings&&state.settings.autoLockMin))||0;
-  if(!min || !(state&&state.settings&&state.settings.codigo)) return; // desligado ou sem código
-  if(document.getElementById('lock')) return;                          // já bloqueado
-  _idleTimer=setTimeout(autoLock, min*60000);
+  if(!_idleOn()) return;                                                // desligado, sem código, ou já bloqueado
+  _idleTimer=setTimeout(autoLock, _idleMs());
 }
 function autoLock(){
   if(!(state&&state.settings&&state.settings.codigo)) return;
@@ -3452,9 +3452,12 @@ function autoLock(){
   try{closePop();}catch(e){} try{closeBack();}catch(e){}
   showLock();
 }
-function _bumpIdle(){ const n=Date.now(); if(n-_idleArmed<1500)return; _idleArmed=n; resetIdle(); }
-['mousedown','keydown','touchstart','scroll','mousemove'].forEach(ev=>document.addEventListener(ev,_bumpIdle,{passive:true,capture:true}));
-document.addEventListener('visibilitychange',()=>{ if(!document.hidden)_bumpIdle(); });
+function _bumpIdle(){ _lastActive=Date.now(); if(_lastActive-_idleArmed<1500)return; _idleArmed=_lastActive; resetIdle(); }
+['mousedown','keydown','touchstart','scroll','mousemove','pointerdown'].forEach(ev=>document.addEventListener(ev,_bumpIdle,{passive:true,capture:true}));
+/* ao voltar ao 1º plano (mobile: timers congelam em background) — se já passou o tempo de inatividade, bloqueia */
+document.addEventListener('visibilitychange',()=>{ if(document.hidden)return; if(_idleOn() && Date.now()-_lastActive>=_idleMs()){ autoLock(); } else { _bumpIdle(); } });
+window.addEventListener('focus',()=>{ if(_idleOn() && Date.now()-_lastActive>=_idleMs()) autoLock(); });
+window.addEventListener('pageshow',()=>{ if(_idleOn() && Date.now()-_lastActive>=_idleMs()) autoLock(); });
 
 load();try{bankCaptureCallback();}catch(e){}try{liquidarPendentes();}catch(e){}render();showLock();
 try{lembreteBoot();}catch(e){}
