@@ -928,7 +928,6 @@ function vGrelha(m){
       <button class="${gridTipo==='despesa'?'on-out':''}" data-gt="despesa" title="Despesas" aria-label="Despesas">${svg(I.down)}</button>
       <button class="${gridTipo==='receita'?'on-in':''}" data-gt="receita" title="Receitas" aria-label="Receitas">${svg(I.up)}</button>
     </div>
-    <div class="spacer"></div>
     ${gridTipo==='despesa'?`<button class="btn sm" id="impFatura">${svg(I.scan)}Importar fatura (PDF)</button><input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple style="display:none">`:''}
     ${gridTipo==='despesa'?`<button class="btn sm" id="impFoto">${svg(I.camera)}Foto da fatura</button><input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none">`:''}
     ${state.inbox&&state.inbox.length?`<button class="btn sm" id="inboxBtn" style="border-color:var(--warn);color:var(--warn)">${svg(I.inbox)}Caixa de entrada (${state.inbox.length})</button>`:''}
