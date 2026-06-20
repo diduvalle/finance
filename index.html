@@ -1694,7 +1694,7 @@ function vDefs(m){
   </div></details>
   <details class="defgroup" data-dg="categorias" ${defGroupsOpen.has('categorias')?'open':''}><summary>${svg(I.cat)} Categorias & regras</summary>
   <div class="defs-grid">
-    <div class="card">${dh(I.repeat,'Despesas fixas (mensais)','Valor e dia do mês de cada uma. O dia alimenta o aviso do Valete ("até ao dia X precisas de Y"). O botão "Lançar fixas" na grelha cria estes valores no mês.')}
+    <div class="card">${dh(I.repeat,'Despesas fixas (mensais)','Valor e dia do mês de cada uma. O dia alimenta o aviso do Valete ("até ao dia X precisas de Y").')}
       <div id="recList">${state.recorrencias.map(r=>`<div class="catedit"><span class="dot" style="background:${cat(r.categoriaId)?cat(r.categoriaId).cor:'#888'}"></span><span style="flex:1">${cat(r.categoriaId)?catName(r.categoriaId):esc(r.nome)}</span><span style="color:var(--mut);font-size:12px">dia</span><input type="number" step="1" min="1" max="28" value="${r.dia||8}" data-recdia="${r.id}" style="width:52px" title="Dia do mês"><input type="number" step="0.01" value="${r.valor}" data-recval="${r.id}" style="width:96px">€<button class="iconbtn" data-recdel="${r.id}">${svg(I.trash)}</button></div>`).join('')||'<div style="color:var(--mut);font-size:13px">Sem despesas fixas.</div>'}</div>
       <button class="btn sm" style="margin-top:12px" id="recAdd">${svg(I.plus)}Adicionar fixa</button>
     </div>
@@ -1886,7 +1886,6 @@ document.addEventListener('click',e=>{
   if(t.id==='pUnlock'){ editHist=true; const pc=popCell; render(); if(pc){const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`); if(an)openCellPop(pc.catId,pc.mi,an);} toast('Histórico desbloqueado (até recarregares)'); return; }
   if(t.id==='pAdd'){popAdd(false);return;}
   if(t.id==='pAddCash'){popAdd(true);return;}
-  if(t.id==='genfix'){genFix();return;}
   if(t.id==='impFatura'){const f=document.getElementById('pdfIn');if(f)f.click();return;}
   if(t.id==='impRecibo'){const f=document.getElementById('reciboIn');if(f)f.click();return;}
   if(t.id==='impFoto'){const f=document.getElementById('fotoIn');if(f)f.click();return;}
@@ -2116,19 +2115,6 @@ function quickAdd(cash){
   qCashMode=false;
   save();render();toast((cash?'Dinheiro: ':'Adicionado: ')+fmt(Math.abs(v))+' · '+c.nome+(mv.nota?' · '+mv.nota:''));
   setTimeout(()=>{const q=document.getElementById('qVal');if(q)q.focus();},20);
-}
-function genFix(){
-  const mi=curMi()<0?new Date().getMonth():curMi();
-  if(isFrozenMi(ano,mi)){toast('Mês congelado — só do mês atual para a frente');return;}
-  let n=0;
-  state.recorrencias.filter(r=>r.ativo!==false).forEach(r=>{
-    const exists=state.movimentos.some(m=>m.recId===r.id && +m.data.slice(0,4)===ano && +m.data.slice(5,7)-1===mi);
-    if(exists)return;
-    const mv={id:nid('m'),data:dateFor(mi),tipo:'despesa',categoriaId:r.categoriaId,valor:r.valor,pagador:r.pagador||P()[0].id,split:{...state.settings.splitDefault},nota:'fixa',recId:r.id};
-    state.movimentos.push(mv); aplicaValete(mv);
-    n++;
-  });
-  save();render();toast(n?n+' despesas fixas lançadas em '+MESES[mi]:'Já estavam lançadas');
 }
 function delCat(id){
   if(hasKids(id)){toast('Tem sub-categorias — elimina-as primeiro');return;}
