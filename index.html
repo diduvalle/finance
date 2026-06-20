@@ -143,7 +143,10 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 /* Quick add */
 .qadd{display:flex;gap:10px;align-items:flex-end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin-bottom:16px;flex-wrap:wrap;box-shadow:var(--sh)}
 .qadd .fld{display:flex;flex-direction:column;min-width:0}
-.qadd .fld-cat{flex:1 1 160px} .qadd .fld-mes{flex:0 0 116px} .qadd .fld-nota{flex:1 1 150px}
+.qadd .fld-cat{flex:1 1 160px} .qadd .fld-mes{flex:0 0 116px} .qadd .fld-nota{flex:1 1 150px} .qadd .fld-conta{flex:0 0 auto}
+.qadd .qconta{padding:3px;height:39px}
+.qadd .qconta button{padding:0 11px;font-size:12.5px;display:inline-flex;align-items:center;gap:5px}
+.qadd .qconta button svg{width:14px;height:14px;color:currentColor}
 .qadd input,.qadd select{padding:10px 12px}
 .qadd .v{width:108px;font-weight:800;font-size:17px}
 #qAddCash.on{background:var(--acc-15);box-shadow:inset 0 0 0 1.5px var(--acc)}#qAddCash.on svg{color:var(--acc)}
@@ -365,6 +368,8 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .savetot .savebig{font-size:22px}
   .sumtable th,.sumtable td{padding:7px 7px;font-size:12px}
   .sumtable th:first-child,.sumtable td:first-child{padding-left:10px;white-space:normal}
+  /* Dívida: em mobile esconde "Pago" e "Saldo do mês" (redundantes — Pago=0) p/ caber sem scroll horizontal */
+  .acerto-table th:nth-child(3),.acerto-table td:nth-child(3),.acerto-table th:nth-child(4),.acerto-table td:nth-child(4){display:none}
 }
 @media(max-width:380px){
   .sumtable th,.sumtable td{padding:6px 5px;font-size:11px}
@@ -403,7 +408,7 @@ html:has(#lock),html:has(#splash){overflow:hidden}
 <div id="splash"><div class="splash-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="house" pathLength="1" d="M12 4l8 6.5V20H4v-9.5z"/></svg></div></div>
 <div class="app">
   <div class="topbar"><div class="topbar-inner">
-    <div class="brand"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div></div>
+    <div class="brand" data-home="1" style="cursor:pointer" title="Início (Grelha)"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div></div>
     <div class="tabs" id="tabs"></div>
     <div class="spacer"></div>
     <div id="valeteHead"></div>
@@ -872,11 +877,14 @@ function vGrelha(m){
 
   <div class="qadd">
     <div class="fld"><label>Valor</label><input id="qVal" class="v" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
+    ${gridTipo==='despesa'?`<div class="fld fld-conta"><label>Sai de</label><div class="seg qconta">
+      <button class="${!qCashMode?'on':''}" data-qconta="banco" title="Desconta da conta (Valete)">${svg(I.wallet)}Banco</button>
+      <button class="${qCashMode?'on':''}" data-qconta="cash" title="Sai do Cofre (dinheiro físico)">${svg(I.cash)}Dinheiro</button>
+    </div></div>`:''}
     <div class="fld fld-cat"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
     <div class="fld fld-mes"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
     <div class="fld fld-nota"><label>Nota (opcional)</label><input id="qNota" type="text" maxlength="80" placeholder="ex: o que foi"></div>
-    ${gridTipo==='despesa'?`<button class="btn${qCashMode?' on':''}" id="qAddCash" title="Pagar em dinheiro (sai do Cofre, não do Valete) — seleciona e depois Adicionar" style="height:38px">${svg(I.cash)}</button>`:''}
-    <button class="btn primary" id="qAdd" style="height:38px">${qCashMode?svg(I.cash)+'Adicionar (dinheiro)':svg(I.plus)+'Adicionar'}</button>
+    <button class="btn primary" id="qAdd" style="height:38px;margin-left:auto">${qCashMode?svg(I.cash)+'Adicionar (dinheiro)':svg(I.plus)+'Adicionar'}</button>
   </div>
 
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
@@ -1768,6 +1776,9 @@ function catTree(tipo){return topCats(tipo).map(c=>{
 /* ================= EVENTS ================= */
 document.addEventListener('click',e=>{
   const _hb=e.target.closest('[data-hlp]'); if(_hb){toast(_hb.getAttribute('title'));return;}
+  if(e.target.closest('[data-home]')){ tab='grelha'; closePop(); render(); return; }
+  // fechar o popover de adicionar valor ao clicar fora dele (onblur) — exceto noutra célula (que o reabre)
+  { const _pe=document.getElementById('pop'); if(_pe && _pe.classList.contains('on') && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); }
   const t=e.target.closest('button,a,[data-cell],[data-delmov],[data-movmov],[data-newcat]');
   // cell click (td) handled separately:
   const ren=e.target.closest('[data-rencat]');
@@ -1835,7 +1846,7 @@ document.addEventListener('click',e=>{
   if(t.id==='lgSetBtn'){ poupSetSaldo(); return; }
   if(d.poupmovdel){ const[y,i,j]=d.poupmovdel.split('|'); const yp=state.poupancas[y]; const c=yp.contas[+i]; const mo=c.mov[+j]; if(mo){ c.valor=round2((+c.valor||0)-mo.valor); c.mov.splice(+j,1); if(!c.real){ const ri=yp.contas.findIndex(x=>x.real); if(ri>=0&&ri!==+i){ yp.contas[ri].valor=round2((+yp.contas[ri].valor||0)+mo.valor); } } save(); render(); openContaLedger(y,+i);} return; }
   if(t.id==='qAdd'){quickAdd(qCashMode);return;}
-  if(t.id==='qAddCash'){ qCashMode=!qCashMode; t.classList.toggle('on',qCashMode); const _a=document.getElementById('qAdd'); if(_a)_a.innerHTML=(qCashMode?svg(I.cash)+'Adicionar (dinheiro)':svg(I.plus)+'Adicionar'); return; }
+  if(d.qconta){ qCashMode=(d.qconta==='cash'); document.querySelectorAll('.qconta button').forEach(b=>b.classList.toggle('on', b.dataset.qconta===d.qconta)); const _a=document.getElementById('qAdd'); if(_a)_a.innerHTML=(qCashMode?svg(I.cash)+'Adicionar (dinheiro)':svg(I.plus)+'Adicionar'); return; }
   if(t.id==='relock'){ editHist=false; render(); toast('Histórico bloqueado'); return; }
   if(t.id==='pUnlock'){ editHist=true; const pc=popCell; render(); if(pc){const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`); if(an)openCellPop(pc.catId,pc.mi,an);} toast('Histórico desbloqueado (até recarregares)'); return; }
   if(t.id==='pAdd'){popAdd(false);return;}
