@@ -731,7 +731,7 @@ function computeAlertas(){
   const mesSup=round2(state.movimentos.filter(m=>m.tipo==='despesa'&&m.data.slice(0,7)===ref&&superIds.includes(m.categoriaId)).reduce((a,m)=>a+m.valor,0));
   const anoSup=round2(state.movimentos.filter(m=>m.tipo==='despesa'&&m.data.slice(0,4)===yr&&superIds.includes(m.categoriaId)).reduce((a,m)=>a+m.valor,0));
   const superfCats=state.categorias.filter(c=>c.superfluo&&!c.parent).map(c=>c.nome);
-  const ana=anaWatchAlerts();
+  const ana=anaGlobalAlerts();
   return {ref,acima,orc,out:out.slice(0,5),ana,superf:{mes:mesSup,ano:anoSup,cats:superfCats},total:round2(acima.reduce((a,x)=>a+x.exc,0)),n:acima.length+orc.length+out.length+ana.length};
 }
 function renderAlertPanel(){
@@ -759,7 +759,7 @@ function renderAlertPanel(){
   if(A.acima.length){ body+=sec('Acima do habitual'); body+=A.acima.map(it=>`<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px;font-weight:700"><span class="dot" style="background:${it.cor}"></span>${esc(it.nome)}<span style="margin-left:auto;color:var(--out)">+${it.pct}%</span></div><div style="font-size:12px;color:var(--mut);margin-top:2px">${fmt(it.cur)} · normal ${fmt(it.med)}. Poupança <b style="color:var(--in)">${fmt(it.exc)}/mês</b> (~${fmt0(it.exc*12)}/ano)</div></div>`).join('');
     body+=`<div style="padding-top:8px;font-weight:700;display:flex;justify-content:space-between">Poupança potencial<span class="pos">${fmt(A.total)}/mês</span></div>`; }
   if(A.orc.length){ body+=sec('Orçamento ultrapassado'); body+=A.orc.map(it=>`<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px;font-weight:700"><span class="dot" style="background:${it.cor}"></span>${esc(it.nome)}<span style="margin-left:auto;color:var(--out)">+${fmt0(it.exc)}</span></div><div style="font-size:12px;color:var(--mut);margin-top:2px">${fmt(it.cur)} de ${fmt(it.lim)} (orçamento) · ${it.pct}% acima</div></div>`).join(''); }
-  if(A.ana&&A.ana.length){ body+=sec('Categorias vigiadas (Analytics)'); body+=A.ana.map(it=>`<div class="hint" style="border-left:3px solid ${it.lvl==='high'?'var(--out)':'var(--warn)'};margin:6px 0;font-size:12px"><b>${esc(it.cat)}</b> · ${it.txt}</div>`).join(''); }
+  if(A.ana&&A.ana.length){ body+=sec('Consumos vs anos anteriores'); body+=A.ana.map(it=>`<div class="hint" style="border-left:3px solid ${it.lvl==='high'?'var(--out)':'var(--warn)'};margin:6px 0;font-size:12px"><b>${esc(it.cat)}</b> · ${it.txt}</div>`).join(''); }
   if(A.out.length){ body+=sec('Gastos pontuais grandes'); body+=A.out.map(it=>`<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px"><b>${fmt(it.valor)}</b><span style="color:var(--mut);font-size:12px">${esc(it.nome)} · ${it.data.slice(8,10)}/${it.data.slice(5,7)}</span></div><div style="font-size:11.5px;color:var(--mut)">vs típico ${fmt(it.med)} — confirma?</div></div>`).join(''); }
   if(A.superf.cats.length){ body+=sec('Supérfluos'); body+=`<div style="font-size:12.5px;color:var(--mut)">Gastaste <b style="color:var(--txt)">${fmt(A.superf.mes)}</b> este mês (<b>${fmt0(A.superf.ano)}</b> no ano) em ${A.superf.cats.join(', ')}.</div>`; }
   if(!body) body=`<div class="pempty">Sem alertas — está tudo dentro do normal 🎉</div>${A.superf.cats.length?'':'<div class="hint" style="margin-top:10px">Dica: marca categorias <b>supérfluas</b> nas Definições para acompanhar gastos discricionários aqui.</div>'}`;
@@ -861,8 +861,7 @@ function render(){
   document.body.setAttribute('data-theme',state.settings.tema||'dark');
   document.getElementById('tabs').innerHTML=[['grelha','Grelha',I.grid],['acerto','Dívida',I.scale],['poup','Poupanças',I.wallet],['previsao','Previsão',I.trend],['analytics','Analytics',I.report],['defs','Definições',I.gear]]
     .map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('');
-  document.getElementById('topright').innerHTML = (tab==='grelha'||tab==='acerto'||tab==='poup')
-    ? `<div class="yearnav"><button data-year="-1">‹</button><span class="y">${ano}</span><button data-year="1">›</button></div>` : '';
+  document.getElementById('topright').innerHTML = `<div class="yearnav"><button data-year="-1">‹</button><span class="y">${ano}</span><button data-year="1">›</button></div>`;
   const _va=valeteAtual(); const _vf=valeteForecast(); const _alerta=_va!=null&&_vf.faltaDia;
   let _vChip = _va!=null?`<div class="chip" title="Valete · saldo real da conta (deve bater com o banco)"><span class="dot" style="background:var(--info)"></span>Valete&nbsp;<b>${fmt(_va)}</b></div>`:'';
   if(_alerta){ _vChip += `<div class="chip warn" title="Estimativa: por volta do dia ${_vf.faltaDia} o saldo desce abaixo da margem (faltam ~${fmt(_vf.faltaValor)}). Detalhe no sino.">${svg(I.bell)}<b>−${fmt(_vf.faltaValor)}</b></div>`; }
@@ -1597,14 +1596,26 @@ function anaAlerts(catId){
   for(let i=0;i<=lastMi;i++){ if(prevM[i]>5 && curM[i]>prevM[i]*1.3 && curM[i]-prevM[i]>15) al.push({lvl:'mid',txt:`<b>${MESES[i]}</b>: ${fmt(curM[i])} vs ${fmt(prevM[i])} em ${prev} (<b>+${Math.round((curM[i]/prevM[i]-1)*100)}%</b>).`}); }
   return al;
 }
-function anaWatchAlerts(){const w=(state.settings&&state.settings.anaWatch)||[];const out=[];w.forEach(id=>{if(cat(id))anaAlerts(id).forEach(a=>out.push(Object.assign({cat:catName(id)},a)));});return out;}
+/* alertas gerais: varre as categorias-folha (Luz, Gás, …) com gasto relevante e devolve os mais importantes */
+function anaGlobalAlerts(){
+  const leaves=[]; topCats('despesa').forEach(c=>{const ch=childrenOf(c.id); if(ch.length)ch.forEach(k=>leaves.push(k)); else leaves.push(c);});
+  const out=[];
+  leaves.forEach(c=>{
+    const years=anaYears(c.id); if(years.length<2)return;
+    const prevTotal=round2(anaMonthly(c.id,years[years.length-2]).reduce((a,v)=>a+v,0));
+    if(prevTotal<50)return; // ignora categorias pequenas (ruído)
+    anaAlerts(c.id).forEach(a=>out.push(Object.assign({cat:catName(c.id),catId:c.id,mag:(a.lvl==='high'?1e9:0)+prevTotal},a)));
+  });
+  out.sort((a,b)=>b.mag-a.mag);
+  return out.slice(0,6);
+}
 
 function vAnalytics(m){
   const cats=anaCatsList();
   if(!cats.length){ m.innerHTML=`<div class="card" style="text-align:center;color:var(--mut);padding:30px">Sem despesas suficientes para analisar. Lança movimentos na Grelha.</div>`; return; }
   if(!anaCat || !cats.some(c=>c.id===anaCat)){ anaCat=cats.map(c=>({id:c.id,n:anaYears(c.id).length})).sort((a,b)=>b.n-a.n)[0].id; }
   const years=anaYears(anaCat).slice(-4);
-  const watch=((state.settings&&state.settings.anaWatch)||[]).includes(anaCat);
+  const glob=anaGlobalAlerts();
   const monthlyByYear={}; years.forEach(y=>monthlyByYear[y]=anaMonthly(anaCat,y));
   const cur=years[years.length-1], prev=years.length>1?years[years.length-2]:null;
   const curM=monthlyByYear[cur]||[], prevM=prev?monthlyByYear[prev]:[];
@@ -1621,10 +1632,9 @@ function vAnalytics(m){
   const xlabels=MC.map((mc,i)=>`<text x="${xx(i).toFixed(0)}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--mut)">${mc}</text>`).join('');
   const legend=years.map(y=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:3px;background:${ycol(y)};border-radius:2px;display:inline-block"></span>${y}</span>`).join('');
   m.innerHTML=`
-  <div class="card" style="margin-bottom:14px;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap">
-    <div style="flex:1 1 200px;min-width:0"><label>Categoria a analisar</label>
-      <select id="anaCatSel" style="width:100%">${cats.map(c=>`<option value="${c.id}" ${c.id===anaCat?'selected':''}>${esc(catName(c.id))}</option>`).join('')}</select></div>
-    <button class="btn${watch?' primary':''}" id="anaWatch" title="Mostrar os alertas desta categoria no sino">${svg(I.bell)}${watch?'A vigiar':'Vigiar'}</button>
+  ${glob.length?`<div class="card" style="margin-bottom:14px"><h3 class="dh">${svg(I.bell)} Alertas — todas as categorias</h3><p class="dsub" style="margin-top:-6px">Despesas que dispararam face a anos anteriores. Toca para analisar.</p>${glob.map(a=>`<div class="hint" data-anasel="${a.catId}" style="border-left:3px solid ${a.lvl==='high'?'var(--out)':'var(--warn)'};margin-bottom:8px;cursor:pointer"><b>${esc(a.cat)}</b> · ${a.txt}</div>`).join('')}</div>`:`<div class="hint" style="margin-bottom:14px;border-left:3px solid var(--in)">Sem alertas gerais — os consumos estão dentro do padrão dos anos anteriores ✓</div>`}
+  <div class="card" style="margin-bottom:14px"><label>Analisar categoria em detalhe</label>
+    <select id="anaCatSel" style="width:100%">${cats.map(c=>`<option value="${c.id}" ${c.id===anaCat?'selected':''}>${esc(catName(c.id))}</option>`).join('')}</select>
   </div>
   ${years.length<2?`<div class="hint" style="margin-bottom:14px">Só há dados de <b>${years[0]||'—'}</b> nesta categoria. A comparação ano-a-ano aparece com pelo menos dois anos.</div>`:''}
   <div class="kstrip">
@@ -1898,6 +1908,7 @@ document.addEventListener('click',e=>{
   const acm=e.target.closest('[data-acmonth]'); if(acm){ openAcertoDetail(acm.dataset.acmonth); return; }
   const acy=e.target.closest('[data-acyear]'); if(acy){ const led=acertoLedger(); if(!acAnosOpen)acAnosOpen=new Set([Math.max(...led.map(r=>+r.ym.slice(0,4)))]); const y=+acy.dataset.acyear; if(acAnosOpen.has(y))acAnosOpen.delete(y); else acAnosOpen.add(y); render(); return; }
   const pl=e.target.closest('[data-poupledger]'); if(pl){ const a=pl.dataset.poupledger.split('|'); openContaLedger(a[0],+a[1]); return; }
+  const asel=e.target.closest('[data-anasel]'); if(asel){ anaCat=asel.dataset.anasel; tab='analytics'; render(); return; }
   const dco=e.target.closest('[data-defcatopen]'); if(dco){ const id=dco.dataset.defcatopen; defCatOpen.has(id)?defCatOpen.delete(id):defCatOpen.add(id); render(); return; }
   const sgo=e.target.closest('[data-go]'); if(sgo){ gotoMov(sgo.dataset.go); return; }
   const delHead=e.target.closest('.delcol[data-delcat]');
@@ -1912,7 +1923,6 @@ document.addEventListener('click',e=>{
   if(d.gview){gridView=d.gview;render();return;}
   if(d.gviewtoggle){gridView=((gridView||'lista')==='lista')?'tabela':'lista';render();return;}
   if(d.anacum!=null){anaCum=d.anacum==='1';render();return;}
-  if(t.id==='anaWatch'){state.settings.anaWatch=state.settings.anaWatch||[];const _i=state.settings.anaWatch.indexOf(anaCat);if(_i>=0)state.settings.anaWatch.splice(_i,1);else state.settings.anaWatch.push(anaCat);save();render();toast(_i>=0?'Deixaste de vigiar':'A vigiar — alertas no sino');return;}
   if(d.gmmonth!=null){const _i=+d.gmmonth;gmOpen.has(_i)?gmOpen.delete(_i):gmOpen.add(_i);render();return;}
   if(d.acexpand){const led=acertoLedger();acAnosOpen=new Set(led.map(r=>+r.ym.slice(0,4)));render();return;}
   if(d.accollapse){acAnosOpen=new Set();render();return;}
