@@ -141,14 +141,20 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .savebar{height:11px;border-radius:999px;background:var(--card2);box-shadow:inset 0 0 0 1px var(--line);overflow:hidden}
 .savebar>i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,var(--acc),var(--accd));transition:width .4s}
 /* Quick add */
-.qadd{display:flex;gap:10px;align-items:flex-end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin-bottom:16px;flex-wrap:wrap;box-shadow:var(--sh)}
+/* Desktop: fila única que preenche a largura (Valor+switch · Categoria · Mês · Adicionar) + Nota em baixo */
+.qadd{display:flex;flex-wrap:wrap;gap:11px;align-items:flex-end;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 90%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);padding:13px 15px;margin-bottom:16px;box-shadow:var(--sh)}
+.qadd .qrow{display:contents}
 .qadd .fld{display:flex;flex-direction:column;min-width:0}
-.qadd .fld-cat{flex:1 1 160px} .qadd .fld-mes{flex:0 0 116px} .qadd .fld-nota{flex:1 1 150px} .qadd .fld-conta{flex:0 0 auto}
-.qadd .qconta{padding:3px;height:39px}
-.qadd .qconta button{padding:0 11px;font-size:12.5px;display:inline-flex;align-items:center;gap:5px}
-.qadd .qconta button svg{width:14px;height:14px;color:currentColor}
+.qadd .fld-val{flex:0 0 auto;order:1}
+.qadd .qval-wrap{display:flex;align-items:center;gap:8px}
+.qadd .fld-cat{flex:2 1 190px;order:2} .qadd .fld-mes{flex:1 1 140px;order:3}
+.qadd #qAdd{order:4;height:42px}
+.qadd .fld-nota{flex:1 1 100%;order:5}
+.qadd .qconta{padding:4px;height:42px;flex:none}
+.qadd .qconta button{padding:0 13px;display:inline-flex;align-items:center;justify-content:center}
+.qadd .qconta button svg{width:18px;height:18px;color:currentColor}
 .qadd input,.qadd select{padding:10px 12px}
-.qadd .v{width:108px;font-weight:800;font-size:17px}
+.qadd .v{width:120px;height:42px;font-weight:800;font-size:17px}
 #qAddCash.on{background:var(--acc-15);box-shadow:inset 0 0 0 1.5px var(--acc)}#qAddCash.on svg{color:var(--acc)}
 /* Grid */
 .gridwrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:auto;box-shadow:var(--sh)}
@@ -357,8 +363,14 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .topbar #refreshBtn svg,.topbar #bell svg,.topbar #lockNow svg,.topbar #searchBtn svg,.topbar #inboxTop svg{width:17px;height:17px}
   .topbar .chip{height:30px;padding:0 9px;font-size:11.5px}
   #valeteHead{gap:4px}
-  .qadd{gap:6px}.qadd .v{width:90px}
-  .qadd .fld{flex:1 1 calc(50% - 6px)}
+  /* mobile: volta às 3 linhas (Valor+switch+Adicionar · Cat+Mês · Nota) */
+  .qadd{flex-direction:column;gap:9px}
+  .qadd .qrow{display:flex;gap:8px;align-items:flex-end}
+  .qadd #qAdd{margin-left:auto}
+  .qadd .fld-cat,.qadd .fld-mes{flex:1 1 0}
+  .qadd .fld-nota{flex:0 0 auto}
+  .qadd .v{width:104px}
+  .qadd .qconta button{padding:0 11px}
   .kbox{min-width:calc(50% - 7px);padding:13px 15px}.kbox .v{font-size:22px}
   .brand small{display:none}
   .f2{grid-template-columns:1fr}
@@ -465,6 +477,7 @@ const I={
   trend:'<path d="M3 17l6-6 4 4 8-8M15 7h6v6"/>',
   finger:'<path d="M12 11v3a8 8 0 01-1 4M8 14a4 4 0 014-4 4 4 0 014 4v1M6 12a6 6 0 0112 0v2a10 10 0 01-1 4M15 17a14 14 0 01-1 4M9.5 7.5a6 6 0 015 0"/>',
   cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',
+  bank:'<path d="M3 10l9-6 9 6M3 10h18M3 21h18M6 10v8M10 10v8M14 10v8M18 10v8"/>',
   logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
   scan:'<path d="M4 7V5a1 1 0 011-1h2M17 4h2a1 1 0 011 1v2M20 17v2a1 1 0 01-1 1h-2M7 20H5a1 1 0 01-1-1v-2M4 12h16"/>',
   search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
@@ -876,15 +889,23 @@ function vGrelha(m){
   ${editHist?`<div class="hint" style="border-left:3px solid var(--warn);display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap"><span>🔓 <b>Histórico desbloqueado</b> — podes editar meses anteriores. Editar o passado <b>não</b> mexe nos saldos atuais (Valete/Cofre).</span><button class="btn sm" id="relock">${svg(I.check)}Voltar a bloquear</button></div>`:''}
 
   <div class="qadd">
-    <div class="fld"><label>Valor</label><input id="qVal" class="v" type="number" step="0.01" inputmode="decimal" placeholder="0,00"></div>
-    ${gridTipo==='despesa'?`<div class="fld fld-conta"><label>Sai de</label><div class="seg qconta">
-      <button class="${!qCashMode?'on':''}" data-qconta="banco" title="Desconta da conta (Valete)">${svg(I.wallet)}Banco</button>
-      <button class="${qCashMode?'on':''}" data-qconta="cash" title="Sai do Cofre (dinheiro físico)">${svg(I.cash)}Dinheiro</button>
-    </div></div>`:''}
-    <div class="fld fld-cat"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
-    <div class="fld fld-mes"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
+    <div class="qrow qrow-top">
+      <div class="fld fld-val"><label>Valor</label>
+        <div class="qval-wrap">
+          <input id="qVal" class="v" type="number" step="0.01" inputmode="decimal" placeholder="0,00">
+          ${gridTipo==='despesa'?`<div class="seg qconta">
+            <button class="${!qCashMode?'on':''}" data-qconta="banco" title="Desconta da conta (banco / Valete)">${svg(I.bank)}</button>
+            <button class="${qCashMode?'on':''}" data-qconta="cash" title="Sai do Cofre (dinheiro físico)">${svg(I.cash)}</button>
+          </div>`:''}
+        </div>
+      </div>
+      <button class="btn primary" id="qAdd">${svg(I.plus)}Adicionar</button>
+    </div>
+    <div class="qrow">
+      <div class="fld fld-cat"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
+      <div class="fld fld-mes"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' 🔒':''}</option>`).join('')}</select></div>
+    </div>
     <div class="fld fld-nota"><label>Nota (opcional)</label><input id="qNota" type="text" maxlength="80" placeholder="ex: o que foi"></div>
-    <button class="btn primary" id="qAdd" style="height:38px;margin-left:auto">${qCashMode?svg(I.cash)+'Adicionar (dinheiro)':svg(I.plus)+'Adicionar'}</button>
   </div>
 
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
@@ -1846,7 +1867,7 @@ document.addEventListener('click',e=>{
   if(t.id==='lgSetBtn'){ poupSetSaldo(); return; }
   if(d.poupmovdel){ const[y,i,j]=d.poupmovdel.split('|'); const yp=state.poupancas[y]; const c=yp.contas[+i]; const mo=c.mov[+j]; if(mo){ if(!confirm('Apagar este movimento de '+fmt(mo.valor)+'? O saldo da conta é reajustado.'))return; c.valor=round2((+c.valor||0)-mo.valor); c.mov.splice(+j,1); if(!c.real){ const ri=yp.contas.findIndex(x=>x.real); if(ri>=0&&ri!==+i){ yp.contas[ri].valor=round2((+yp.contas[ri].valor||0)+mo.valor); } } save(); render(); openContaLedger(y,+i);} return; }
   if(t.id==='qAdd'){quickAdd(qCashMode);return;}
-  if(d.qconta){ qCashMode=(d.qconta==='cash'); document.querySelectorAll('.qconta button').forEach(b=>b.classList.toggle('on', b.dataset.qconta===d.qconta)); const _a=document.getElementById('qAdd'); if(_a)_a.innerHTML=(qCashMode?svg(I.cash)+'Adicionar (dinheiro)':svg(I.plus)+'Adicionar'); return; }
+  if(d.qconta){ qCashMode=(d.qconta==='cash'); document.querySelectorAll('.qconta button').forEach(b=>b.classList.toggle('on', b.dataset.qconta===d.qconta)); return; }
   if(t.id==='relock'){ editHist=false; render(); toast('Histórico bloqueado'); return; }
   if(t.id==='pUnlock'){ editHist=true; const pc=popCell; render(); if(pc){const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`); if(an)openCellPop(pc.catId,pc.mi,an);} toast('Histórico desbloqueado (até recarregares)'); return; }
   if(t.id==='pAdd'){popAdd(false);return;}
