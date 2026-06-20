@@ -357,13 +357,14 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   #valeteHead{order:2;min-width:0}
   #searchBtn{order:3;margin-left:auto}
   #inboxTop{order:4} #refreshBtn{order:5} #bell{order:6} #lockNow{order:7}
-  .tabs{order:8;flex:1 1 auto;width:auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  #topright{order:9}
+  .tabs{order:8;flex:0 1 auto;width:auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #topright{order:9;margin-left:auto}
   .topbar .yearnav{height:32px}
-  .topbar .yearnav button{width:26px;height:26px;font-size:15px}
-  .topbar .yearnav .y{min-width:42px;font-size:14px}
+  .topbar .yearnav{padding:2px}
+  .topbar .yearnav button{width:22px;height:24px;font-size:14px}
+  .topbar .yearnav .y{min-width:36px;font-size:13px}
   .tabs::-webkit-scrollbar{display:none}
-  .tabs button{flex:0 0 auto;padding:8px 13px;font-size:13.5px;white-space:nowrap}
+  .tabs button{flex:0 0 auto;padding:8px 8px;font-size:13.5px;white-space:nowrap}
   .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:30px;width:30px}
   .topbar #refreshBtn svg,.topbar #bell svg,.topbar #lockNow svg,.topbar #searchBtn svg,.topbar #inboxTop svg{width:17px;height:17px}
   .topbar .chip{height:30px;padding:0 9px;font-size:11.5px}
@@ -1584,6 +1585,7 @@ function anaSum(catId,year,mi){const ids=anaCatIds(catId);return state.movimento
 function anaMonthly(catId,year){const a=[];for(let mi=0;mi<12;mi++)a.push(round2(anaSum(catId,year,mi)));return a;}
 function anaYears(catId){const ids=anaCatIds(catId);return [...new Set(state.movimentos.filter(m=>m.tipo==='despesa'&&ids.has(m.categoriaId)&&m.valor>0).map(m=>+m.data.slice(0,4)))].sort();}
 function anaCatsList(){const out=[];topCats('despesa').forEach(c=>{out.push(c);childrenOf(c.id).forEach(k=>out.push(k));});return out.filter(c=>state.movimentos.some(m=>m.tipo==='despesa'&&anaCatIds(c.id).has(m.categoriaId)&&m.valor>0));}
+function anaCfg(){return Object.assign({spike:30, max:6, min:50, parents:false}, (state.settings&&state.settings.ana)||{});}
 function anaAlerts(catId){
   const years=anaYears(catId); if(years.length<2)return [];
   const cur=years[years.length-1], prev=years[years.length-2];
@@ -1593,21 +1595,23 @@ function anaAlerts(catId){
   const al=[];
   if(prevTotal>0 && curYTD>=prevTotal) al.push({lvl:'high',txt:`Já gastaste <b>${fmt(curYTD)}</b> em ${cur} — tanto ou mais do que em <b>todo o ${prev}</b> (${fmt(prevTotal)}).`});
   else if(prevYTD>0 && curYTD>prevYTD*1.15) al.push({lvl:'mid',txt:`Este ano estás <b>${Math.round((curYTD/prevYTD-1)*100)}% acima</b> do mesmo período de ${prev} (${fmt(curYTD)} vs ${fmt(prevYTD)}).`});
-  for(let i=0;i<=lastMi;i++){ if(prevM[i]>5 && curM[i]>prevM[i]*1.3 && curM[i]-prevM[i]>15) al.push({lvl:'mid',txt:`<b>${MESES[i]}</b>: ${fmt(curM[i])} vs ${fmt(prevM[i])} em ${prev} (<b>+${Math.round((curM[i]/prevM[i]-1)*100)}%</b>).`}); }
+  const _spk=1+anaCfg().spike/100;
+  for(let i=0;i<=lastMi;i++){ if(prevM[i]>5 && curM[i]>prevM[i]*_spk && curM[i]-prevM[i]>15) al.push({lvl:'mid',txt:`<b>${MESES[i]}</b>: ${fmt(curM[i])} vs ${fmt(prevM[i])} em ${prev} (<b>+${Math.round((curM[i]/prevM[i]-1)*100)}%</b>).`}); }
   return al;
 }
 /* alertas gerais: varre as categorias-folha (Luz, Gás, …) com gasto relevante e devolve os mais importantes */
 function anaGlobalAlerts(){
-  const leaves=[]; topCats('despesa').forEach(c=>{const ch=childrenOf(c.id); if(ch.length)ch.forEach(k=>leaves.push(k)); else leaves.push(c);});
+  const cfg=anaCfg();
+  const leaves=[]; topCats('despesa').forEach(c=>{const ch=childrenOf(c.id); if(ch.length){if(cfg.parents)leaves.push(c);ch.forEach(k=>leaves.push(k));} else leaves.push(c);});
   const out=[];
   leaves.forEach(c=>{
     const years=anaYears(c.id); if(years.length<2)return;
     const prevTotal=round2(anaMonthly(c.id,years[years.length-2]).reduce((a,v)=>a+v,0));
-    if(prevTotal<50)return; // ignora categorias pequenas (ruído)
+    if(prevTotal<cfg.min)return; // ignora categorias pequenas (ruído)
     anaAlerts(c.id).forEach(a=>out.push(Object.assign({cat:catName(c.id),catId:c.id,mag:(a.lvl==='high'?1e9:0)+prevTotal},a)));
   });
   out.sort((a,b)=>b.mag-a.mag);
-  return out.slice(0,6);
+  return out.slice(0,cfg.max);
 }
 
 function vAnalytics(m){
@@ -1816,6 +1820,19 @@ function vDefs(m){
     </div>
 
   </div></details>
+  <details class="defgroup" data-dg="analytics" ${defGroupsOpen.has('analytics')?'open':''}><summary>${svg(I.report)} Analytics & alertas</summary>
+  <div class="defs-grid">
+    <div class="card span2">${dh(I.bell,'Alertas de consumo','Comparam cada categoria com os anos anteriores; aparecem no sino e no separador Analytics.')}
+      <div class="f2">
+        <div><label>Subida mensal que alerta (%)</label><input id="anaSpike" type="number" min="5" step="5" inputmode="numeric" value="${anaCfg().spike}"></div>
+        <div><label>Gasto anual mínimo (€)</label><input id="anaMin" type="number" min="0" step="10" inputmode="numeric" value="${anaCfg().min}"></div>
+        <div><label>Máximo de alertas</label><input id="anaMax" type="number" min="1" max="20" inputmode="numeric" value="${anaCfg().max}"></div>
+        <div><label>Categorias-pai (totais)</label><label style="display:inline-flex;align-items:center;gap:8px;font-weight:600;color:var(--txt);margin-top:6px"><input type="checkbox" id="anaParents" ${anaCfg().parents?'checked':''} style="width:auto;box-shadow:none"> Incluir (ex.: Utilities)</label></div>
+      </div>
+      <button class="btn primary sm" style="margin-top:14px" id="anaSave">${svg(I.check)}Guardar</button>
+    </div>
+  </div>
+  </details>
   <details class="defgroup" data-dg="dados" ${defGroupsOpen.has('dados')?'open':''}><summary>${svg(I.download)} Dados & sincronização</summary>
   <div class="defs-grid">
     <div class="card span2">${dh(I.check,'Validação · App vs Excel','Totais de cada ano vs o teu Excel. Se editares/adicionares movimentos, os valores mudam (esperado).')}
@@ -1923,6 +1940,7 @@ document.addEventListener('click',e=>{
   if(d.gview){gridView=d.gview;render();return;}
   if(d.gviewtoggle){gridView=((gridView||'lista')==='lista')?'tabela':'lista';render();return;}
   if(d.anacum!=null){anaCum=d.anacum==='1';render();return;}
+  if(t.id==='anaSave'){state.settings.ana=Object.assign(anaCfg(),{spike:Math.max(5,parseInt(val('anaSpike'))||30),min:Math.max(0,parseInt(val('anaMin'))||0),max:Math.max(1,Math.min(20,parseInt(val('anaMax'))||6)),parents:!!(document.getElementById('anaParents')||{}).checked});save();render();toast('Alertas atualizados');return;}
   if(d.gmmonth!=null){const _i=+d.gmmonth;gmOpen.has(_i)?gmOpen.delete(_i):gmOpen.add(_i);render();return;}
   if(d.acexpand){const led=acertoLedger();acAnosOpen=new Set(led.map(r=>+r.ym.slice(0,4)));render();return;}
   if(d.accollapse){acAnosOpen=new Set();render();return;}
