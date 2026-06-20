@@ -100,6 +100,8 @@ input[type=number]::-webkit-outer-spin-button,input[type=number]::-webkit-inner-
 #bell svg,#inboxTop svg{width:19px;height:19px;display:block}
 .hlp{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:var(--card2);color:var(--mut);font-size:11px;font-weight:800;cursor:help;border:1px solid var(--line);vertical-align:middle;margin-left:6px;user-select:none}
 .hlp:hover{color:var(--acc);border-color:var(--acc)}
+#hlptip{position:fixed;z-index:200;background:var(--card);border:1px solid var(--line2);border-radius:12px;box-shadow:var(--sh-lg);padding:10px 13px;font-size:12.5px;color:var(--txt);line-height:1.45;display:none;pointer-events:none}
+#hlptip.on{display:block;animation:pp .12s}
 .acmrow{cursor:pointer}
 .acmrow:hover td{background:var(--acc-12)}
 #refreshBtn,#searchBtn{background:none;border:0;color:var(--mut);cursor:pointer;padding:6px;border-radius:9px;display:inline-flex}
@@ -640,6 +642,20 @@ function dateFor(mi){const d=new Date();if(d.getFullYear()===ano&&d.getMonth()==
 function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
 /* ajuda compacta: um "!" que mostra o texto (hover no PC, toque no telemóvel) — poupa espaço */
 function hlp(t){return t?`<span class="hlp" data-hlp="1" title="${esc(t)}" aria-label="${esc(t)}">!</span>`:'';}
+let _hlpTimer=null;
+function showHlp(anchor,text){
+  let t=document.getElementById('hlptip');
+  if(!t){t=document.createElement('div');t.id='hlptip';document.body.appendChild(t);}
+  if(t.classList.contains('on')&&t._anchor===anchor){hideHlp();return;} // segundo clique fecha
+  t._anchor=anchor; t.textContent=text||''; t.classList.add('on');
+  t.style.maxWidth=Math.min(300,window.innerWidth-20)+'px';
+  const r=anchor.getBoundingClientRect(), w=t.offsetWidth, h=t.offsetHeight;
+  let left=Math.max(10,Math.min(r.left+r.width/2-w/2, window.innerWidth-w-10));
+  let top=r.bottom+8; if(top+h>window.innerHeight-10) top=Math.max(10,r.top-h-8);
+  t.style.left=left+'px'; t.style.top=top+'px';
+  clearTimeout(_hlpTimer); _hlpTimer=setTimeout(hideHlp,7000);
+}
+function hideHlp(){const t=document.getElementById('hlptip'); if(t){t.classList.remove('on'); t._anchor=null;} clearTimeout(_hlpTimer);}
 function sumMonth(tipo,mi){return state.movimentos.filter(m=>m.tipo===tipo&&+m.data.slice(0,4)===ano&&+m.data.slice(5,7)-1===mi).reduce((a,m)=>a+m.valor,0);}
 function sumYear(tipo){return state.movimentos.filter(m=>m.tipo===tipo&&+m.data.slice(0,4)===ano).reduce((a,m)=>a+m.valor,0);}
 function sumYearOf(tipo,y){return state.movimentos.filter(m=>m.tipo===tipo&&m.data.slice(0,4)===String(y)).reduce((a,m)=>a+m.valor,0);}
@@ -1300,7 +1316,7 @@ function vPoupancas(m){
   const denomLabel=d=> (d>=1? String(d) : String(d).replace('.',',')) + ' €';
   m.innerHTML=`
   <div class="kstrip">
-    <div class="kbox"><div class="l">Património total ${ano}</div><div class="v pos">${fmt(total)}</div></div>
+    <div class="kbox"><div class="l">Património ${ano}</div><div class="v pos">${fmt(total)}</div></div>
     <div class="kbox"><div class="l">Cofre (dinheiro)</div><div class="v">${fmt(cofre)}</div>${hasDisc?`<div style="font-size:12px;color:var(--warn)">esperado ${fmt(esperado)}</div>`:''}</div>
   </div>
   <div class="section-h" style="display:flex;align-items:center;gap:8px;margin-top:2px">Contas &amp; dinheiro${hlp(`Usa o botão +/− de cada conta para reforçar, mobilizar (levantar) ou definir o saldo exato (ex.: igualar o Valete ao banco). O Valete é o saldo real e o Cofre é o dinheiro físico (contado por denominação). As setas ‹ › em cima mudam de ano.`)}</div>
@@ -1795,8 +1811,10 @@ function catTree(tipo){return topCats(tipo).map(c=>{
 }).join('');}
 
 /* ================= EVENTS ================= */
+window.addEventListener('scroll',()=>hideHlp(),{passive:true});
 document.addEventListener('click',e=>{
-  const _hb=e.target.closest('[data-hlp]'); if(_hb){toast(_hb.getAttribute('title'));return;}
+  const _hb=e.target.closest('[data-hlp]'); if(_hb){showHlp(_hb,_hb.getAttribute('title'));return;}
+  hideHlp();
   if(e.target.closest('[data-home]')){ tab='grelha'; closePop(); render(); return; }
   // fechar o popover de adicionar valor ao clicar fora dele (onblur) — exceto noutra célula (que o reabre)
   { const _pe=document.getElementById('pop'); if(_pe && _pe.classList.contains('on') && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); }
