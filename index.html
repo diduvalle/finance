@@ -392,6 +392,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .acerto-table th:nth-child(3),.acerto-table td:nth-child(3),.acerto-table th:nth-child(4),.acerto-table td:nth-child(4){display:none}
   /* Previsão: em mobile esconde colunas para caber sem scroll horizontal */
   .comp-table th:nth-child(4),.comp-table td:nth-child(4){display:none}
+  .ac-tools{flex-wrap:wrap}.ac-tools>span{flex-basis:100%!important}
   .proj-table th:nth-child(2),.proj-table td:nth-child(2),.proj-table th:nth-child(3),.proj-table td:nth-child(3){display:none}
 }
 @media(max-width:380px){
@@ -1159,8 +1160,8 @@ function vAcerto(m){
     <div class="acerto-note">Registo mensal ${fmt(dividaMensal)} + acertos pontuais ${fmt(extrasTotal)} = <b>${fmt(divida)}</b>.${ultimoPago?` Último pagamento dela em <b>${MESES[+ultimoPago.ym.slice(5,7)-1]} ${ultimoPago.ym.slice(0,4)}</b>.`:''}</div>
   </div>
 
-  <div class="section-h" style="margin-top:2px;display:flex;align-items:center;gap:10px">
-    <span style="flex:1">Registo mês a mês · saldo acumulado${hlp(`Registo de dívida (não um acerto mútuo). ${a.nome} suporta as despesas; ${b.nome} é responsável por metade das contas partilhadas (prestação da casa, condomínio, seguro de vida e seguro da casa). Os valores até mai/2026 vêm do Excel; ${b.nome} pagou regularmente até set/2022, por isso a dívida só conta a partir de out/2022. A partir de jun/2026 (marcados como app) o valor vem dos lançamentos na grelha. Clica num ano para ver/ocultar os meses.`)}</span>
+  <div class="section-h ac-tools" style="margin-top:2px;display:flex;align-items:center;gap:10px">
+    <span style="flex:1">Registo mês a mês${hlp(`Registo de dívida (não um acerto mútuo). ${a.nome} suporta as despesas; ${b.nome} é responsável por metade das contas partilhadas (prestação da casa, condomínio, seguro de vida e seguro da casa). Os valores até mai/2026 vêm do Excel; ${b.nome} pagou regularmente até set/2022, por isso a dívida só conta a partir de out/2022. A partir de jun/2026 (marcados como app) o valor vem dos lançamentos na grelha. Clica num ano para ver/ocultar os meses.`)}</span>
     <button class="btn sm" data-acexpand="1">Expandir tudo</button>
     <button class="btn sm" data-accollapse="1">Recolher</button>
     <button class="btn sm" id="acCsv">${svg(I.download||I.export)}CSV</button>
