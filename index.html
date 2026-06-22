@@ -299,6 +299,12 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .sumtable thead th{font-size:11px;color:var(--mut);text-transform:uppercase;letter-spacing:.4px}
 .sumtable tfoot td{font-weight:800;border-top:2px solid var(--line2)}
 .sumtable tr.now td{background:rgba(56,189,248,.07)}
+.utilnav{display:inline-flex;align-items:center;gap:8px;font-variant-numeric:tabular-nums}
+.utilnav button{background:var(--card2);border:1px solid var(--line);color:var(--txt);width:27px;height:27px;border-radius:7px;cursor:pointer;font-size:15px;line-height:1;padding:0}
+.utilnav button:hover:not(:disabled){border-color:var(--acc);color:var(--acc)}
+.utilnav button:disabled{opacity:.35;cursor:default}
+.utilnav b{min-width:108px;text-align:center;font-size:14px}
+@media(max-width:560px){.ana-util .utilhide{display:none}}
 .section-h{font-size:13px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:18px 4px 8px}
 /* Popover */
 .pop{position:fixed;z-index:80;background:var(--card);border:1px solid var(--line2);border-radius:16px;box-shadow:var(--sh-lg);width:290px;display:none}
@@ -561,7 +567,7 @@ function guessIcon(nome){const n=(nome||'').toLowerCase();for(const [k,v] of ICO
 function catIconHtml(c,size){const k=c&&c.icon&&CAT_ICONS[c.icon];const cor=(c&&c.cor)||'var(--acc)';const s=size||26;return k?`<span class="cicon" style="width:${s}px;height:${s}px;background:color-mix(in srgb,${cor} 16%,var(--card2));color:${cor}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${k}"/></svg></span>`:`<span class="cicon dotcol" style="width:${s}px;height:${s}px;background:color-mix(in srgb,${cor} 30%,var(--card2));box-shadow:inset 0 0 0 2px ${cor}"></span>`;}
 let _seq=0; const nid=p=>(p||'i')+'_'+Date.now().toString(36)+(_seq++);
 
-let state=null, tab='grelha', ano=2026, gridTipo='despesa', qCashMode=false, anaCat=null, anaCum=false;
+let state=null, tab='grelha', ano=2026, gridTipo='despesa', qCashMode=false, anaCat=null, anaCum=false, utilNavYm=null;
 let expandedCols=new Set();
 let gridView='',gmOpen=null; // vista da Grelha: ''=auto (lista no telemóvel, tabela no PC) · meses abertos na lista
 function catOptions(tipo,sel){return topCats(tipo).map(c=>{const kids=childrenOf(c.id);if(!kids.length)return `<option value="${c.id}" ${c.id===sel?'selected':''}>${c.nome}</option>`;return `<optgroup label="${c.nome}"><option value="${c.id}" ${c.id===sel?'selected':''}>${c.nome} (geral)</option>${kids.map(k=>`<option value="${k.id}" ${k.id===sel?'selected':''}>— ${k.nome}</option>`).join('')}</optgroup>`;}).join('');}
@@ -1738,39 +1744,44 @@ function _spark(vals,w,h){
   const pts=vals.map((v,i)=>`${xx(i).toFixed(1)},${yy(v).toFixed(1)}`).join(' ');
   return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="display:block;margin-left:auto"><polyline points="${pts}" fill="none" stroke="var(--mut)" stroke-width="1.4" opacity=".85"/><circle cx="${xx(n-1).toFixed(1)}" cy="${yy(vals[n-1]).toFixed(1)}" r="2.1" fill="var(--acc)"/></svg>`;
 }
-/* painel de vigilância das Utilities: mês atual, Δ vs mês anterior, Δ vs homólogo, sparkline 12m + alerta de subida desproporcionada */
+/* painel de vigilância das Utilities: navegável por mês (default = mês atual); valor, Δ vs mês anterior, valor+Δ homólogo, sparkline 12m + alerta de subida desproporcionada */
 function anaUtilitiesPanel(){
   const cats=utilitiesCats(); if(!cats.length)return '';
-  const allY=[...new Set([].concat(...cats.map(c=>anaYears(c.id))))].sort(); if(!allY.length)return '';
-  const cur=allY[allY.length-1];
-  let lastMi=-1; for(let i=0;i<12;i++){ if(cats.some(c=>anaSum(c.id,cur,i)>0))lastMi=i; }
-  if(lastMi<0)return '';
+  // meses com gasto nas utilities (para navegar)
+  const yms=[...new Set(state.movimentos.filter(m=>m.tipo==='despesa'&&cats.some(c=>anaCatIds(c.id).has(m.categoriaId))&&m.valor>0).map(m=>m.data.slice(0,7)))].sort();
+  if(!yms.length)return '';
+  const now=new Date(), nowYm=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
+  const def=[...yms].reverse().find(ym=>ym<=nowYm)||yms[yms.length-1]; // mês atual (ou o último real ≤ hoje)
+  const refYm=(utilNavYm&&yms.includes(utilNavYm))?utilNavYm:def;
+  const idx=yms.indexOf(refYm), cur=+refYm.slice(0,4), refMi=+refYm.slice(5,7)-1;
   const thr=1+anaCfg().spike/100;
-  const prevMonthOf=(c)=>lastMi>0?round2(anaSum(c.id,cur,lastMi-1)):round2(anaSum(c.id,cur-1,11));
+  const prevOf=(c)=>refMi>0?round2(anaSum(c.id,cur,refMi-1)):round2(anaSum(c.id,cur-1,11));
   const isDispro=(val,yoy,med)=>val>0 && (yoy>0?val>=yoy*thr:(med>0&&val>=med*thr)) && (med>0?val>med:true);
   const dchip=(val,base)=>{ if(!(base>0))return '<span style="color:var(--mut)">·</span>'; const d=Math.round((val/base-1)*100); const col=d>0?'var(--out)':(d<0?'var(--in)':'var(--mut)'); const ar=d>0?'▲':(d<0?'▼':'='); return `<span style="color:${col};font-variant-numeric:tabular-nums" title="${fmt(val)} vs ${fmt(base)}">${ar} ${d>0?'+':''}${d}%</span>`; };
   const dispro=[];
   const row=c=>{
-    const val=round2(anaSum(c.id,cur,lastMi)), prevM=prevMonthOf(c), yoy=round2(anaSum(c.id,cur-1,lastMi));
-    const tr=anaTrailing(c.id,cur,lastMi,12), med=round2(mediana(tr.filter(v=>v>0)));
+    const val=round2(anaSum(c.id,cur,refMi)), prevM=prevOf(c), yoy=round2(anaSum(c.id,cur-1,refMi));
+    const tr=anaTrailing(c.id,cur,refMi,12), med=round2(mediana(tr.filter(v=>v>0)));
     const dp=isDispro(val,yoy,med); if(dp)dispro.push({nome:c.nome,val,base:yoy>0?yoy:med,baseLbl:yoy>0?'homólogo':'média'});
     return `<tr${dp?' style="background:rgba(223,140,125,.10)"':''}>
       <td style="white-space:nowrap">${catIconHtml(c,20)} <span style="vertical-align:middle">${esc(c.nome)}</span>${dp?' <span title="Subida desproporcionada (acima do homólogo e da média de 12m)" style="color:var(--out)">⚠</span>':''}</td>
-      <td class="num">${val>0?fmtn(val):'·'}</td><td class="num">${dchip(val,prevM)}</td><td class="num">${dchip(val,yoy)}</td>
-      <td style="text-align:right">${_spark(tr,92,26)}</td></tr>`;
+      <td class="num">${val>0?fmtn(val):'·'}</td><td class="num">${dchip(val,prevM)}</td>
+      <td class="num utilhide">${yoy>0?fmtn(yoy):'·'}</td><td class="num">${dchip(val,yoy)}</td>
+      <td class="utilhide" style="text-align:right">${_spark(tr,92,26)}</td></tr>`;
   };
   const body=cats.map(row).join('');
-  const tot=mi=>round2(cats.reduce((s,c)=>s+anaSum(c.id,cur,mi),0));
-  const totVal=tot(lastMi), totPrev=lastMi>0?tot(lastMi-1):round2(cats.reduce((s,c)=>s+anaSum(c.id,cur-1,11),0)), totYoy=round2(cats.reduce((s,c)=>s+anaSum(c.id,cur-1,lastMi),0));
-  const totTr=[]; for(let k=11;k>=0;k--){let y=cur,m=lastMi-k;while(m<0){m+=12;y--;}totTr.push(round2(cats.reduce((s,c)=>s+anaSum(c.id,y,m),0)));}
-  return `<div class="card" style="margin-bottom:14px">
-    <h3 class="dh">${svg(I.bell)} Utilities · vigilância <span style="color:var(--mut);font-weight:600;font-size:13px">· ${MESES[lastMi]} ${cur}</span></h3>
-    <p class="dsub" style="margin-top:-6px">Luz, água, gás e telecom: valor do mês, variação vs mês anterior e vs ano passado (mês homólogo), e tendência de 12 meses. Marca ⚠ quando sobe de forma desproporcionada (acima do homólogo e da média).</p>
-    ${dispro.length?`<div class="hint" style="border-left:3px solid var(--out);margin-bottom:10px">⚠ <b>Subida desproporcionada:</b> ${dispro.map(d=>`${esc(d.nome)} ${fmt(d.val)} (+${Math.round((d.val/d.base-1)*100)}% vs ${d.baseLbl})`).join(' · ')}</div>`:`<div class="hint" style="border-left:3px solid var(--in);margin-bottom:10px">Utilities dentro do padrão este mês ✓</div>`}
+  const totAt=(y,mi)=>round2(cats.reduce((s,c)=>s+anaSum(c.id,y,mi),0));
+  const totVal=totAt(cur,refMi), totPrev=refMi>0?totAt(cur,refMi-1):totAt(cur-1,11), totYoy=totAt(cur-1,refMi);
+  const totTr=[]; for(let k=11;k>=0;k--){let y=cur,m=refMi-k;while(m<0){m+=12;y--;}totTr.push(totAt(y,m));}
+  const nav=`<span class="utilnav"><button data-utilnav="${idx>0?yms[idx-1]:''}"${idx<=0?' disabled':''} aria-label="Mês anterior">‹</button><b>${MESES[refMi]} ${cur}</b><button data-utilnav="${idx<yms.length-1?yms[idx+1]:''}"${idx>=yms.length-1?' disabled':''} aria-label="Mês seguinte">›</button></span>`;
+  return `<div class="card ana-util" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 class="dh" style="margin:0">${svg(I.bell)} Utilities · vigilância</h3>${nav}</div>
+    <p class="dsub" style="margin-top:6px">Luz, água, gás e telecom: valor do mês, variação vs mês anterior e vs mês homólogo (ano passado), e tendência de 12 meses. Usa ‹ › para navegar nos meses. Marca ⚠ quando sobe de forma desproporcionada (acima do homólogo e da média).</p>
+    ${dispro.length?`<div class="hint" style="border-left:3px solid var(--out);margin-bottom:10px">⚠ <b>Subida desproporcionada:</b> ${dispro.map(d=>`${esc(d.nome)} ${fmt(d.val)} (+${Math.round((d.val/d.base-1)*100)}% vs ${d.baseLbl})`).join(' · ')}</div>`:`<div class="hint" style="border-left:3px solid var(--in);margin-bottom:10px">Utilities dentro do padrão em ${MESES[refMi]} ${cur} ✓</div>`}
     <div class="gridwrap"><table class="sumtable">
-      <thead><tr><th>Rubrica</th><th class="num">${MC[lastMi]} ${cur}</th><th class="num">Δ mês</th><th class="num">Δ homólogo</th><th style="text-align:right">12 meses</th></tr></thead>
+      <thead><tr><th>Rubrica</th><th class="num">${MC[refMi]} ${cur}</th><th class="num">Δ mês</th><th class="num utilhide">${MC[refMi]} ${cur-1}</th><th class="num">Δ homólogo</th><th class="utilhide" style="text-align:right">12 meses</th></tr></thead>
       <tbody>${body}</tbody>
-      <tfoot><tr><td><b>Total Utilities</b></td><td class="num"><b>${fmtn(totVal)}</b></td><td class="num">${dchip(totVal,totPrev)}</td><td class="num">${dchip(totVal,totYoy)}</td><td style="text-align:right">${_spark(totTr,92,26)}</td></tr></tfoot>
+      <tfoot><tr><td><b>Total Utilities</b></td><td class="num"><b>${fmtn(totVal)}</b></td><td class="num">${dchip(totVal,totPrev)}</td><td class="num utilhide">${totYoy>0?fmtn(totYoy):'·'}</td><td class="num">${dchip(totVal,totYoy)}</td><td class="utilhide" style="text-align:right">${_spark(totTr,92,26)}</td></tr></tfoot>
     </table></div>
   </div>`;
 }
@@ -2104,6 +2115,7 @@ document.addEventListener('click',e=>{
   if(d.gview){gridView=d.gview;render();return;}
   if(d.gviewtoggle){gridView=((gridView||'lista')==='lista')?'tabela':'lista';render();return;}
   if(d.anacum!=null){anaCum=d.anacum==='1';render();return;}
+  if(d.utilnav){utilNavYm=d.utilnav;render();return;}
   if(t.id==='anaSave'){state.settings.ana=Object.assign(anaCfg(),{spike:Math.max(5,parseInt(val('anaSpike'))||30),min:Math.max(0,parseInt(val('anaMin'))||0),max:Math.max(1,Math.min(20,parseInt(val('anaMax'))||6)),parents:!!(document.getElementById('anaParents')||{}).checked});save();render();toast('Alertas atualizados');return;}
   if(d.gmmonth!=null){const _i=+d.gmmonth;gmOpen.has(_i)?gmOpen.delete(_i):gmOpen.add(_i);render();return;}
   if(d.acexpand){const led=acertoLedger();acAnosOpen=new Set(led.map(r=>+r.ym.slice(0,4)));render();return;}
