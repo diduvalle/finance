@@ -1718,6 +1718,63 @@ function anaGlobalAlerts(){
   return out.slice(0,cfg.max);
 }
 
+/* ----- Utilities · vigilância (Luz/Água/Gás/Telecom) ----- */
+function utilitiesCats(){
+  const _n=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
+  const par=topCats('despesa').find(c=>/utilit/.test(_n(c.nome)));
+  let leaves=[];
+  if(par){ const ch=childrenOf(par.id); leaves=ch.length?ch.slice():[par]; }
+  if(!leaves.length){ // fallback: apanha por nome
+    const all=[]; topCats('despesa').forEach(c=>{const ch=childrenOf(c.id); if(ch.length)ch.forEach(k=>all.push(k)); else all.push(c);});
+    leaves=[/luz|eletric|edp|endesa/, /\bagua\b/, /\bgas\b|gascan/, /telecom|\bnos\b|\btv\b|internet/].map(p=>all.find(c=>p.test(_n(c.nome)))).filter(Boolean);
+  }
+  const seen=new Set(); return leaves.filter(c=>c&&!seen.has(c.id)&&seen.add(c.id));
+}
+/* N valores mensais terminando em (year,mi), cronológico */
+function anaTrailing(catId,year,mi,n){const out=[];for(let k=n-1;k>=0;k--){let y=year,m=mi-k;while(m<0){m+=12;y--;}out.push(round2(anaSum(catId,y,m)));}return out;}
+function _spark(vals,w,h){
+  const max=Math.max(1,...vals), n=vals.length;
+  const xx=i=>n>1?(i/(n-1))*(w-4)+2:w/2, yy=v=>h-2-(v/max)*(h-4);
+  const pts=vals.map((v,i)=>`${xx(i).toFixed(1)},${yy(v).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" style="display:block;margin-left:auto"><polyline points="${pts}" fill="none" stroke="var(--mut)" stroke-width="1.4" opacity=".85"/><circle cx="${xx(n-1).toFixed(1)}" cy="${yy(vals[n-1]).toFixed(1)}" r="2.1" fill="var(--acc)"/></svg>`;
+}
+/* painel de vigilância das Utilities: mês atual, Δ vs mês anterior, Δ vs homólogo, sparkline 12m + alerta de subida desproporcionada */
+function anaUtilitiesPanel(){
+  const cats=utilitiesCats(); if(!cats.length)return '';
+  const allY=[...new Set([].concat(...cats.map(c=>anaYears(c.id))))].sort(); if(!allY.length)return '';
+  const cur=allY[allY.length-1];
+  let lastMi=-1; for(let i=0;i<12;i++){ if(cats.some(c=>anaSum(c.id,cur,i)>0))lastMi=i; }
+  if(lastMi<0)return '';
+  const thr=1+anaCfg().spike/100;
+  const prevMonthOf=(c)=>lastMi>0?round2(anaSum(c.id,cur,lastMi-1)):round2(anaSum(c.id,cur-1,11));
+  const isDispro=(val,yoy,med)=>val>0 && (yoy>0?val>=yoy*thr:(med>0&&val>=med*thr)) && (med>0?val>med:true);
+  const dchip=(val,base)=>{ if(!(base>0))return '<span style="color:var(--mut)">·</span>'; const d=Math.round((val/base-1)*100); const col=d>0?'var(--out)':(d<0?'var(--in)':'var(--mut)'); const ar=d>0?'▲':(d<0?'▼':'='); return `<span style="color:${col};font-variant-numeric:tabular-nums" title="${fmt(val)} vs ${fmt(base)}">${ar} ${d>0?'+':''}${d}%</span>`; };
+  const dispro=[];
+  const row=c=>{
+    const val=round2(anaSum(c.id,cur,lastMi)), prevM=prevMonthOf(c), yoy=round2(anaSum(c.id,cur-1,lastMi));
+    const tr=anaTrailing(c.id,cur,lastMi,12), med=round2(mediana(tr.filter(v=>v>0)));
+    const dp=isDispro(val,yoy,med); if(dp)dispro.push({nome:c.nome,val,base:yoy>0?yoy:med,baseLbl:yoy>0?'homólogo':'média'});
+    return `<tr${dp?' style="background:rgba(223,140,125,.10)"':''}>
+      <td style="white-space:nowrap">${catIconHtml(c,20)} <span style="vertical-align:middle">${esc(c.nome)}</span>${dp?' <span title="Subida desproporcionada (acima do homólogo e da média de 12m)" style="color:var(--out)">⚠</span>':''}</td>
+      <td class="num">${val>0?fmtn(val):'·'}</td><td class="num">${dchip(val,prevM)}</td><td class="num">${dchip(val,yoy)}</td>
+      <td style="text-align:right">${_spark(tr,92,26)}</td></tr>`;
+  };
+  const body=cats.map(row).join('');
+  const tot=mi=>round2(cats.reduce((s,c)=>s+anaSum(c.id,cur,mi),0));
+  const totVal=tot(lastMi), totPrev=lastMi>0?tot(lastMi-1):round2(cats.reduce((s,c)=>s+anaSum(c.id,cur-1,11),0)), totYoy=round2(cats.reduce((s,c)=>s+anaSum(c.id,cur-1,lastMi),0));
+  const totTr=[]; for(let k=11;k>=0;k--){let y=cur,m=lastMi-k;while(m<0){m+=12;y--;}totTr.push(round2(cats.reduce((s,c)=>s+anaSum(c.id,y,m),0)));}
+  return `<div class="card" style="margin-bottom:14px">
+    <h3 class="dh">${svg(I.bell)} Utilities · vigilância <span style="color:var(--mut);font-weight:600;font-size:13px">· ${MESES[lastMi]} ${cur}</span></h3>
+    <p class="dsub" style="margin-top:-6px">Luz, água, gás e telecom: valor do mês, variação vs mês anterior e vs ano passado (mês homólogo), e tendência de 12 meses. Marca ⚠ quando sobe de forma desproporcionada (acima do homólogo e da média).</p>
+    ${dispro.length?`<div class="hint" style="border-left:3px solid var(--out);margin-bottom:10px">⚠ <b>Subida desproporcionada:</b> ${dispro.map(d=>`${esc(d.nome)} ${fmt(d.val)} (+${Math.round((d.val/d.base-1)*100)}% vs ${d.baseLbl})`).join(' · ')}</div>`:`<div class="hint" style="border-left:3px solid var(--in);margin-bottom:10px">Utilities dentro do padrão este mês ✓</div>`}
+    <div class="gridwrap"><table class="sumtable">
+      <thead><tr><th>Rubrica</th><th class="num">${MC[lastMi]} ${cur}</th><th class="num">Δ mês</th><th class="num">Δ homólogo</th><th style="text-align:right">12 meses</th></tr></thead>
+      <tbody>${body}</tbody>
+      <tfoot><tr><td><b>Total Utilities</b></td><td class="num"><b>${fmtn(totVal)}</b></td><td class="num">${dchip(totVal,totPrev)}</td><td class="num">${dchip(totVal,totYoy)}</td><td style="text-align:right">${_spark(totTr,92,26)}</td></tr></tfoot>
+    </table></div>
+  </div>`;
+}
+
 function vAnalytics(m){
   const cats=anaCatsList();
   if(!cats.length){ m.innerHTML=`<div class="card" style="text-align:center;color:var(--mut);padding:30px">Sem despesas suficientes para analisar. Lança movimentos na Grelha.</div>`; return; }
@@ -1740,6 +1797,7 @@ function vAnalytics(m){
   const xlabels=MC.map((mc,i)=>`<text x="${xx(i).toFixed(0)}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--mut)">${mc}</text>`).join('');
   const legend=years.map(y=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:3px;background:${ycol(y)};border-radius:2px;display:inline-block"></span>${y}</span>`).join('');
   m.innerHTML=`
+  ${anaUtilitiesPanel()}
   ${glob.length?`<div class="card" style="margin-bottom:14px"><h3 class="dh">${svg(I.bell)} Alertas — todas as categorias</h3><p class="dsub" style="margin-top:-6px">Despesas que dispararam face a anos anteriores. Toca para analisar.</p>${glob.map(a=>`<div class="hint" data-anasel="${a.catId}" style="border-left:3px solid ${a.lvl==='high'?'var(--out)':'var(--warn)'};margin-bottom:8px;cursor:pointer"><b>${esc(a.cat)}</b> · ${a.txt}</div>`).join('')}</div>`:`<div class="hint" style="margin-bottom:14px;border-left:3px solid var(--in)">Sem alertas gerais — os consumos estão dentro do padrão dos anos anteriores ✓</div>`}
   <div class="card" style="margin-bottom:14px"><label>Analisar categoria em detalhe</label>
     <select id="anaCatSel" style="width:100%">${cats.map(c=>`<option value="${c.id}" ${c.id===anaCat?'selected':''}>${esc(catName(c.id))}</option>`).join('')}</select>
