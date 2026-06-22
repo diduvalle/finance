@@ -73,6 +73,8 @@ body{background:
 .yearnav button{background:none;border:0;color:var(--mut);cursor:pointer;width:30px;height:28px;border-radius:6px;font-size:16px}
 .yearnav button:hover{background:var(--card2);color:var(--txt)}
 .yearnav .y{font-weight:800;font-size:15px;min-width:54px;text-align:center}
+.topbar .tabs .yearnav{background:none;border:0;padding:0;height:auto} /* ano dentro da barra dos menus: sem caixa própria */
+.tabsep{width:1px;align-self:stretch;background:var(--line);margin:0 3px;flex:none}
 .btn{background:var(--card2);color:var(--txt);border:1px solid transparent;padding:9px 15px;border-radius:12px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:background .16s,color .16s,transform .1s,box-shadow .16s;box-shadow:var(--sh-sm)}
 .btn:hover{background:color-mix(in srgb,var(--card2) 82%,var(--acc));transform:translateY(-1px);box-shadow:var(--sh)}
 .btn:active{transform:translateY(0);box-shadow:var(--sh-sm)}
@@ -904,8 +906,9 @@ function valeteSpark(F){
 function render(){
   document.body.setAttribute('data-theme',state.settings.tema||'dark');
   document.getElementById('tabs').innerHTML=[['grelha','Grelha',I.grid],['acerto','Dívida',I.scale],['poup','Poupanças',I.wallet],['previsao','Previsão',I.trend],['analytics','Analytics',I.report],['defs','Definições',I.gear]]
-    .map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('');
-  document.getElementById('topright').innerHTML = `<div class="yearnav"><button data-year="-1">‹</button><span class="y">${ano}</span><button data-year="1">›</button></div>`;
+    .map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('')
+    +`<span class="tabsep"></span><div class="yearnav"><button data-year="-1" aria-label="Ano anterior">‹</button><span class="y">${ano}</span><button data-year="1" aria-label="Ano seguinte">›</button></div>`;
+  document.getElementById('topright').innerHTML='';
   const _va=valeteAtual(); const _vf=valeteForecast(); const _alerta=_va!=null&&_vf.faltaDia;
   const _cf=coverflexConta(); const _cfv=_cf?(parseFloat(_cf.valor)||0):null;
   let _vChip='';
