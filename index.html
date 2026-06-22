@@ -28,6 +28,7 @@
   --bg:#121613; --bg2:#181d19; --card:#1e241f; --card2:#27302a; --line:#333d36; --line2:#43504a;
   --txt:#ecefe8; --mut:#9aa79e; --acc:#7aa183; --accd:#5f7a6b;
   --in:#8cba98; --out:#df8c7d; --warn:#d9a85c; --info:#87a9c0;
+  --nb:#1bb6a6; --cflex:#fb8168; /* verde novobanco · coral Coverflex (marcas) */
   --acc-10:rgba(122,161,131,.10); --acc-12:rgba(122,161,131,.12); --acc-15:rgba(122,161,131,.15); --acc-16:rgba(122,161,131,.16);
   --r:20px; --r-sm:13px; --r-lg:26px;
   --maxw:1200px;
@@ -40,6 +41,7 @@
   --bg:#f3f1ea; --bg2:#ece8df; --card:#fbf9f4; --card2:#f1ede4; --line:#ddd7c9; --line2:#cabfac;
   --txt:#26302a; --mut:#6d7a70; --acc:#5f7a6b; --accd:#4d6657;
   --in:#5f8a6c; --out:#c06f5e; --warn:#b3893f; --info:#5e84a0;
+  --nb:#0a8d80; --cflex:#d9624a; /* verde novobanco · coral Coverflex (marcas) */
   --acc-10:rgba(95,122,107,.10); --acc-12:rgba(95,122,107,.13); --acc-15:rgba(95,122,107,.16); --acc-16:rgba(95,122,107,.17);
   --sh-sm:0 1px 2px rgba(60,70,50,.06);
   --sh:0 1px 2px rgba(60,70,50,.05),0 14px 30px -16px rgba(60,70,50,.14);
@@ -334,6 +336,15 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .chip.warn{border-color:var(--out);color:var(--out)}
 .chip.warn svg{width:14px;height:14px}
 #valeteHead{display:inline-flex;align-items:center;gap:6px}
+.balchip{gap:0;padding:0 13px}
+.bal{display:inline-flex;align-items:center;gap:5px;font-weight:600}
+.bal .bdot{width:8px;height:8px;border-radius:50%;flex:none}
+.bal .vlbl{color:var(--mut)}
+.bal b{font-weight:800}
+.bal.nb .bdot{background:var(--nb)} .bal.nb b{color:var(--nb)}
+.bal.cf .bdot{background:var(--cflex)} .bal.cf b{color:var(--cflex)}
+.bsep{width:1px;height:15px;background:var(--line);margin:0 11px;flex:none}
+@media(max-width:720px){.bal .vlbl{display:none} .bal .bdot{display:none} .balchip{padding:0 10px} .bsep{margin:0 9px}}
 .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
 #lockNow{background:none;border:0;color:var(--mut);cursor:pointer;border-radius:9px;display:inline-flex}
 #lockNow:hover{color:var(--out);background:var(--card)}
@@ -358,7 +369,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   #searchBtn{order:3;margin-left:auto}
   #inboxTop{order:4} #refreshBtn{order:5} #bell{order:6} #lockNow{order:7}
   .tabs{order:8;flex:0 1 auto;width:auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  #topright{order:9;margin-left:auto}
+  #topright{order:9} /* ano colado aos menus (coeso), não empurrado para a direita */
   .topbar .yearnav{height:32px}
   .topbar .yearnav{padding:2px}
   .topbar .yearnav button{width:22px;height:24px;font-size:14px}
@@ -896,7 +907,15 @@ function render(){
     .map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('');
   document.getElementById('topright').innerHTML = `<div class="yearnav"><button data-year="-1">‹</button><span class="y">${ano}</span><button data-year="1">›</button></div>`;
   const _va=valeteAtual(); const _vf=valeteForecast(); const _alerta=_va!=null&&_vf.faltaDia;
-  let _vChip = _va!=null?`<div class="chip" title="Valete · saldo real da conta (deve bater com o banco)"><span class="dot" style="background:var(--info)"></span>Valete&nbsp;<b>${fmt(_va)}</b></div>`:'';
+  const _cf=coverflexConta(); const _cfv=_cf?(parseFloat(_cf.valor)||0):null;
+  let _vChip='';
+  if(_va!=null||_cfv!=null){
+    _vChip='<div class="chip balchip" title="Valete = saldo real da conta (novobanco) · Coverflex = saldo do cartão de benefícios">';
+    if(_va!=null) _vChip+=`<span class="bal nb"><span class="bdot"></span><span class="vlbl">Valete</span><b>${fmt(_va)}</b></span>`;
+    if(_va!=null&&_cfv!=null) _vChip+='<span class="bsep"></span>';
+    if(_cfv!=null) _vChip+=`<span class="bal cf"><span class="bdot"></span><span class="vlbl">Coverflex</span><b>${fmt(_cfv)}</b></span>`;
+    _vChip+='</div>';
+  }
   if(_alerta){ _vChip += `<div class="chip warn" title="Estimativa: por volta do dia ${_vf.faltaDia} o saldo desce abaixo da margem (faltam ~${fmt(_vf.faltaValor)}). Detalhe no sino.">${svg(I.bell)}<b>−${fmt(_vf.faltaValor)}</b></div>`; }
   document.getElementById('valeteHead').innerHTML = _vChip;
   const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
