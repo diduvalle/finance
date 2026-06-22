@@ -217,6 +217,11 @@ table.grid thead th:hover .thedit{opacity:.7}
 .gm-nm{font-weight:800;min-width:92px;text-align:left;flex:none}
 .gm-month.now .gm-nm{color:var(--acc)}
 .gm-lock{font-size:11px;opacity:.7;width:16px;flex:none;text-align:left}
+.gm-bars{display:flex;flex-direction:column;justify-content:center;gap:5px;flex:1;min-width:34px;max-width:340px;align-self:center}
+.gm-bars .gm-bar{height:7px;border-radius:4px;background:var(--card2);overflow:hidden;box-shadow:inset 0 0 0 1px var(--hair)}
+.gm-bars .gm-bar i{display:block;height:100%;border-radius:4px;min-width:2px}
+.gm-bars .gm-bar i.in{background:var(--in)}
+.gm-bars .gm-bar i.out{background:var(--out)}
 .gm-tot{margin-left:auto;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;min-width:108px;text-align:right}
 .gm-tot.neg{color:var(--out)} .gm-tot.pos{color:var(--in)}
 .gm-tot.mut{color:var(--mut);opacity:.45;font-weight:500}
@@ -543,11 +548,14 @@ const CAT_ICONS={
   musica:'M9 18V6l12-2v12M9 18a3 3 0 11-6 0 3 3 0 016 0M21 16a3 3 0 11-6 0 3 3 0 016 0',livro:'M4 5a2 2 0 012-2h13v15H6a2 2 0 00-2 2zM4 20a2 2 0 012-2h13',
   telefone:'M5 4h4l2 5-2.5 1.5a11 11 0 005 5L15 13l5 2v4a2 2 0 01-2 2A16 16 0 013 6a2 2 0 012-2z',cama:'M3 8v11M3 13h18v6M21 19v-4a2 2 0 00-2-2H8V9a2 2 0 012-2h7a2 2 0 012 2',
   relogio:'M12 3a9 9 0 100 18 9 9 0 000-18M12 7v5l3.5 2',calendario:'M5 5h14v15H5zM5 9h14M8 3v4M16 3v4',planta:'M12 21V10M12 12C12 8 9 6 5 6c0 4 3 6 7 6M12 14c0-3 2-5 6-5 0 3-2 5-6 5',
-  recibo:'M6 3h9l4 4v14l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21zM9 11h6M9 15h4',medico:'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z'
+  recibo:'M6 3h9l4 4v14l-2-1.5-2 1.5-2-1.5-2 1.5-2-1.5L6 21zM9 11h6M9 15h4',medico:'M9 3h6v6h6v6h-6v6H9v-6H3V9h6z',
+  estrela:'M12 3.5l2.6 5.3 5.9.9-4.25 4.15 1 5.85L12 17l-5.25 2.75 1-5.85L3.5 9.7l5.9-.9z',
+  euro:'M18 7.5a6.5 6.5 0 100 9M5 11h8M5 13.5h6',
+  escudo:'M12 3l8 3v5c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6zM9 12l2 2 4-4'
 };
-const ICON_GUESS=[['renda','casa'],['casa','casa'],['cr[ée]dito hab','casa'],['condom','casa'],['imi','imposto'],['luz','luz'],['eletric','luz'],['energia','luz'],['edp','luz'],['endesa','luz'],['água','agua'],['agua','agua'],['combust','combustivel'],['gasol','combustivel'],['gás','gas'],['gas','gas'],['gascan','gas'],['aliment','comida'],['superm','comida'],['comida','comida'],['refei','comida'],['restau','comida'],['super','comida'],['transp','carro'],['carro','carro'],['portag','carro'],['saúde','saude'],['saude','saude'],['sns','saude'],['m[ée]dic','medico'],['farm','saude'],['dentista','medico'],['lazer','lazer'],['compras','compras'],['roupa','compras'],['subscri','sub'],['internet','internet'],['telem','telemovel'],['telecom','tv'],['\\bnos\\b','tv'],['tv','tv'],['seguro','seguro'],['sal[áa]r','salario'],['ordenado','salario'],['ajuda','presente'],['comiss','presente'],['b[óo]nus','presente'],['coverflex','cartao'],['subs[íi]dio','presente'],['extra','presente'],['presente','presente'],['educa','educacao'],['escola','educacao'],['ualg','educacao'],['aulas','educacao'],['viagem','viagem'],['h[óo]tei','viagem'],['f[ée]rias','viagem'],['café','cafe'],['cafe','cafe'],['gin[áa]s','ginasio'],['banco','banco'],['nb','banco'],['frederica','pessoas'],['creche','educacao'],['finis','pessoas'],['desc','imposto'],['irs','imposto'],['imposto','imposto'],['poupan','poupanca'],['obras','casa'],['recheio','casa'],['outros','outros']];
+const ICON_GUESS=[['renda','casa'],['casa','casa'],['cr[ée]dito hab','casa'],['condom','casa'],['imi','imposto'],['luz','luz'],['eletric','luz'],['energia','luz'],['edp','luz'],['endesa','luz'],['água','agua'],['agua','agua'],['combust','combustivel'],['gasol','combustivel'],['gás','gas'],['gas','gas'],['gascan','gas'],['aliment','comida'],['superm','comida'],['comida','comida'],['refei','comida'],['restau','comida'],['super','comida'],['transp','carro'],['carro','carro'],['portag','carro'],['saúde','saude'],['saude','saude'],['sns','saude'],['m[ée]dic','medico'],['farm','saude'],['dentista','medico'],['lazer','lazer'],['compras','compras'],['roupa','compras'],['subscri','sub'],['internet','internet'],['telem','telemovel'],['telecom','tv'],['\\bnos\\b','tv'],['tv','tv'],['seguro','seguro'],['sal[áa]r','salario'],['ordenado','salario'],['ajuda','presente'],['comiss','euro'],['b[óo]nus','estrela'],['coverflex','cartao'],['subs[íi]dio','presente'],['extra','presente'],['presente','presente'],['educa','educacao'],['escola','educacao'],['ualg','educacao'],['aulas','educacao'],['viagem','viagem'],['h[óo]tei','viagem'],['f[ée]rias','viagem'],['café','cafe'],['cafe','cafe'],['gin[áa]s','ginasio'],['banco','banco'],['nb','banco'],['frederica','pessoas'],['creche','educacao'],['finis','pessoas'],['seguran','escudo'],['\\bss\\b','escudo'],['\\bqrt\\b','trabalho'],['desc','imposto'],['irs','imposto'],['imposto','imposto'],['poupan','poupanca'],['obras','casa'],['recheio','casa'],['outros','outros']];
 function guessIcon(nome){const n=(nome||'').toLowerCase();for(const [k,v] of ICON_GUESS){try{if(new RegExp(k).test(n))return v;}catch(e){if(n.includes(k))return v;}}return null;}
-function catIconHtml(c,size){const k=c&&c.icon&&CAT_ICONS[c.icon];const cor=(c&&c.cor)||'var(--acc)';const s=size||26;return k?`<span class="cicon" style="width:${s}px;height:${s}px;background:${cor};color:#fff"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${k}"/></svg></span>`:`<span class="cicon dotcol" style="width:${s}px;height:${s}px;background:${cor}"></span>`;}
+function catIconHtml(c,size){const k=c&&c.icon&&CAT_ICONS[c.icon];const cor=(c&&c.cor)||'var(--acc)';const s=size||26;return k?`<span class="cicon" style="width:${s}px;height:${s}px;background:color-mix(in srgb,${cor} 16%,var(--card2));color:${cor}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${k}"/></svg></span>`:`<span class="cicon dotcol" style="width:${s}px;height:${s}px;background:color-mix(in srgb,${cor} 30%,var(--card2));box-shadow:inset 0 0 0 2px ${cor}"></span>`;}
 let _seq=0; const nid=p=>(p||'i')+'_'+Date.now().toString(36)+(_seq++);
 
 let state=null, tab='grelha', ano=2026, gridTipo='despesa', qCashMode=false, anaCat=null, anaCum=false;
@@ -657,6 +665,8 @@ function load(){
     });
     state._recOrg2026=true;
   }
+  // re-adivinha ícones das receitas (biblioteca melhorada: Comissões→euro, Bónus→estrela, SS→escudo, QRT→pasta)
+  if(!state._iconRx2026){ state.categorias.filter(c=>c.tipo==='receita').forEach(c=>{ const g=guessIcon(c.nome); if(g)c.icon=g; }); state._iconRx2026=true; }
   if(!state._iconMig){ (state.categorias||[]).forEach(c=>{ if(!c.icon){ const g=guessIcon(c.nome); if(g)c.icon=g; } }); state._iconMig=true; } // ícones por nome (1×) — depois das migrações que criam categorias
   state.recorrencias=state.recorrencias||[]; state.movimentos=state.movimentos||[]; state.poupancas=state.poupancas||{}; state.orcamentos=state.orcamentos||{};
   if(!state.acerto||!state.acerto.length) state.acerto=clone(EMBED_ACERTO);
@@ -945,8 +955,14 @@ function vGrelha(m){
   /* vista Lista (um cartão por mês, colapsável) — default em todo o lado; reusa o popover via data-cell */
   const view=gridView||'lista';
   if(!gmOpen)gmOpen=new Set([miv]);
+  // receitas (líquidas) e despesas por mês + escala comum, p/ as barras verde/vermelha de cada mês
+  const _recM=MESES.map((_,i)=>Math.max(0,sumMonth('receita',i)));
+  const _despM=MESES.map((_,i)=>Math.max(0,sumMonth('despesa',i)));
+  const _barMax=Math.max(1,..._recM,..._despM);
   const gmHtml=()=>`<div class="gm">${MESES.map((nm,i)=>{
     const tot=rowTot(i), open=gmOpen.has(i), froz=isFrozenMi(ano,i);
+    const _rw=Math.round(_recM[i]/_barMax*100), _dw=Math.round(_despM[i]/_barMax*100);
+    const bars=(_recM[i]||_despM[i])?`<span class="gm-bars" title="Receitas ${fmtn(_recM[i])} · Despesas ${fmtn(_despM[i])}"><span class="gm-bar"><i class="in" style="width:${_rw}%"></i></span><span class="gm-bar"><i class="out" style="width:${_dw}%"></i></span></span>`:'<span class="gm-bars"></span>';
     let body='';
     if(open){
       body='<div class="gm-body">'+tops.map(c=>{
@@ -958,7 +974,7 @@ function vGrelha(m){
         return h;
       }).join('')+'</div>';
     }
-    return `<div class="gm-month${i===mi?' now':''}"><button class="gm-head" data-gmmonth="${i}"><span class="gm-chev">${open?'▾':'▸'}</span><span class="gm-nm">${nm}</span><span class="gm-lock">${froz?'🔒':''}</span><span class="gm-tot${tot?(gridTipo==='despesa'?' neg':' pos'):' mut'}">${tot?fmtn(tot):'—'}</span></button>${body}</div>`;
+    return `<div class="gm-month${i===mi?' now':''}"><button class="gm-head" data-gmmonth="${i}"><span class="gm-chev">${open?'▾':'▸'}</span><span class="gm-nm">${nm}</span>${bars}<span class="gm-lock">${froz?'🔒':''}</span><span class="gm-tot${tot?(gridTipo==='despesa'?' neg':' pos'):' mut'}">${tot?fmtn(tot):'—'}</span></button>${body}</div>`;
   }).join('')}<div class="gm-foot"><span>Total ${gridTipo==='despesa'?'despesas':'receitas'} ${ano}</span><b>${fmtn(grand)}</b></div></div>`;
 
   m.innerHTML=`
