@@ -217,11 +217,12 @@ table.grid thead th:hover .thedit{opacity:.7}
 .gm-nm{font-weight:800;min-width:92px;text-align:left;flex:none}
 .gm-month.now .gm-nm{color:var(--acc)}
 .gm-lock{font-size:11px;opacity:.7;width:16px;flex:none;text-align:left}
-.gm-bars{display:flex;flex-direction:column;justify-content:center;gap:5px;flex:1;min-width:34px;max-width:340px;align-self:center}
-.gm-bars .gm-bar{height:7px;border-radius:4px;background:var(--card2);overflow:hidden;box-shadow:inset 0 0 0 1px var(--hair)}
-.gm-bars .gm-bar i{display:block;height:100%;border-radius:4px;min-width:2px}
-.gm-bars .gm-bar i.in{background:var(--in)}
-.gm-bars .gm-bar i.out{background:var(--out)}
+.sumtable td.barscell{width:160px;padding:8px 16px 8px 10px;vertical-align:middle}
+.mbars{display:flex;flex-direction:column;gap:5px;min-width:80px}
+.mbars .mbar{height:7px;border-radius:4px;background:var(--card2);overflow:hidden;box-shadow:inset 0 0 0 1px var(--hair)}
+.mbars .mbar i{display:block;height:100%;border-radius:4px;min-width:2px}
+.mbars .mbar i.in{background:var(--in)}
+.mbars .mbar i.out{background:var(--out)}
 .gm-tot{margin-left:auto;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;min-width:108px;text-align:right}
 .gm-tot.neg{color:var(--out)} .gm-tot.pos{color:var(--in)}
 .gm-tot.mut{color:var(--mut);opacity:.45;font-weight:500}
@@ -407,6 +408,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .savetot .savebig{font-size:22px}
   .sumtable th,.sumtable td{padding:7px 7px;font-size:12px}
   .sumtable th:first-child,.sumtable td:first-child{padding-left:10px;white-space:normal}
+  .sumtable td.barscell{width:78px;padding:6px 8px 6px 6px} .mbars{min-width:48px;gap:4px} .mbars .mbar{height:6px}
   /* Dívida: em mobile esconde "Pago" e "Saldo do mês" (redundantes — Pago=0) p/ caber sem scroll horizontal */
   .acerto-table th:nth-child(3),.acerto-table td:nth-child(3),.acerto-table th:nth-child(4),.acerto-table td:nth-child(4){display:none}
   /* Previsão: em mobile esconde colunas para caber sem scroll horizontal */
@@ -416,6 +418,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 }
 @media(max-width:380px){
   .sumtable th,.sumtable td{padding:6px 5px;font-size:11px}
+  .sumtable .barscell,.sumtable .barhd{display:none} /* sem espaço p/ as barras em ecrãs minúsculos */
 }
 /* ----- Splash de arranque: a casa emerge do fundo sálvia (igual ao ícone) ----- */
 #splash{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;
@@ -961,8 +964,6 @@ function vGrelha(m){
   const _barMax=Math.max(1,..._recM,..._despM);
   const gmHtml=()=>`<div class="gm">${MESES.map((nm,i)=>{
     const tot=rowTot(i), open=gmOpen.has(i), froz=isFrozenMi(ano,i);
-    const _rw=Math.round(_recM[i]/_barMax*100), _dw=Math.round(_despM[i]/_barMax*100);
-    const bars=(_recM[i]||_despM[i])?`<span class="gm-bars" title="Receitas ${fmtn(_recM[i])} · Despesas ${fmtn(_despM[i])}"><span class="gm-bar"><i class="in" style="width:${_rw}%"></i></span><span class="gm-bar"><i class="out" style="width:${_dw}%"></i></span></span>`:'<span class="gm-bars"></span>';
     let body='';
     if(open){
       body='<div class="gm-body">'+tops.map(c=>{
@@ -974,7 +975,7 @@ function vGrelha(m){
         return h;
       }).join('')+'</div>';
     }
-    return `<div class="gm-month${i===mi?' now':''}"><button class="gm-head" data-gmmonth="${i}"><span class="gm-chev">${open?'▾':'▸'}</span><span class="gm-nm">${nm}</span>${bars}<span class="gm-lock">${froz?'🔒':''}</span><span class="gm-tot${tot?(gridTipo==='despesa'?' neg':' pos'):' mut'}">${tot?fmtn(tot):'—'}</span></button>${body}</div>`;
+    return `<div class="gm-month${i===mi?' now':''}"><button class="gm-head" data-gmmonth="${i}"><span class="gm-chev">${open?'▾':'▸'}</span><span class="gm-nm">${nm}</span><span class="gm-lock">${froz?'🔒':''}</span><span class="gm-tot${tot?(gridTipo==='despesa'?' neg':' pos'):' mut'}">${tot?fmtn(tot):'—'}</span></button>${body}</div>`;
   }).join('')}<div class="gm-foot"><span>Total ${gridTipo==='despesa'?'despesas':'receitas'} ${ano}</span><b>${fmtn(grand)}</b></div></div>`;
 
   m.innerHTML=`
@@ -1046,9 +1047,9 @@ function vGrelha(m){
   <div class="section-h">Resumo mensal ${ano}</div>
   <div class="gridwrap">
     <table class="sumtable">
-      <thead><tr><th>Mês</th><th>Receitas</th><th>Despesas</th><th>Saldo</th></tr></thead>
-      <tbody>${MESES.map((nm,i)=>{const r=sumMonth('receita',i),d=sumMonth('despesa',i);if(!r&&!d)return '';return `<tr class="${i===mi?'now':''}"><td>${nm}</td><td class="pos">${fmt0(r)}</td><td class="neg">${fmt0(d)}</td><td class="${r-d>=0?'pos':'neg'}">${fmt0(r-d)}</td></tr>`;}).join('')||`<tr><td colspan="4" style="text-align:center;color:var(--mut);padding:18px">Sem lançamentos em ${ano}. Usa a barra acima ou clica numa célula.</td></tr>`}</tbody>
-      <tfoot><tr><td>Total</td><td class="pos">${fmt0(sumYear('receita'))}</td><td class="neg">${fmt0(sumYear('despesa'))}</td><td class="${sumYear('receita')-sumYear('despesa')>=0?'pos':'neg'}">${fmt0(sumYear('receita')-sumYear('despesa'))}</td></tr></tfoot>
+      <thead><tr><th>Mês</th><th class="barhd"></th><th>Receitas</th><th>Despesas</th><th>Saldo</th></tr></thead>
+      <tbody>${MESES.map((nm,i)=>{const r=sumMonth('receita',i),d=sumMonth('despesa',i);if(!r&&!d)return '';const rw=Math.round(Math.max(0,r)/_barMax*100),dw=Math.round(Math.max(0,d)/_barMax*100);return `<tr class="${i===mi?'now':''}"><td>${nm}</td><td class="barscell"><span class="mbars" title="Receitas ${fmtn(r)} · Despesas ${fmtn(d)}"><span class="mbar"><i class="in" style="width:${rw}%"></i></span><span class="mbar"><i class="out" style="width:${dw}%"></i></span></span></td><td class="pos">${fmt0(r)}</td><td class="neg">${fmt0(d)}</td><td class="${r-d>=0?'pos':'neg'}">${fmt0(r-d)}</td></tr>`;}).join('')||`<tr><td colspan="5" style="text-align:center;color:var(--mut);padding:18px">Sem lançamentos em ${ano}. Usa a barra acima ou clica numa célula.</td></tr>`}</tbody>
+      <tfoot><tr><td>Total</td><td class="barscell"></td><td class="pos">${fmt0(sumYear('receita'))}</td><td class="neg">${fmt0(sumYear('despesa'))}</td><td class="${sumYear('receita')-sumYear('despesa')>=0?'pos':'neg'}">${fmt0(sumYear('receita')-sumYear('despesa'))}</td></tr></tfoot>
     </table>
   </div>`;
 }
