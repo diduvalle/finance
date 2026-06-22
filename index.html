@@ -933,6 +933,8 @@ function render(){
     _vChip+='</div>';
   }
   if(_alerta){ _vChip += `<div class="chip warn" title="Estimativa: por volta do dia ${_vf.faltaDia} o saldo desce abaixo da margem (faltam ~${fmt(_vf.faltaValor)}). Detalhe no sino.">${svg(I.bell)}<b>−${fmt(_vf.faltaValor)}</b></div>`; }
+  const _vb=valeteVsBanco(); const _vbWarn=_vb&&_vb.abs>=0.01&&!_vb.stale;
+  if(_vbWarn){ _vChip += `<div class="chip warn" id="vbWarn" style="cursor:pointer" title="O Valete (${fmt(_vb.valete)}) não bate certo com o banco (${fmt(_vb.banco)}). Diferença ${fmt(_vb.diff)}. Clica para acertar o Valete ao banco.">${svg(I.bank)}<b>Δ&nbsp;${fmt(_vb.diff)}</b></div>`; }
   document.getElementById('valeteHead').innerHTML = _vChip;
   const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
   document.getElementById('searchBtn').innerHTML=svg(I.search);
@@ -2031,6 +2033,7 @@ document.addEventListener('click',e=>{
   const asel=e.target.closest('[data-anasel]'); if(asel){ anaCat=asel.dataset.anasel; tab='analytics'; render(); return; }
   const dco=e.target.closest('[data-defcatopen]'); if(dco){ const id=dco.dataset.defcatopen; defCatOpen.has(id)?defCatOpen.delete(id):defCatOpen.add(id); render(); return; }
   const sgo=e.target.closest('[data-go]'); if(sgo){ gotoMov(sgo.dataset.go); return; }
+  if(e.target.closest('#vbWarn')){ acertarValeteAoBanco(); return; }
   const delHead=e.target.closest('.delcol[data-delcat]');
   if(delHead){ delCat(delHead.dataset.delcat); return; }
   const cellTd=e.target.closest('[data-cell]');
@@ -3228,10 +3231,45 @@ async function bankImport(silent){
         }
       }catch(e){ err++; }
     }
+    await bankFetchSaldo(true); // lê o saldo real da conta (p/ comparar com o Valete)
     state.bank.lastImport=Date.now(); save(); render();
     if(silent){ if(added) toast(`Banco: ${added} novo(s) movimento(s) na Caixa de entrada`); }
     else { toast(`Importados ${added} · ${dup} repetidos`+(err?` · ${err} conta(s) com erro`:'')); if(added) openInbox(); }
   } finally { _bankBusy=false; }
+}
+/* lê o saldo real da conta (a do Valete = a conta com IBAN) e guarda em state.bank.saldoBanco */
+async function bankFetchSaldo(silent){
+  if(!state.bank||!(state.bank.accounts||[]).length)return null;
+  const accs=state.bank.accounts;
+  const acc=accs.find(a=>a.sel!==false&&a.iban)||accs.find(a=>a.iban)||accs.find(a=>a.sel!==false)||accs[0];
+  if(!acc)return null;
+  try{
+    const r=await bankFn('/balances?account_id='+encodeURIComponent(acc.uid));
+    const bals=(r&&r.balances)||[];
+    if(!bals.length)return null;
+    // prefere o saldo contabilístico (booked); senão disponível; senão o 1.º
+    const pick=bals.find(b=>/CLBD|PRCD|ITBD/i.test(b.balance_type||''))||bals.find(b=>/ITAV|CLAV|XPCD/i.test(b.balance_type||''))||bals[0];
+    const amt=parseFloat((pick.balance_amount||{}).amount); if(isNaN(amt))return null;
+    state.bank.saldoBanco={valor:round2(amt), currency:((pick.balance_amount||{}).currency)||'EUR', ts:Date.now(), uid:acc.uid, conta:acc.name, tipo:pick.balance_type||''};
+    save(); return state.bank.saldoBanco;
+  }catch(e){ if(!silent)toast('Não consegui ler o saldo do banco: '+(e.message||e)); return null; }
+}
+/* compara o Valete (app) com o saldo real do banco (último lido) */
+function valeteVsBanco(){
+  const sb=state.bank&&state.bank.saldoBanco; if(!sb||sb.valor==null)return null;
+  const v=valeteAtual(); if(v==null)return null;
+  const diff=round2(v-sb.valor); // app − banco (>0: app a mais; <0: app a menos)
+  return {banco:round2(sb.valor), valete:round2(v), diff, abs:Math.abs(diff), ts:sb.ts||0, stale:(Date.now()-(sb.ts||0))>36*3600*1000, tipo:sb.tipo, conta:sb.conta};
+}
+/* acerta o Valete ao saldo do banco (lançamento de ajuste na conta Valete) */
+function acertarValeteAoBanco(){
+  const vb=valeteVsBanco(); if(!vb){toast('Sem saldo do banco para comparar');return;}
+  const c=valeteConta(); if(!c){toast('Sem conta Valete');return;}
+  if(!confirm(`Acertar o Valete ao saldo do banco?\n\nApp (Valete): ${fmt(vb.valete)}\nBanco: ${fmt(vb.banco)}\nAjuste: ${fmt(round2(vb.banco-vb.valete))}`))return;
+  const diff=round2(vb.banco-(parseFloat(c.valor)||0));
+  c.mov=c.mov||[]; if(Math.abs(diff)>=0.005)c.mov.push({data:isoToday(),valor:diff,nota:'acerto ao banco'});
+  c.valor=round2(vb.banco);
+  save(); render(); toast('Valete acertado ao banco: '+fmt(vb.banco));
 }
 /* importação automática 1×/dia ao abrir a app (silenciosa; respeita o limite de 4 acessos/dia) */
 function _localDay(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
