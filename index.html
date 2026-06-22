@@ -1154,7 +1154,7 @@ const ACERTO_DIVIDA_FROM='2022-10'; /* a dívida só acumula a partir de out/202
 /* acertos pontuais (fora do registo mensal): valores one-off em que ela deve 50%.
    2016 — impostos da compra da casa: preto = pago por ti; vermelho/negativo = devolvido no ajuste dos impostos. */
 const ACERTO_EXTRAS=[{
-  id:'casa2016', ano:2016, titulo:'Impostos da compra da casa',
+  id:'casa2016', ano:2016, data:'2016-01-05', titulo:'Impostos da compra da casa',
   itens:[
     {nm:'Avaliação r/c',v:239.20},{nm:'Avaliação Casa',v:239.20},{nm:'Comissão Processo',v:290.00},
     {nm:'Imposto Processo',v:11.60},{nm:'Despesas Cheque',v:11.75},{nm:'Imposto Despesas C.',v:0.47},
@@ -1182,6 +1182,20 @@ function acertoLedger(){
   let run=0; rows.forEach(r=>{r.saldo=round2(r.deve-r.pago);run=round2(run+r.saldo);r.acc=run;});
   return rows;
 }
+/* ----- Juros de mora (estimativa) — sempre juros legais civis (4%/ano, entre particulares) ----- */
+function jurosTaxa(){return 4;}
+function fmtPct(t){return (Math.round(t*1000)/1000).toLocaleString('pt-PT',{maximumFractionDigits:3})+'%';}
+function _hojeMeiaNoite(){const d=new Date();d.setHours(0,0,0,0);return d;}
+function _diasAte(dt,today){return Math.max(0,Math.floor((today-dt)/86400000));}
+/* juros simples sobre cada valor em dívida, desde a data a que respeita até hoje */
+function computeJuros(){
+  const taxa=jurosTaxa(), today=_hojeMeiaNoite();
+  let jMensal=0, capMensal=0;
+  acertoLedger().forEach(r=>{ if(!r.saldo)return; const mo=+r.ym.slice(5,7), y=+r.ym.slice(0,4); const dt=new Date(y,mo,0); /* último dia do mês */ jMensal+=r.saldo*(taxa/100)*(_diasAte(dt,today)/365); capMensal+=r.saldo; });
+  let jExtra=0, capExtra=0;
+  acertoExtras().forEach(e=>{ const dt=e.data?new Date(e.data+'T00:00:00'):new Date(e.ano,0,1); jExtra+=e.metade*(taxa/100)*(_diasAte(dt,today)/365); capExtra+=e.metade; });
+  return {taxa, jMensal:round2(jMensal), jExtra:round2(jExtra), juros:round2(jMensal+jExtra), capMensal:round2(capMensal), capExtra:round2(capExtra)};
+}
 function vAcerto(m){
   const [a,b]=P(); // a = Diogo (DV), b = ela (DA)
   const led=acertoLedger();
@@ -1190,6 +1204,7 @@ function vAcerto(m){
   const dividaMensal=led.length?led[led.length-1].acc:0;
   const extras=acertoExtras(); const extrasTotal=acertoExtrasTotal();
   const divida=round2(dividaMensal+extrasTotal); // total = registo mensal + acertos pontuais
+  const jr=computeJuros(); const totalComJuros=round2(divida+jr.juros);
   const ultimoPago=[...led].reverse().find(r=>r.pago>0);
   const nowYm=(function(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');})();
   // agrupar por ano
@@ -1231,6 +1246,7 @@ function vAcerto(m){
       <div class="acerto-av acc" title="${esc(a.nome)}">${ini(a.nome)}</div>
     </div>
     <div class="acerto-note">Registo mensal ${fmt(dividaMensal)} + acertos pontuais ${fmt(extrasTotal)} = <b>${fmt(divida)}</b>.${ultimoPago?` Último pagamento dela em <b>${MESES[+ultimoPago.ym.slice(5,7)-1]} ${ultimoPago.ym.slice(0,4)}</b>.`:''}</div>
+    <div class="acerto-note" style="margin-top:4px">+ juros de mora (${fmtPct(jr.taxa)}) <b class="neg">${fmt(jr.juros)}</b> → total com juros <b class="neg">${fmt(totalComJuros)}</b></div>
   </div>
 
   <div class="section-h ac-tools" style="margin-top:2px;display:flex;align-items:center;gap:10px">
@@ -1259,6 +1275,21 @@ function vAcerto(m){
       <span style="color:var(--mut);font-size:13px">Registo mensal <b style="color:var(--txt)">${fmt(dividaMensal)}</b> + pontuais <b style="color:var(--txt)">${fmt(extrasTotal)}</b></span>
       <span style="font-weight:800;font-size:17px">Total em dívida&nbsp;<span class="neg">${fmt(divida)}</span></span>
     </div>
+  </div>
+
+  <div class="card" style="margin-top:14px">
+    <h3 class="dh">${svg(I.report)} Juros de mora <span style="color:var(--mut);font-weight:600;font-size:13px">(estimativa)</span></h3>
+    <p class="dsub" style="margin-bottom:12px">Juros legais civis a <b>4%/ano</b> (taxa entre particulares, constante desde 2003), sobre cada valor em dívida desde a data a que respeita até hoje. Fórmula: <b>valor em dívida × 4% × dias em atraso ÷ 365</b> (juros simples).</p>
+    <div class="plist" style="max-height:none">
+      <div class="pe"><span style="flex:1">Juros do registo mensal <span style="color:var(--mut)">(desde cada mês · capital ${fmt(jr.capMensal)})</span></span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(jr.jMensal)}</b></div>
+      <div class="pe"><span style="flex:1">Juros dos impostos de 2016 <span style="color:var(--mut)">(desde 05/01/2016 · capital ${fmt(jr.capExtra)})</span></span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(jr.jExtra)}</b></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><span>Total de juros de mora (${fmtPct(jr.taxa)})</span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(jr.juros)}</b></div>
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:13px;padding-top:13px;border-top:1px solid var(--line2)">
+      <span style="color:var(--mut);font-size:13px">Dívida <b style="color:var(--txt)">${fmt(divida)}</b> + juros <b style="color:var(--txt)">${fmt(jr.juros)}</b></span>
+      <span style="font-weight:800;font-size:17px">Total com juros&nbsp;<span class="neg">${fmt(totalComJuros)}</span></span>
+    </div>
+    <p class="dsub" style="margin-top:12px;font-size:11.5px">Estimativa com taxa única e juros simples (sem capitalização). As taxas comerciais e do Estado variam ao longo do tempo — para um valor exato, aplicam-se as taxas oficiais período a período. Não é aconselhamento jurídico.</p>
   </div>
 
   `;
