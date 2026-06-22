@@ -3736,7 +3736,10 @@ function pinSubmit(){
     _pinEntry=''; pinUpdate(); lockRenderPad(); // re-baralha após erro
   }
 }
-document.addEventListener('keydown',e=>{ if(!document.getElementById('lock'))return; if(/^[0-9]$/.test(e.key))pinPress(e.key); else if(e.key==='Backspace'){e.preventDefault();pinBack();} });
+/* SEM entrada de dígitos por teclado físico no PIN: o teclado é baralhado de propósito (anti-espreitadela);
+   aceitar as teclas fixas do teclado anulava essa proteção (keylogger / quem vê o teclado lê o PIN direto).
+   Só o ⌫ (apagar) é permitido por teclado — não revela dígitos. Introduzir o PIN é só pelo pad no ecrã. */
+document.addEventListener('keydown',e=>{ if(!document.getElementById('lock'))return; if(e.key==='Backspace'){e.preventDefault();pinBack();} else if(/^[0-9]$/.test(e.key)){e.preventDefault();} });
 
 /* ===== Bloqueio automático por inatividade ===== */
 let _idleTimer=null,_idleArmed=0,_lastActive=Date.now();
