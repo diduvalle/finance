@@ -593,6 +593,7 @@ function load(){
   }
   state.settings.valeteMargem = state.settings.valeteMargem ?? 0; // margem de segurança do Valete
   state.settings.diaSalario = state.settings.diaSalario ?? 23; // dia em que a receita líquida costuma entrar
+  state.settings.salarioMatch = state.settings.salarioMatch ?? ''; // palavra-chave extra p/ reconhecer o salário no extrato do banco (ex.: nome da entidade patronal)
   if(state.settings.codigo===undefined) state.settings.codigo='197000'; // código de acesso (bloqueio simples)
   // Descontos de receita (SS/IRS) — valores negativos; criar IRS se não existir
   if(!state._descV1){
@@ -611,6 +612,37 @@ function load(){
       state.categorias.push({id:nid('c'),nome:'Coverflex',tipo:'despesa',parent:null,fixa:false,coverflex:true,cor:'#10b981',ordem:ord});
     }
     state._coverflexV1=true;
+  }
+  // Receitas (2026): ordem fixa, cores por classe (verde=receita · roxo=descontos · laranja=independentes),
+  // criar Bonus/QRT e fundir "Rendimentos" em "Outros".
+  if(!state._recOrg2026){
+    const _nrm=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();
+    const recCats=()=>state.categorias.filter(c=>c.tipo==='receita');
+    const findBy=re=>recCats().find(c=>re.test(_nrm(c.nome)));
+    // localizar "Outros" (pode chamar-se "Outros (receita)") e fundir "Rendimentos" nele
+    let outros=findBy(/outros/);
+    if(!outros){outros={id:nid('c'),nome:'Outros',tipo:'receita',parent:null,fixa:false,icon:guessIcon('Outros')};state.categorias.push(outros);}
+    const rend=findBy(/rendiment/);
+    if(rend&&rend.id!==outros.id){
+      state.movimentos.forEach(m=>{if(m.categoriaId===rend.id)m.categoriaId=outros.id;});
+      (state.recorrencias||[]).forEach(r=>{if(r.categoriaId===rend.id)r.categoriaId=outros.id;});
+      state.categorias=state.categorias.filter(c=>c.id!==rend.id);
+    }
+    // criar Bonus / QRT se faltarem
+    if(!findBy(/b[óo]nus|^bonus/)){state.categorias.push({id:nid('c'),nome:'Bonus',tipo:'receita',parent:null,fixa:false,icon:guessIcon('Bonus')});}
+    if(!findBy(/\bqrt\b/)){state.categorias.push({id:nid('c'),nome:'QRT',tipo:'receita',parent:null,fixa:false});}
+    // classes: descontos (roxo) e independentes (laranja) — por padrão, robusto aos nomes reais
+    const isDesc=c=>!!c.desconto||/\birs\b/.test(_nrm(c.nome))||/\bss\b|seg\w*\s*social|desc\w*\s*ss/.test(_nrm(c.nome));
+    const isIndep=c=>!isDesc(c)&&(/\bqrt\b/.test(_nrm(c.nome))||/aula/.test(_nrm(c.nome))||/outros/.test(_nrm(c.nome)));
+    // ordem fixa: Salário · Compl · Ajudas · Comissões · Subsídios · Bonus · IRS · SS · Coverflex · QRT · Aulas · Outros
+    const SEQ=[/^salario/,/compl/,/ajuda/,/comiss/,/subsid/,/b[óo]nus|^bonus/,/\birs\b/,/\bss\b|seg\w*\s*social|desc\w*\s*ss/,/coverflex/,/\bqrt\b/,/aula/,/outros/];
+    recCats().forEach(c=>{
+      if(isDesc(c))c.desconto=true; if(isIndep(c))c.independente=true;
+      c.cor = c.desconto ? '#a78bfa' : c.independente ? '#f59e0b' : '#34d399';
+      const i=SEQ.findIndex(re=>re.test(_nrm(c.nome)));
+      c.ordem = i>=0 ? i : 90;
+    });
+    state._recOrg2026=true;
   }
   if(!state._iconMig){ (state.categorias||[]).forEach(c=>{ if(!c.icon){ const g=guessIcon(c.nome); if(g)c.icon=g; } }); state._iconMig=true; } // ícones por nome (1×) — depois das migrações que criam categorias
   state.recorrencias=state.recorrencias||[]; state.movimentos=state.movimentos||[]; state.poupancas=state.poupancas||{}; state.orcamentos=state.orcamentos||{};
@@ -1000,7 +1032,7 @@ function openCellPop(catId,mi,anchor){
       <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'− valor (desconto)':'+ valor'}" autofocus>${c.tipo==='despesa'?`<button class="btn" id="pAddCash" title="Pagar em dinheiro (Cofre)">${svg(I.cash)}</button>`:''}<button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
       <input id="pNota" type="text" maxlength="80" placeholder="nota (opcional)" style="width:100%;margin-top:6px">
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
-      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?' 💵':''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)">⏳ agendado (ainda não cobrado)</span>`:''}</span>${frozen?'':`<button class="x" data-editmov="${mo.id}" title="Editar valor/nota" style="margin-right:2px">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
+      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?' 💵':''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)">⏳ agendado (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<button class="x" data-editmov="${mo.id}" title="Editar valor/nota" style="margin-right:2px">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
     </div>`;
   pop.classList.add('on');
   // position near anchor
@@ -1805,6 +1837,7 @@ function vDefs(m){
         <div><label>Margem de segurança</label><div style="display:flex;gap:6px;align-items:center"><input id="valeteMargem" type="number" step="10" min="0" value="${+state.settings.valeteMargem||0}" style="max-width:110px"><span>${moeda()}</span></div></div>
         <div><label>Dia de entrada do salário</label><input id="diaSalario" type="number" step="1" min="1" max="28" value="${+state.settings.diaSalario||23}" style="max-width:90px"></div>
       </div>
+      <div style="margin-top:8px"><label>Palavra-chave do salário no banco ${hlp('Texto que aparece no extrato do Novobanco quando entra o ordenado (ex.: nome da entidade patronal). Ao reconhecê-lo, a app lança o valor como Salário provisório, que depois substituis pelo recibo. "vencimento"/"ordenado"/"salário" já são reconhecidos automaticamente.')}</label><input id="salarioMatch" type="text" maxlength="40" placeholder="ex.: nome da empresa" value="${esc(state.settings.salarioMatch||'')}" style="max-width:260px"></div>
       <button class="btn sm" style="margin-top:12px" id="saveMargem">${svg(I.check)}Guardar</button>
     </div>
 
@@ -1977,7 +2010,7 @@ document.addEventListener('click',e=>{
   if(d.superflag){ const c=cat(d.superflag); if(c){c.superfluo=!c.superfluo; save(); render();} return; }
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
-  if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); save(); render(); toast('Guardado'); return; }
+  if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
   if(t.id==='bell'){ const p=document.getElementById('alertPanel'); if(p.classList.contains('on')){p.classList.remove('on');} else { renderAlertPanel(); const r=t.getBoundingClientRect(); p.style.top=(r.bottom+8)+'px'; p.style.left=Math.max(10,r.right-340)+'px'; p.classList.add('on'); } return; }
   if(d.poupledger){ const[y,i]=d.poupledger.split('|'); openContaLedger(y,+i); return; }
   if(t.id==='lgReforco'){ poupMovAdd(1); return; }
@@ -2059,6 +2092,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='reciboIn'&&e.target.files[0]){processRecibo(e.target.files[0]);e.target.value='';}
   if(e.target.id==='fotoIn'&&e.target.files[0]){processFotoFatura(e.target.files[0]);e.target.value='';}
   if(e.target.dataset&&(e.target.dataset.recchk!=null||e.target.dataset.reccat!=null)){recLiveSync();return;}
+  if(e.target.id==='recMes'||e.target.id==='recAno'){recProvUpdate();return;}
   if(e.target.dataset&&e.target.dataset.catname!=null){const c=cat(e.target.dataset.catname);if(c){c.nome=e.target.value.trim()||c.nome;save();}}
   if(e.target.id==='catColPick'){const c=cat(e.target.dataset.cat);if(c){c.cor=e.target.value;save();render();openCatIcon(e.target.dataset.cat);}return;}
   if(e.target.id==='catColHex'){const v=e.target.value.trim();if(/^#?[0-9a-fA-F]{6}$/.test(v)){const c=cat(e.target.dataset.cat);if(c){c.cor=(v[0]==='#'?v:'#'+v);save();render();openCatIcon(e.target.dataset.cat);}}else{toast('Cor inválida (usa #RRGGBB)');}return;}
@@ -2528,7 +2562,7 @@ function openInbox(){
     const badge = it.source==='bank' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🏦 ${tipo==='receita'?'crédito':'débito'}${it.pend?' · pendente':''}</span> ` : (it.source==='mail' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">📧 fatura</span> ` : (it.source==='csv' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🧾 extrato</span> ` : ''));
     return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
-        <div style="min-width:0"><b style="font-size:15px;color:${tipo==='receita'?'var(--acc)':'inherit'}">${tipo==='receita'?'+':''}${fmt(it.total)}</b> <span style="color:var(--mut);font-size:12px">· ${badge}${esc(label)}${it.acct&&it.source==='bank'?' · '+esc(it.acct):''}${it.year?(' · '+(it.mi!=null?MESES[it.mi].slice(0,3)+'/':'' )+it.year):''}</span></div>
+        <div style="min-width:0"><b style="font-size:15px;color:${tipo==='receita'?'var(--acc)':'inherit'}">${tipo==='receita'?'+':''}${fmt(it.total)}</b>${it.prov?` <span class="pill" style="background:var(--card2);color:var(--warn);font-size:10.5px" title="Entra como provisório; será substituído quando importares o recibo">≈ provisório</span>`:''} <span style="color:var(--mut);font-size:12px">· ${badge}${esc(label)}${it.acct&&it.source==='bank'?' · '+esc(it.acct):''}${it.year?(' · '+(it.mi!=null?MESES[it.mi].slice(0,3)+'/':'' )+it.year):''}</span></div>
         <button class="btn sm danger" data-ibdel="${it.id}">Descartar</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
@@ -2578,6 +2612,7 @@ function _commitInbox(it,catId,mi,year,cash,silent){
   const mv={id:nid('m'),data:dataStr,tipo,categoriaId:catId,valor:valorComSinal(catId,tipo,it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:(isBank||isMail)?(it.desc||(isMail?'fatura':'banco')):'fatura'};
   if(rec)mv.recId=rec.id;
   if(cash){mv.cash=true;mv.ts=Date.now();}
+  if(it.prov&&tipo==='receita')mv.provisorio=true; // Fase 1: aguarda o recibo para distribuir/descontar
   // banco pendente (não cobrado) ou email/CSV/QR-recorrente com débito futuro => agendado
   const futuro = (isBank ? it.pend : ((isMail||recorrente) && !cash && dataStr>isoToday())) && !isPastMonth(year,mi);
   if(futuro)mv.pendente=true;
@@ -2822,8 +2857,8 @@ function findOrCreateReceitaCat(nome,opts){
   opts=opts||{};
   let c=state.categorias.find(x=>x.tipo==='receita'&&(x.nome||'').trim().toLowerCase()===nome.trim().toLowerCase());
   if(c)return c.id;
-  c={id:nid('c'),nome:nome,tipo:'receita',parent:null,fixa:false,cor:opts.cor||'#87a9c0'};
-  if(opts.desconto)c.desconto=true; if(opts.coverflex)c.coverflex=true;
+  c={id:nid('c'),nome:nome,tipo:'receita',parent:null,fixa:false,cor:opts.cor||(opts.desconto?'#a78bfa':opts.independente?'#f59e0b':'#34d399')};
+  if(opts.desconto)c.desconto=true; if(opts.coverflex)c.coverflex=true; if(opts.independente)c.independente=true;
   state.categorias.push(c); return c.id;
 }
 /* mapeia a descrição de uma linha do recibo -> categoria de receita da app */
@@ -2922,10 +2957,24 @@ function openReciboReview(p){
       <span>Para o Coverflex (cartão)</span><span id="recCov">${fmt(tot.coverflex)}</span>
     </div>
     ${p.totalPago!=null?`<div class="hint" id="recChk" style="margin-top:6px;${Math.abs(tot.banco-p.totalPago)<0.02?'border-left:3px solid var(--acc)':'border-left:3px solid var(--warn)'}">Total Pago no recibo: <b>${fmt(p.totalPago)}</b> ${Math.abs(tot.banco-p.totalPago)<0.02?'✓ bate certo com o líquido para a conta':'— confere as linhas.'}</div>`:''}
+    <div class="hint" id="recProv" style="margin-top:6px;display:none"></div>
     <details><summary style="cursor:pointer;color:var(--mut);font-size:12px">Ver texto lido do PDF</summary><pre style="white-space:pre-wrap;max-height:150px;overflow:auto;font-size:11px;color:var(--mut);margin-top:6px">${esc(p.text.slice(0,2500))}</pre></details>
   </div>
   <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Cancelar</button><button class="btn primary" id="recSave">${svg(I.check)}Gravar recibo</button></div></div>`;
   openBack();
+  recProvUpdate();
+}
+/* compara o provisório do mês selecionado com o líquido do recibo (Fase 1 -> Fase 2) */
+function recProvUpdate(){
+  const el=document.getElementById('recProv'); if(!el)return;
+  const miEl=document.getElementById('recMes'), anoEl=document.getElementById('recAno');
+  const mi=miEl?+miEl.value:new Date().getMonth(), year=anoEl?(+val('recAno')||ano):ano;
+  const ym=`${year}-${String(mi+1).padStart(2,'0')}`;
+  const prov=round2(state.movimentos.filter(m=>m.provisorio&&m.tipo==='receita'&&m.data.slice(0,7)===ym).reduce((a,m)=>a+m.valor,0));
+  if(!prov){el.style.display='none';return;}
+  const t=recTotais(), ok=Math.abs(t.banco-prov)<0.02;
+  el.style.display=''; el.style.borderLeft='3px solid '+(ok?'var(--acc)':'var(--warn)');
+  el.innerHTML='Provisório lançado em <b>'+MESES[mi]+'</b>: <b>'+fmt(prov)+'</b> — será substituído por estas linhas. '+(ok?'✓ bate certo com o líquido':'— diferença de '+fmt(Math.abs(t.banco-prov)));
 }
 function gravarRecibo(){
   const mi=+document.getElementById('recMes').value, year=+val('recAno')||ano;
@@ -2938,13 +2987,17 @@ function gravarRecibo(){
   if(state.movimentos.some(m=>m.nota==='recibo'&&m.data.slice(0,7)===ymR)&&!confirm('Já importaste um recibo em '+MESES[mi]+' '+year+'.\nGravar à mesma?'))return;
   const dataStr=`${year}-${String(mi+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
   if(!isPastMonth(year,mi)&&_recLinhas.some(l=>!l.skip&&l.catId&&isCoverflexCat(l.catId)))ensureCoverflexConta();
+  // Fase 1->2: remover o(s) provisório(s) do mês — são substituídos pela distribuição do recibo
+  let provN=0,provV=0;
+  state.movimentos.filter(m=>m.provisorio&&m.tipo==='receita'&&m.data.slice(0,7)===ymR).forEach(m=>{ if(!isPastMonth(year,mi))reverteValete(m); provV+=m.valor; provN++; });
+  state.movimentos=state.movimentos.filter(m=>!(m.provisorio&&m.tipo==='receita'&&m.data.slice(0,7)===ymR));
   let n=0,liq=0;
   _recLinhas.filter(l=>!l.skip&&l.catId).forEach(l=>{
     const v=valorComSinal(l.catId,'receita',l.valor);
     const mv={id:nid('m'),data:dataStr,tipo:'receita',categoriaId:l.catId,valor:v,pagador:P()[0].id,split:{...state.settings.splitDefault},nota:'recibo'};
     state.movimentos.push(mv); if(!isPastMonth(year,mi))aplicaValete(mv); n++; liq+=v;
   });
-  ano=year; save(); closeBack(); render(); toast('Recibo gravado: '+n+' linhas · líquido '+fmt(round2(liq)));
+  ano=year; save(); closeBack(); render(); toast('Recibo gravado: '+n+' linhas · líquido '+fmt(round2(liq))+(provN?' · substituiu provisório de '+fmt(round2(provV)):''));
   _recLinhas=null;
 }
 let _recDiaVal=null,_recTotalPago=null; function p_recDia(){return _recDiaVal!=null?_recDiaVal:(+state.settings.diaSalario||23);}
@@ -2961,6 +3014,7 @@ function recLiveSync(){
   const el=document.getElementById('recLiq'); if(el)el.textContent=fmt(t.banco);
   const ec=document.getElementById('recCov'); if(ec)ec.textContent=fmt(t.coverflex);
   const ck=document.getElementById('recChk'); if(ck&&_recTotalPago!=null){const ok=Math.abs(t.banco-_recTotalPago)<0.02;ck.style.borderLeft='3px solid '+(ok?'var(--acc)':'var(--warn)');ck.innerHTML='Total Pago no recibo: <b>'+fmt(_recTotalPago)+'</b> '+(ok?'✓ bate certo com o líquido para a conta':'— confere as linhas.');}
+  recProvUpdate();
 }
 
 function expJSON(){dl(new Blob([JSON.stringify(state,null,2)],{type:'application/json'}),'CASA-'+isoToday()+'.json');}
@@ -3059,6 +3113,12 @@ function guessCatFromDesc(desc,tipo){
   for(const c of state.categorias){ if(c.tipo!==tipo)continue; const nm=(c.nome||'').toLowerCase(); if(nm.length>=3 && n.includes(nm)) return c.id; }
   return null;
 }
+/* reconhece a transação do salário no extrato (vencimento/ordenado + palavra-chave configurável) */
+function isSalarioDesc(desc){
+  if(/vencimen|ordenad|sal[áa]ri/i.test(desc||''))return true;
+  const k=(state.settings.salarioMatch||'').trim();
+  return k.length>=3 && (desc||'').toLowerCase().includes(k.toLowerCase());
+}
 /* mapeia uma transação do Enable Banking para um item da Caixa de entrada */
 function bankTxToInbox(t){
   const tipo = t.credit_debit_indicator==='CRDT' ? 'receita' : 'despesa';
@@ -3068,8 +3128,14 @@ function bankTxToInbox(t){
   const ri=(t.remittance_information||[]).filter(Boolean).join(' ').trim();
   const party = tipo==='despesa' ? (t.creditor&&t.creditor.name) : (t.debtor&&t.debtor.name);
   const desc = ri || party || '';
-  return { id:nid('ib'), source:'bank', tipo, total, desc, year:y, mi:(mm-1), dia:d,
+  const it={ id:nid('ib'), source:'bank', tipo, total, desc, year:y, mi:(mm-1), dia:d,
            catId: guessCatFromDesc(desc,tipo), txId: bankTxId(t), pend:(t.status==='PEND'), ts:Date.now() };
+  // Fase 1: salário detetado -> categoria Salário, marcado provisório (substituído quando chegar o recibo)
+  if(tipo==='receita' && isSalarioDesc(desc)){
+    const sc=state.categorias.find(c=>c.tipo==='receita'&&/^sal[áa]rio$/i.test(c.nome||''));
+    if(sc){ it.catId=sc.id; it.prov=true; }
+  }
+  return it;
 }
 /* importa transações das contas ligadas para a Caixa de entrada (dedup por txId).
    silent=true (auto): não abre o modal nem toca quando não há novidades. */
