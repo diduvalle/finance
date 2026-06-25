@@ -849,10 +849,8 @@ function renderAlertPanel(){
   if(A.out.length){ body+=sec('Gastos pontuais grandes'); body+=A.out.map(it=>_alRow(it,`<div style="display:flex;align-items:center;gap:8px"><b>${fmt(it.valor)}</b><span style="color:var(--mut);font-size:12px">${esc(it.nome)} · ${it.data.slice(8,10)}/${it.data.slice(5,7)}</span></div><div style="font-size:11.5px;color:var(--mut)">vs típico ${fmt(it.med)} — confirma?</div>`)).join(''); }
   if(A.superf.cats.length){ body+=sec('Supérfluos'); body+=`<div style="font-size:12.5px;color:var(--mut)">Gastaste <b style="color:var(--txt)">${fmt(A.superf.mes)}</b> este mês (<b>${fmt0(A.superf.ano)}</b> no ano) em ${A.superf.cats.join(', ')}.</div>`; }
   if(!body) body=`<div class="pempty">Sem alertas — está tudo dentro do normal 🎉</div>${A.superf.cats.length?'':'<div class="hint" style="margin-top:10px">Dica: marca categorias <b>supérfluas</b> nas Definições para acompanhar gastos discricionários aqui.</div>'}`;
-  p.innerHTML=`<div class="ph">${svg(I.bell)} Alertas & poupança ${A.ref?`· ${MESES[+mm-1]} ${yy}`:''}</div>
-  <div class="pb" style="max-height:60vh;overflow:auto">${_panelAlerts.length?`<button class="btn sm" data-alertreadall="1" style="margin-bottom:8px;width:100%;justify-content:center">${svg(I.check)}Marcar tudo como lido (${_panelAlerts.length})</button>`:''}${body}
-    <div class="hint" style="margin-top:12px">Marca ✓ para arquivar um alerta (volta a aparecer se piorar). Histórico no Analytics. Heurística sobre o teu histórico (mediana 12 meses).</div>
-  </div>`;
+  p.innerHTML=`<div class="ph">${svg(I.bell)} Alertas & poupança ${A.ref?`· ${MESES[+mm-1]} ${yy}`:''}${hlp('Marca ✓ para arquivar um alerta (volta a aparecer se a situação piorar). O histórico fica no Analytics → Arquivo de alertas. Heurística sobre o teu histórico (mediana de 12 meses) — estimativa para te orientar.')}</div>
+  <div class="pb" style="max-height:60vh;overflow:auto">${_panelAlerts.length?`<button class="btn sm" data-alertreadall="1" style="margin-bottom:8px;width:100%;justify-content:center">${svg(I.check)}Marcar tudo como lido (${_panelAlerts.length})</button>`:''}${body}</div>`;
 }
 
 /* média ponderada (recente pesa mais) de uma série cronológica, removendo o outlier alto e baixo */
