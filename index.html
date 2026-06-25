@@ -1779,6 +1779,7 @@ function anaSeasonalBaseline(catId,mi,exclY){
 function anaSeasonalAlerts(refY,refMi){
   const cats=utilitiesCats(); const out=[]; const thr=1+anaCfg().spike/100;
   const _n=s=>(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const ym=refY+'-'+String(refMi+1).padStart(2,'0');
   const season=(refMi>=5&&refMi<=8)?'verao':((refMi===11||refMi<=1)?'inverno':'meia');
   cats.forEach(c=>{
     const val=round2(anaSum(c.id,refY,refMi)); if(val<=0)return;
@@ -1786,7 +1787,7 @@ function anaSeasonalAlerts(refY,refMi){
     if(isTel){ // mensalidade fixa: qualquer desvio relevante face ao habitual conta
       const allv=[]; anaYears(c.id).forEach(y=>{for(let i=0;i<12;i++){const v=round2(anaSum(c.id,y,i));if(v>0)allv.push(v);}});
       const med=allv.length?round2(mediana(allv)):0;
-      if(med>0&&Math.abs(val-med)>=Math.max(3,med*0.08)) out.push({catId:c.id,nome:c.nome,lvl:val>med?'mid':'low',txt:`<b>${esc(c.nome)}</b>: ${fmt(val)} em ${MESES[refMi]} — a mensalidade costuma ser <b>${fmt(med)}</b> (${val>med?'+':''}${Math.round((val/med-1)*100)}%). ${val>med?'Confere alteração de tarifário ou um extra.':'Desconto ou menos consumo este mês.'}`});
+      if(med>0&&Math.abs(val-med)>=Math.max(3,med*0.08)) out.push({catId:c.id,nome:c.nome,lvl:val>med?'mid':'low',key:'util:'+c.id+':seas:'+ym,v:val,txt:`<b>${esc(c.nome)}</b>: ${fmt(val)} em ${MESES[refMi]} — a mensalidade costuma ser <b>${fmt(med)}</b> (${val>med?'+':''}${Math.round((val/med-1)*100)}%). ${val>med?'Confere alteração de tarifário ou um extra.':'Desconto ou menos consumo este mês.'}`});
       return;
     }
     const base=anaSeasonalBaseline(c.id,refMi,refY);
@@ -1795,7 +1796,7 @@ function anaSeasonalAlerts(refY,refMi){
       if(isGas&&season==='verao') extra=' No verão o gás costuma ser baixo (menos aquecimento/água quente) — vale a pena verificar.';
       else if(isLuz&&season==='verao') extra=' No verão pode ser ar condicionado/ventoinhas.';
       else if(season==='verao') extra=' Acima do habitual para o verão.';
-      out.push({catId:c.id,nome:c.nome,lvl:'mid',txt:`<b>${esc(c.nome)}</b> ${fmt(val)} em ${MESES[refMi]} — o normal para ${MESES[refMi]} ronda <b>${fmt(base)}</b> (<b>+${Math.round((val/base-1)*100)}%</b>).${extra}`});
+      out.push({catId:c.id,nome:c.nome,lvl:'mid',key:'util:'+c.id+':seas:'+ym,v:val,txt:`<b>${esc(c.nome)}</b> ${fmt(val)} em ${MESES[refMi]} — o normal para ${MESES[refMi]} ronda <b>${fmt(base)}</b> (<b>+${Math.round((val/base-1)*100)}%</b>).${extra}`});
     }
   });
   return out;
@@ -1829,13 +1830,15 @@ function anaUtilitiesPanel(){
   const prevOf=(c)=>refMi>0?round2(anaSum(c.id,cur,refMi-1)):round2(anaSum(c.id,cur-1,11));
   const isDispro=(val,yoy,med)=>val>0 && (yoy>0?val>=yoy*thr:(med>0&&val>=med*thr)) && (med>0?val>med:true);
   const dchip=(val,base)=>{ if(!(base>0))return '<span style="color:var(--mut)">·</span>'; const d=Math.round((val/base-1)*100); const col=d>0?'var(--out)':(d<0?'var(--in)':'var(--mut)'); const ar=d>0?'▲':(d<0?'▼':'='); return `<span style="color:${col};font-variant-numeric:tabular-nums" title="${fmt(val)} vs ${fmt(base)}">${ar} ${d>0?'+':''}${d}%</span>`; };
-  const dispro=[];
   const seasonal=anaSeasonalAlerts(cur,refMi); const seasonalSet=new Set(seasonal.map(a=>a.catId));
+  const dispro=[];
+  cats.forEach(c=>{ const val=round2(anaSum(c.id,cur,refMi)), yoy=round2(anaSum(c.id,cur-1,refMi)); const tr=anaTrailing(c.id,cur,refMi,12), med=round2(mediana(tr.filter(v=>v>0))); if(isDispro(val,yoy,med)) dispro.push({catId:c.id,nome:c.nome,val,base:yoy>0?yoy:med,baseLbl:yoy>0?'homólogo':'média'}); });
+  const disproExtra=dispro.filter(d=>!seasonalSet.has(d.catId)).map(d=>({catId:d.catId,lvl:'mid',key:'util:'+d.catId+':disp:'+refYm,v:d.val,txt:`<b>${esc(d.nome)}</b> ${fmt(d.val)} em ${MESES[refMi]} — +${Math.round((d.val/d.base-1)*100)}% vs ${d.baseLbl}.`}));
+  const insights=seasonal.concat(disproExtra).filter(a=>!alertRead(a.key,a.v||0));
+  const hotSet=new Set(insights.map(a=>a.catId));
   const row=c=>{
-    const val=round2(anaSum(c.id,cur,refMi)), prevM=prevOf(c), yoy=round2(anaSum(c.id,cur-1,refMi));
-    const tr=anaTrailing(c.id,cur,refMi,12), med=round2(mediana(tr.filter(v=>v>0)));
-    const dp=isDispro(val,yoy,med); if(dp)dispro.push({catId:c.id,nome:c.nome,val,base:yoy>0?yoy:med,baseLbl:yoy>0?'homólogo':'média'});
-    const hot=dp||seasonalSet.has(c.id);
+    const val=round2(anaSum(c.id,cur,refMi)), prevM=prevOf(c), yoy=round2(anaSum(c.id,cur-1,refMi)), tr=anaTrailing(c.id,cur,refMi,12);
+    const hot=hotSet.has(c.id);
     return `<tr${hot?' style="background:rgba(223,140,125,.10)"':''}>
       <td style="white-space:nowrap">${catIconHtml(c,20)} <span style="vertical-align:middle">${esc(c.nome)}</span>${hot?' <span title="Fora do padrão — vê os avisos acima" style="color:var(--out)">⚠</span>':''}</td>
       <td class="num">${val>0?fmtn(val):'·'}</td><td class="num">${dchip(val,prevM)}</td>
@@ -1847,12 +1850,10 @@ function anaUtilitiesPanel(){
   const totVal=totAt(cur,refMi), totPrev=refMi>0?totAt(cur,refMi-1):totAt(cur-1,11), totYoy=totAt(cur-1,refMi);
   const totTr=[]; for(let k=11;k>=0;k--){let y=cur,m=refMi-k;while(m<0){m+=12;y--;}totTr.push(totAt(y,m));}
   const nav=`<span class="utilnav"><button data-utilnav="${idx>0?yms[idx-1]:''}"${idx<=0?' disabled':''} aria-label="Mês anterior">‹</button><b>${MESES[refMi]} ${cur}</b><button data-utilnav="${idx<yms.length-1?yms[idx+1]:''}"${idx>=yms.length-1?' disabled':''} aria-label="Mês seguinte">›</button></span>`;
-  const disproExtra=dispro.filter(d=>!seasonalSet.has(d.catId)).map(d=>({lvl:'mid',txt:`<b>${esc(d.nome)}</b> ${fmt(d.val)} em ${MESES[refMi]} — +${Math.round((d.val/d.base-1)*100)}% vs ${d.baseLbl}.`}));
-  const insights=seasonal.concat(disproExtra);
   return `<div class="card ana-util" style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 class="dh" style="margin:0">${svg(I.bell)} Utilities · vigilância</h3>${nav}</div>
     <p class="dsub" style="margin-top:6px">Luz, água, gás e telecom: valor do mês, variação vs mês anterior e vs mês homólogo (ano passado), e tendência de 12 meses. Usa ‹ › para navegar nos meses. Marca ⚠ quando sobe de forma desproporcionada (acima do homólogo e da média).</p>
-    ${insights.length?`<div class="hint" style="border-left:3px solid var(--out);margin-bottom:10px">${insights.map(a=>`<div style="margin:3px 0">${a.lvl==='low'?'ℹ️':'⚠'} ${a.txt}</div>`).join('')}</div>`:`<div class="hint" style="border-left:3px solid var(--in);margin-bottom:10px">Utilities dentro do padrão em ${MESES[refMi]} ${cur} ✓</div>`}
+    ${insights.length?`<div class="hint" style="border-left:3px solid var(--out);margin-bottom:10px">${insights.map(a=>`<div style="display:flex;gap:8px;align-items:flex-start;margin:3px 0"><div style="flex:1">${a.lvl==='low'?'ℹ️':'⚠'} ${a.txt}</div><button class="alert-x" data-utilread="${esc(a.key)}" data-utilv="${a.v||0}" data-utiltxt="${esc(encodeURIComponent((a.txt||'').replace(/<[^>]+>/g,'')))}" title="Marcar como lido">✓</button></div>`).join('')}</div>`:`<div class="hint" style="border-left:3px solid var(--in);margin-bottom:10px">Utilities dentro do padrão em ${MESES[refMi]} ${cur} ✓</div>`}
     <div class="gridwrap"><table class="sumtable">
       <thead><tr><th>Rubrica</th><th class="num">${MC[refMi]} ${cur}</th><th class="num">Δ mês</th><th class="num utilhide">${MC[refMi]} ${cur-1}</th><th class="num">Δ homólogo</th><th class="utilhide" style="text-align:right">12 meses</th></tr></thead>
       <tbody>${body}</tbody>
@@ -1912,8 +1913,9 @@ function vAnalytics(m){
   </table></div>
   ${(state.alertLog&&state.alertLog.length)?`<div class="card" style="margin-top:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h3 class="dh" style="margin:0">${svg(I.bell)} Arquivo de alertas <span style="color:var(--mut);font-weight:600;font-size:13px">· ${state.alertLog.length}</span></h3><button class="btn sm" data-alertlogclear="1">Limpar arquivo</button></div>
-    <p class="dsub" style="margin-top:6px">Alertas que marcaste como lidos no sino. Voltam a aparecer se a situação piorar significativamente.</p>
-    <div class="plist" style="max-height:340px">${state.alertLog.map(l=>`<div class="pe"><span style="flex:1;font-size:12.5px">${esc(l.txt)}</span><span style="color:var(--mut);font-size:11px;white-space:nowrap;margin-left:8px">${new Date(l.ts).toLocaleDateString('pt-PT')}</span></div>`).join('')}</div>
+    <p class="dsub" style="margin-top:6px">Alertas que marcaste como lidos (sino e Utilities). Voltam a aparecer se a situação piorar significativamente.</p>
+    <input id="arqFilter" placeholder="Filtrar por categoria ou texto…" style="width:100%;margin:0 0 8px">
+    <div class="plist" id="arqList" style="max-height:340px">${state.alertLog.map(l=>`<div class="pe"><span style="flex:1;font-size:12.5px">${esc(l.txt)}</span><span style="color:var(--mut);font-size:11px;white-space:nowrap;margin-left:8px">${new Date(l.ts).toLocaleDateString('pt-PT')}</span></div>`).join('')}</div>
   </div>`:''}`;
 }
 
@@ -2238,6 +2240,7 @@ document.addEventListener('click',e=>{
   if(d.alertread!=null){ const it=_panelAlerts[+d.alertread]; if(it){ markAlertRead(it); render(); renderAlertPanel(); } return; }
   if(d.alertreadall){ _panelAlerts.slice().forEach(it=>markAlertRead(it)); render(); renderAlertPanel(); return; }
   if(d.alertlogclear){ if((state.alertLog||[]).length&&confirm('Limpar o arquivo de alertas?')){state.alertLog=[];state.alertReads={};save();render();} return; }
+  if(d.utilread){ markAlertRead({_key:d.utilread,_v:+d.utilv||0,_txt:decodeURIComponent(d.utiltxt||'')}); render(); return; }
   if(t.id==='bell'){ const p=document.getElementById('alertPanel'); if(p.classList.contains('on')){p.classList.remove('on');} else { renderAlertPanel(); const r=t.getBoundingClientRect(); p.style.top=(r.bottom+8)+'px'; p.style.left=Math.max(10,r.right-340)+'px'; p.classList.add('on'); } return; }
   if(d.poupledger){ const[y,i]=d.poupledger.split('|'); openContaLedger(y,+i); return; }
   if(t.id==='lgReforco'){ poupMovAdd(1); return; }
@@ -2311,6 +2314,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){closePop();closeBack();}
   if(e.key==='Enter'){ if(document.getElementById('pVal')===document.activeElement){popAdd();} else if(document.getElementById('qVal')===document.activeElement){quickAdd();} }
 });
+document.addEventListener('input',e=>{ if(e.target.id==='arqFilter'){ const q=e.target.value.trim().toLowerCase(); document.querySelectorAll('#arqList .pe').forEach(r=>{ r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none'; }); } });
 document.addEventListener('change',e=>{
   if(e.target.id==='anaCatSel'){anaCat=e.target.value;render();return;}
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
