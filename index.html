@@ -304,6 +304,8 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .utilnav button:hover:not(:disabled){border-color:var(--acc);color:var(--acc)}
 .utilnav button:disabled{opacity:.35;cursor:default}
 .utilnav b{min-width:108px;text-align:center;font-size:14px}
+.alert-x{flex:none;width:25px;height:25px;border-radius:7px;border:1px solid var(--line);background:var(--card2);color:var(--mut);cursor:pointer;font-size:13px;line-height:1;align-self:center}
+.alert-x:hover{border-color:var(--acc);color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,var(--card2))}
 @media(max-width:560px){.ana-util .utilhide{display:none}}
 .utilheat{width:100%;border-collapse:collapse;font-size:11.5px;font-variant-numeric:tabular-nums}
 .utilheat th,.utilheat td{padding:5px 4px;text-align:center;border:1px solid var(--bg2);min-width:42px;white-space:nowrap}
@@ -621,6 +623,8 @@ function load(){
   state.mailCfg = state.mailCfg || {from:''}; // config da importação de faturas do Gmail
   if(!state.mailCfg.since) state.mailCfg.since = isoToday(); // só faturas a partir desta data (default: hoje — ignora o passado já lançado)
   state.metas = state.metas || [];         // objetivos de poupança (envelopes)
+  state.alertReads = state.alertReads || {}; // alertas marcados como lidos: key -> {v,ts} (reaparece se v mudar muito)
+  state.alertLog = state.alertLog || [];     // arquivo de alertas lidos: [{ts,txt,key}]
   // dia do mês de cada despesa fixa (para a previsão de tesouraria do Valete)
   if(!state._recdiaV1){
     const diaDef=nome=>{const n=(nome||'').toLowerCase();if(/cr[ée]dito|presta/.test(n))return 8;if(/seguro|nb|prevoir|mudum/.test(n))return 8;if(/luz|edp/.test(n))return 12;if(/g[áa]s/.test(n))return 12;if(/[áa]gua/.test(n))return 16;if(/telecom|nos/.test(n))return 22;return 8;};
@@ -779,14 +783,17 @@ function isFrozenMi(year,mi){return !editHist && isPastMonth(year,mi);}
 function mediana(arr){const s=arr.slice().sort((a,b)=>a-b);const n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0;}
 function mesesDespesa(){return [...new Set(state.movimentos.filter(m=>m.tipo==='despesa').map(m=>m.data.slice(0,7)))].sort();}
 function catMesTotal(catId,ym){const ids=[catId,...childrenOf(catId).map(c=>c.id)];return state.movimentos.filter(m=>m.tipo==='despesa'&&ids.includes(m.categoriaId)&&m.data.slice(0,7)===ym).reduce((a,m)=>a+m.valor,0);}
+/* "lido": fica escondido enquanto o valor for ~o mesmo; reaparece se mudar muito (>12% ou >8€) */
+function alertRead(key,v){ const r=state.alertReads&&state.alertReads[key]; if(!r)return false; return Math.abs((+v||0)-(+r.v||0))<=Math.max(8,Math.abs(+r.v||0)*0.12); }
+function markAlertRead(it){ if(!it||!it._key)return; state.alertReads[it._key]={v:+it._v||0,ts:Date.now()}; const k=it._key; state.alertLog=(state.alertLog||[]).filter(x=>x.key!==k); state.alertLog.unshift({ts:Date.now(),txt:it._txt||'',key:k}); if(state.alertLog.length>200)state.alertLog.length=200; save(); }
 function computeAlertas(){
   const ms=mesesDespesa(); if(!ms.length)return {ref:null,acima:[],orc:[],out:[],superf:{mes:0,ano:0,cats:[]},total:0,n:0};
   const ref=ms[ms.length-1]; const prev=ms.filter(x=>x<ref).slice(-12); const yr=ref.slice(0,4);
   const acima=[],orc=[];
   topCats('despesa').forEach(c=>{
     const cur=round2(catMesTotal(c.id,ref));
-    if(cur>0){ const hist=prev.map(m=>catMesTotal(c.id,m)).filter(v=>v>0); if(hist.length>=3){ const med=mediana(hist); if(med>0 && cur>med*1.4 && (cur-med)>=20){ acima.push({nome:c.nome,cor:c.cor,cur,med:round2(med),exc:round2(cur-med),pct:Math.round((cur-med)/med*100)}); } } }
-    const lim=+state.orcamentos[c.id]||0; if(lim>0 && cur>lim){ orc.push({nome:c.nome,cor:c.cor,cur,lim,exc:round2(cur-lim),pct:Math.round((cur-lim)/lim*100)}); }
+    if(cur>0){ const hist=prev.map(m=>catMesTotal(c.id,m)).filter(v=>v>0); if(hist.length>=3){ const med=mediana(hist); if(med>0 && cur>med*1.4 && (cur-med)>=20){ acima.push({catId:c.id,nome:c.nome,cor:c.cor,cur,med:round2(med),exc:round2(cur-med),pct:Math.round((cur-med)/med*100)}); } } }
+    const lim=+state.orcamentos[c.id]||0; if(lim>0 && cur>lim){ orc.push({catId:c.id,nome:c.nome,cor:c.cor,cur,lim,exc:round2(cur-lim),pct:Math.round((cur-lim)/lim*100)}); }
   });
   acima.sort((a,b)=>b.exc-a.exc); orc.sort((a,b)=>b.exc-a.exc);
   // outliers: movimentos individuais grandes no mês ref (vs mediana histórica da categoria)
@@ -794,7 +801,7 @@ function computeAlertas(){
   state.movimentos.filter(m=>m.tipo==='despesa'&&m.data.slice(0,7)===ref).forEach(m=>{
     const hist=state.movimentos.filter(x=>x.tipo==='despesa'&&x.categoriaId===m.categoriaId&&x.data.slice(0,7)<ref).map(x=>x.valor);
     if(hist.length<4)return; const med=mediana(hist);
-    if(med>0 && m.valor>=Math.max(med*3,100)){ out.push({nome:catName(m.categoriaId),valor:round2(m.valor),med:round2(med),data:m.data}); }
+    if(med>0 && m.valor>=Math.max(med*3,100)){ out.push({catId:m.categoriaId,nome:catName(m.categoriaId),valor:round2(m.valor),med:round2(med),data:m.data}); }
   });
   out.sort((a,b)=>b.valor-a.valor);
   // supérfluos (categorias marcadas + filhos)
@@ -803,12 +810,20 @@ function computeAlertas(){
   const anoSup=round2(state.movimentos.filter(m=>m.tipo==='despesa'&&m.data.slice(0,4)===yr&&superIds.includes(m.categoriaId)).reduce((a,m)=>a+m.valor,0));
   const superfCats=state.categorias.filter(c=>c.superfluo&&!c.parent).map(c=>c.nome);
   const ana=anaGlobalAlerts();
-  return {ref,acima,orc,out:out.slice(0,5),ana,superf:{mes:mesSup,ano:anoSup,cats:superfCats},total:round2(acima.reduce((a,x)=>a+x.exc,0)),n:acima.length+orc.length+out.length+ana.length};
+  // chaves + filtro de "lidos" (reaparece se o valor mudar muito)
+  acima.forEach(it=>{it._key='acima:'+it.catId+':'+ref;it._v=it.cur;it._txt=it.nome+' acima do habitual · '+fmt(it.cur)+' (normal '+fmt(it.med)+', +'+it.pct+'%)';});
+  orc.forEach(it=>{it._key='orc:'+it.catId+':'+ref;it._v=it.cur;it._txt=it.nome+' acima do orçamento · '+fmt(it.cur)+' de '+fmt(it.lim);});
+  out.forEach(it=>{it._key='out:'+it.catId+':'+it.data;it._v=it.valor;it._txt='Gasto grande · '+fmt(it.valor)+' em '+it.nome+' ('+it.data.slice(8,10)+'/'+it.data.slice(5,7)+')';});
+  const acimaU=acima.filter(it=>!alertRead(it._key,it._v)), orcU=orc.filter(it=>!alertRead(it._key,it._v)), outU=out.filter(it=>!alertRead(it._key,it._v)).slice(0,5);
+  return {ref,acima:acimaU,orc:orcU,out:outU,ana,superf:{mes:mesSup,ano:anoSup,cats:superfCats},total:round2(acimaU.reduce((a,x)=>a+x.exc,0)),n:acimaU.length+orcU.length+outU.length+ana.length};
 }
+let _panelAlerts=[];
 function renderAlertPanel(){
   const A=computeAlertas(); const p=document.getElementById('alertPanel');
   const [yy,mm]=A.ref?A.ref.split('-'):['',''];
   const sec=(t)=>`<div style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);font-weight:700;margin:12px 0 4px">${t}</div>`;
+  _panelAlerts=[];
+  const _alRow=(it,inner)=>{ const i=_panelAlerts.length; _panelAlerts.push(it); return `<div style="display:flex;gap:8px;align-items:flex-start;padding:7px 0;border-bottom:1px solid var(--line)"><div style="flex:1;min-width:0">${inner}</div><button class="alert-x" data-alertread="${i}" title="Marcar como lido">✓</button></div>`; };
   let body='';
   // Próximos débitos do mês (dia aprendido das faturas) ainda por pagar
   const deb=proximosDebitos(99); const today=new Date().getDate();
@@ -827,16 +842,16 @@ function renderAlertPanel(){
     body+=`<div style="font-size:12px;margin-top:2px">Saldo mais baixo previsto: <b class="${F.minSaldo<F.margem?'neg':'pos'}">${fmt(F.minSaldo)}</b>${F.minDia?` (~dia ${F.minDia})`:''}</div>`;
     body+=F.faltaDia?`<div class="hint" style="margin-top:6px;color:var(--out)"><b>⚠ Por volta do dia ${F.faltaDia} o saldo desce abaixo da ${F.margem>0?'margem ('+fmt(F.margem)+')':'linha 0'} — faltam ~${fmt(F.faltaValor)}.</b></div>`:`<div class="hint" style="margin-top:6px;color:var(--in)">O saldo aguenta o mês${F.margem>0?' acima da margem ('+fmt(F.margem)+')':''} ✓</div>`;
   }
-  if(A.acima.length){ body+=sec('Acima do habitual'); body+=A.acima.map(it=>`<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px;font-weight:700"><span class="dot" style="background:${it.cor}"></span>${esc(it.nome)}<span style="margin-left:auto;color:var(--out)">+${it.pct}%</span></div><div style="font-size:12px;color:var(--mut);margin-top:2px">${fmt(it.cur)} · normal ${fmt(it.med)}. Poupança <b style="color:var(--in)">${fmt(it.exc)}/mês</b> (~${fmt0(it.exc*12)}/ano)</div></div>`).join('');
+  if(A.acima.length){ body+=sec('Acima do habitual'); body+=A.acima.map(it=>_alRow(it,`<div style="display:flex;align-items:center;gap:8px;font-weight:700"><span class="dot" style="background:${it.cor}"></span>${esc(it.nome)}<span style="margin-left:auto;color:var(--out)">+${it.pct}%</span></div><div style="font-size:12px;color:var(--mut);margin-top:2px">${fmt(it.cur)} · normal ${fmt(it.med)}. Poupança <b style="color:var(--in)">${fmt(it.exc)}/mês</b> (~${fmt0(it.exc*12)}/ano)</div>`)).join('');
     body+=`<div style="padding-top:8px;font-weight:700;display:flex;justify-content:space-between">Poupança potencial<span class="pos">${fmt(A.total)}/mês</span></div>`; }
-  if(A.orc.length){ body+=sec('Orçamento ultrapassado'); body+=A.orc.map(it=>`<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px;font-weight:700"><span class="dot" style="background:${it.cor}"></span>${esc(it.nome)}<span style="margin-left:auto;color:var(--out)">+${fmt0(it.exc)}</span></div><div style="font-size:12px;color:var(--mut);margin-top:2px">${fmt(it.cur)} de ${fmt(it.lim)} (orçamento) · ${it.pct}% acima</div></div>`).join(''); }
-  if(A.ana&&A.ana.length){ body+=sec('Consumos vs anos anteriores'); body+=A.ana.map(it=>`<div class="hint" style="border-left:3px solid ${it.lvl==='high'?'var(--out)':'var(--warn)'};margin:6px 0;font-size:12px"><b>${esc(it.cat)}</b> · ${it.txt}</div>`).join(''); }
-  if(A.out.length){ body+=sec('Gastos pontuais grandes'); body+=A.out.map(it=>`<div style="padding:7px 0;border-bottom:1px solid var(--line)"><div style="display:flex;align-items:center;gap:8px"><b>${fmt(it.valor)}</b><span style="color:var(--mut);font-size:12px">${esc(it.nome)} · ${it.data.slice(8,10)}/${it.data.slice(5,7)}</span></div><div style="font-size:11.5px;color:var(--mut)">vs típico ${fmt(it.med)} — confirma?</div></div>`).join(''); }
+  if(A.orc.length){ body+=sec('Orçamento ultrapassado'); body+=A.orc.map(it=>_alRow(it,`<div style="display:flex;align-items:center;gap:8px;font-weight:700"><span class="dot" style="background:${it.cor}"></span>${esc(it.nome)}<span style="margin-left:auto;color:var(--out)">+${fmt0(it.exc)}</span></div><div style="font-size:12px;color:var(--mut);margin-top:2px">${fmt(it.cur)} de ${fmt(it.lim)} (orçamento) · ${it.pct}% acima</div>`)).join(''); }
+  if(A.ana&&A.ana.length){ body+=sec('Consumos vs anos anteriores'); body+=A.ana.map(it=>_alRow(it,`<div class="hint" style="border-left:3px solid ${it.lvl==='high'?'var(--out)':'var(--warn)'};margin:0;font-size:12px"><b>${esc(it.cat)}</b> · ${it.txt}</div>`)).join(''); }
+  if(A.out.length){ body+=sec('Gastos pontuais grandes'); body+=A.out.map(it=>_alRow(it,`<div style="display:flex;align-items:center;gap:8px"><b>${fmt(it.valor)}</b><span style="color:var(--mut);font-size:12px">${esc(it.nome)} · ${it.data.slice(8,10)}/${it.data.slice(5,7)}</span></div><div style="font-size:11.5px;color:var(--mut)">vs típico ${fmt(it.med)} — confirma?</div>`)).join(''); }
   if(A.superf.cats.length){ body+=sec('Supérfluos'); body+=`<div style="font-size:12.5px;color:var(--mut)">Gastaste <b style="color:var(--txt)">${fmt(A.superf.mes)}</b> este mês (<b>${fmt0(A.superf.ano)}</b> no ano) em ${A.superf.cats.join(', ')}.</div>`; }
   if(!body) body=`<div class="pempty">Sem alertas — está tudo dentro do normal 🎉</div>${A.superf.cats.length?'':'<div class="hint" style="margin-top:10px">Dica: marca categorias <b>supérfluas</b> nas Definições para acompanhar gastos discricionários aqui.</div>'}`;
   p.innerHTML=`<div class="ph">${svg(I.bell)} Alertas & poupança ${A.ref?`· ${MESES[+mm-1]} ${yy}`:''}</div>
-  <div class="pb" style="max-height:60vh;overflow:auto">${body}
-    <div class="hint" style="margin-top:12px">Heurística sobre o teu histórico (mediana 12 meses). Estimativa para te orientar.</div>
+  <div class="pb" style="max-height:60vh;overflow:auto">${_panelAlerts.length?`<button class="btn sm" data-alertreadall="1" style="margin-bottom:8px;width:100%;justify-content:center">${svg(I.check)}Marcar tudo como lido (${_panelAlerts.length})</button>`:''}${body}
+    <div class="hint" style="margin-top:12px">Marca ✓ para arquivar um alerta (volta a aparecer se piorar). Histórico no Analytics. Heurística sobre o teu histórico (mediana 12 meses).</div>
   </div>`;
 }
 
@@ -1726,8 +1741,11 @@ function anaGlobalAlerts(){
     if(prevTotal<cfg.min)return; // ignora categorias pequenas (ruído)
     anaAlerts(c.id).forEach(a=>out.push(Object.assign({cat:catName(c.id),catId:c.id,mag:(a.lvl==='high'?1e9:0)+prevTotal},a)));
   });
-  out.sort((a,b)=>b.mag-a.mag);
-  return out.slice(0,cfg.max);
+  const ref=mesesDespesa().slice(-1)[0]||nowYm();
+  out.forEach((it,i)=>{it._key='ana:'+it.catId+':'+it.lvl+':'+i+':'+ref;it._v=0;it._txt=it.cat+' · '+String(it.txt).replace(/<[^>]+>/g,'');});
+  const outU=out.filter(it=>!alertRead(it._key,it._v));
+  outU.sort((a,b)=>b.mag-a.mag);
+  return outU.slice(0,cfg.max);
 }
 
 /* ----- Utilities · vigilância (Luz/Água/Gás/Telecom) ----- */
@@ -1891,7 +1909,12 @@ function vAnalytics(m){
     <thead><tr><th>Mês</th>${years.map(y=>`<th class="num" style="color:${ycol(y)}">${y}</th>`).join('')}</tr></thead>
     <tbody>${MESES.map((nm,i)=>`<tr><td>${nm}</td>${years.map(y=>{const v=monthlyByYear[y][i];return `<td class="num">${v>0?fmtn(v):'·'}</td>`;}).join('')}</tr>`).join('')}</tbody>
     <tfoot><tr><td>Total</td>${years.map(y=>`<td class="num"><b>${fmtn(round2(monthlyByYear[y].reduce((a,v)=>a+v,0)))}</b></td>`).join('')}</tr></tfoot>
-  </table></div>`;
+  </table></div>
+  ${(state.alertLog&&state.alertLog.length)?`<div class="card" style="margin-top:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><h3 class="dh" style="margin:0">${svg(I.bell)} Arquivo de alertas <span style="color:var(--mut);font-weight:600;font-size:13px">· ${state.alertLog.length}</span></h3><button class="btn sm" data-alertlogclear="1">Limpar arquivo</button></div>
+    <p class="dsub" style="margin-top:6px">Alertas que marcaste como lidos no sino. Voltam a aparecer se a situação piorar significativamente.</p>
+    <div class="plist" style="max-height:340px">${state.alertLog.map(l=>`<div class="pe"><span style="flex:1;font-size:12.5px">${esc(l.txt)}</span><span style="color:var(--mut);font-size:11px;white-space:nowrap;margin-left:8px">${new Date(l.ts).toLocaleDateString('pt-PT')}</span></div>`).join('')}</div>
+  </div>`:''}`;
 }
 
 /* ================= DEFINIÇÕES ================= */
@@ -2212,6 +2235,9 @@ document.addEventListener('click',e=>{
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
   if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
+  if(d.alertread!=null){ const it=_panelAlerts[+d.alertread]; if(it){ markAlertRead(it); render(); renderAlertPanel(); } return; }
+  if(d.alertreadall){ _panelAlerts.slice().forEach(it=>markAlertRead(it)); render(); renderAlertPanel(); return; }
+  if(d.alertlogclear){ if((state.alertLog||[]).length&&confirm('Limpar o arquivo de alertas?')){state.alertLog=[];state.alertReads={};save();render();} return; }
   if(t.id==='bell'){ const p=document.getElementById('alertPanel'); if(p.classList.contains('on')){p.classList.remove('on');} else { renderAlertPanel(); const r=t.getBoundingClientRect(); p.style.top=(r.bottom+8)+'px'; p.style.left=Math.max(10,r.right-340)+'px'; p.classList.add('on'); } return; }
   if(d.poupledger){ const[y,i]=d.poupledger.split('|'); openContaLedger(y,+i); return; }
   if(t.id==='lgReforco'){ poupMovAdd(1); return; }
