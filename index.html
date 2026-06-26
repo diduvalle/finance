@@ -1946,6 +1946,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v44',d:'26 jun',bul:['Assistente IA: passa a EXPLICAR a origem de cada valor — o método/fórmula usada, quantos lançamentos foram somados e, nas previsões, os meses e valores que entraram na média (e os outliers excluídos). Continua a usar os números exatos calculados pela app.']},
   {v:'v43',d:'26 jun',bul:['Header (PC): a 2.ª linha deixa de ter espaço morto — a barra da IA ocupa a esquerda e os ícones ficam à direita, na mesma linha. Saldos no topo-direito.','Assistente IA (OpenRouter): corrigida a rotação de modelos — passa a experimentar sempre os modelos grátis conhecidos (llama, mistral…), mesmo quando os modelos detetados guardados já não estão grátis (ex.: deepseek).']},
   {v:'v42',d:'26 jun',bul:['Header (PC): os saldos voltam ao topo-direito; quando há pouco espaço, os ícones passam para a 2.ª linha alinhados à direita (debaixo dos saldos), sem se separarem.','A barra da IA passou a ser uma faixa própria por baixo do header — deixa de empurrar os saldos.','Largura do conteúdo 1200→1320 px para caber tudo sem partir.']},
   {v:'v41',d:'26 jun',bul:['Assistente IA (OpenRouter): se o modelo grátis estiver ocupado (rate-limited), a app tenta automaticamente os outros modelos detetados e fica com o que funcionar.','A lista de modelos detetados passa a ser guardada (sobrevive ao reload).']},
@@ -3844,17 +3845,27 @@ function _aiCat(nome){ const n=_aiNorm(nome); if(!n||n==='todas'||n==='tudo'||n=
   return state.categorias.find(x=>_aiNorm(x.nome)===n) || state.categorias.find(x=>_aiNorm(x.nome).includes(n)) || state.categorias.find(x=>n.includes(_aiNorm(x.nome))) || undefined; }
 function _aiCatIds(c){ return new Set([c.id,...childrenOf(c.id).map(k=>k.id)]); }
 function _aiSum(tipo,year,mes,catIds){ return round2(state.movimentos.filter(m=>m.tipo===tipo && +m.data.slice(0,4)===year && (mes==null|| +m.data.slice(5,7)===mes) && (!catIds||catIds.has(m.categoriaId))).reduce((a,m)=>a+m.valor,0)); }
+function _aiCount(tipo,year,mes,catIds){ return state.movimentos.filter(m=>m.tipo===tipo && +m.data.slice(0,4)===year && (mes==null|| +m.data.slice(5,7)===mes) && (!catIds||catIds.has(m.categoriaId))).length; }
+/* detalhe da previsão: que meses/valores entraram na média ponderada (p/ a IA explicar a origem do número) */
+function _previsaoDetalhe(tipo,ymCur){
+  ymCur=ymCur||nowYm();
+  const meses=mesesTipo(tipo).filter(m=>m<ymCur).slice(-12);
+  let pares=meses.map(m=>({mes:m,total:round2(state.movimentos.filter(x=>x.tipo===tipo&&x.data.slice(0,7)===m).reduce((a,x)=>a+x.valor,0))})).filter(p=>p.total>0);
+  let excluidos=[];
+  if(pares.length>=5){ const s=pares.slice().sort((a,b)=>a.total-b.total); excluidos=[s[0],s[s.length-1]]; const rm=new Set(excluidos); pares=pares.filter(p=>!rm.has(p)); }
+  return {metodo:'média ponderada de '+pares.length+' meses (os mais recentes pesam mais)'+(excluidos.length?', excluindo o mês mais alto e o mais baixo como outliers':''), meses_usados:pares, meses_excluidos:excluidos};
+}
 const AI_TOOLS={
-  gasto:({categoria,ano,mes})=>{ const c=_aiCat(categoria); if(categoria&&c===undefined)return {erro:'Categoria não encontrada: '+categoria}; return {tipo:'despesa', categoria:c?catName(c.id):'todas', ano,mes:mes||null, total:_aiSum('despesa',ano,mes,c?_aiCatIds(c):null)}; },
-  receita:({categoria,ano,mes})=>{ const c=_aiCat(categoria); if(categoria&&c===undefined)return {erro:'Categoria não encontrada: '+categoria}; return {tipo:'receita', categoria:c?catName(c.id):'todas', ano,mes:mes||null, total:_aiSum('receita',ano,mes,c?_aiCatIds(c):null)}; },
-  saldo_mes:({ano,mes})=>{ const r=_aiSum('receita',ano,mes), d=_aiSum('despesa',ano,mes); return {ano,mes,receita:r,despesa:d,saldo:round2(r-d)}; },
-  total_ano:({ano})=>{ const r=_aiSum('receita',ano), d=_aiSum('despesa',ano); return {ano,receita:r,despesa:d,saldo:round2(r-d)}; },
-  previsao_despesa:({ano,mes})=>({ano,mes,previsao_despesa:estimativaMensal(ano+'-'+String(mes).padStart(2,'0'))}),
-  previsao_receita:({ano,mes})=>({ano,mes,previsao_receita_liquida:estimativaReceitaLiq(ano+'-'+String(mes).padStart(2,'0'))}),
-  valete:()=>{ const F=valeteForecast(); return {saldo_atual:valeteAtual(), saldo_minimo_previsto_mes:F.minSaldo, dia_do_minimo:F.minDia, dia_em_que_falta_dinheiro:F.faltaDia, ainda_vai_entrar:F.restReceita, ainda_vai_sair:F.need}; },
-  divida:({com_juros})=>{ const led=acertoLedger(); const mensal=led.length?led[led.length-1].acc:0, extras=acertoExtrasTotal(), total=round2(mensal+extras); const o={divida_total:total, registo_mensal:mensal, acertos_pontuais:extras}; if(com_juros){const j=computeJuros(); o.juros_mora=j.juros; o.total_com_juros=round2(total+j.juros);} return o; },
-  patrimonio:()=>{ const y=ultimoAnoPoup(); return {patrimonio_total:round2(patrimonioDe(y)), ano:+y}; },
-  top_categorias:({ano,mes,n})=>({ano,mes:mes||null,top:topCats('despesa').map(c=>({categoria:c.nome,total:_aiSum('despesa',ano,mes,_aiCatIds(c))})).filter(x=>x.total>0).sort((a,b)=>b.total-a.total).slice(0,n||5)})
+  gasto:({categoria,ano,mes})=>{ const c=_aiCat(categoria); if(categoria&&c===undefined)return {erro:'Categoria não encontrada: '+categoria}; const ids=c?_aiCatIds(c):null; return {tipo:'despesa', categoria:c?catName(c.id):'todas', ano,mes:mes||null, total:_aiSum('despesa',ano,mes,ids), n_lancamentos:_aiCount('despesa',ano,mes,ids), metodo:'soma de todos os lançamentos de despesa'+(mes?' do mês '+mes+'/'+ano:' de '+ano)+(c?' na categoria '+catName(c.id)+' (e sub-categorias)':'')}; },
+  receita:({categoria,ano,mes})=>{ const c=_aiCat(categoria); if(categoria&&c===undefined)return {erro:'Categoria não encontrada: '+categoria}; const ids=c?_aiCatIds(c):null; return {tipo:'receita', categoria:c?catName(c.id):'todas', ano,mes:mes||null, total:_aiSum('receita',ano,mes,ids), n_lancamentos:_aiCount('receita',ano,mes,ids), metodo:'soma dos lançamentos de receita (já líquida de descontos IRS/SS, que entram como negativos)'+(mes?' do mês '+mes+'/'+ano:' de '+ano)+(c?' na categoria '+catName(c.id):'')}; },
+  saldo_mes:({ano,mes})=>{ const r=_aiSum('receita',ano,mes), d=_aiSum('despesa',ano,mes); return {ano,mes,receita:r,despesa:d,saldo:round2(r-d), metodo:'saldo = receita − despesa do mês '+mes+'/'+ano}; },
+  total_ano:({ano})=>{ const r=_aiSum('receita',ano), d=_aiSum('despesa',ano); return {ano,receita:r,despesa:d,saldo:round2(r-d), metodo:'soma de toda a receita e de toda a despesa de '+ano+'; saldo = receita − despesa'}; },
+  previsao_despesa:({ano,mes})=>{ const ym=ano+'-'+String(mes).padStart(2,'0'); const det=_previsaoDetalhe('despesa',ym); return {ano,mes,previsao_despesa:estimativaMensal(ym), ...det}; },
+  previsao_receita:({ano,mes})=>{ const ym=ano+'-'+String(mes).padStart(2,'0'); const det=_previsaoDetalhe('receita',ym); return {ano,mes,previsao_receita_liquida:estimativaReceitaLiq(ym), ...det}; },
+  valete:()=>{ const F=valeteForecast(); return {saldo_atual:valeteAtual(), saldo_minimo_previsto_mes:F.minSaldo, dia_do_minimo:F.minDia, dia_em_que_falta_dinheiro:F.faltaDia, ainda_vai_entrar:F.restReceita, ainda_vai_sair:F.need, metodo:'saldo atual real da conta; a previsão do mês usa o histórico (mediana) das fixas e do gasto variável'}; },
+  divida:({com_juros})=>{ const led=acertoLedger(); const mensal=led.length?led[led.length-1].acc:0, extras=acertoExtrasTotal(), total=round2(mensal+extras); const o={divida_total:total, registo_mensal:mensal, acertos_pontuais:extras, metodo:'dívida = acerto mensal acumulado (50/50) + acertos pontuais'}; if(com_juros){const j=computeJuros(); o.juros_mora=j.juros; o.total_com_juros=round2(total+j.juros); o.metodo+='; juros de mora = valor × 4%/ano × dias em atraso ÷ 365 (taxa civil, juros simples)';} return o; },
+  patrimonio:()=>{ const y=ultimoAnoPoup(); return {patrimonio_total:round2(patrimonioDe(y)), ano:+y, metodo:'soma das poupanças/contas registadas no ano '+y}; },
+  top_categorias:({ano,mes,n})=>({ano,mes:mes||null,top:topCats('despesa').map(c=>({categoria:c.nome,total:_aiSum('despesa',ano,mes,_aiCatIds(c))})).filter(x=>x.total>0).sort((a,b)=>b.total-a.total).slice(0,n||5), metodo:'soma da despesa por categoria'+(mes?' no mês '+mes+'/'+ano:' em '+ano)+', ordenada de maior para menor'})
 };
 const AI_FNS=[
   {name:'gasto',description:'Total de DESPESA de uma categoria (inclui sub-categorias) num mês ou no ano todo. Omite "mes" para o ano inteiro. Usa categoria="todas" para o total de despesa.',parameters:{type:'OBJECT',properties:{categoria:{type:'STRING'},ano:{type:'INTEGER'},mes:{type:'INTEGER',description:'1 a 12; omite para o ano inteiro'}},required:['ano']}},
@@ -3870,7 +3881,9 @@ const AI_FNS=[
 ];
 function _aiSystemPrompt(){
   const cats=topCats('despesa').map(c=>c.nome).concat(catsOf('receita').filter(c=>!c.parent).map(c=>c.nome)).join(', ');
-  return `És o assistente da app de finanças pessoais "CASA" (português de Portugal, moeda €). Hoje é ${isoToday()}. Responde curto e direto, em pt-PT. NUNCA inventes ou estimes números de cabeça — usa SEMPRE as ferramentas e usa os valores que devolvem tal e qual. Resolve datas relativas ("mês passado", "próximo mês", "este ano", "ano passado") a partir da data de hoje. Categorias disponíveis: ${cats}. Se a categoria pedida não existir, diz quais existem. Se a pergunta não for sobre as finanças da CASA, diz que só ajudas com isso.`;
+  return `És o assistente da app de finanças pessoais "CASA" (português de Portugal, moeda €). Hoje é ${isoToday()}. Responde curto e direto, em pt-PT. NUNCA inventes ou estimes números de cabeça — usa SEMPRE as ferramentas e usa os valores que devolvem tal e qual. Resolve datas relativas ("mês passado", "próximo mês", "este ano", "ano passado") a partir da data de hoje. Categorias disponíveis: ${cats}. Se a categoria pedida não existir, diz quais existem. Se a pergunta não for sobre as finanças da CASA, diz que só ajudas com isso.
+
+As perguntas são SEMPRE sobre valores, por isso EXPLICA SEMPRE a origem de cada número: primeiro o resultado em €, depois 1-2 linhas a dizer de onde vem. Usa os campos que a ferramenta devolve — em especial "metodo" (a fórmula/regra usada), "n_lancamentos" (quantos movimentos foram somados) e, nas previsões, "meses_usados" (os meses e valores que entraram na média) e "meses_excluidos" (outliers retirados). Se a conta for uma média de vários meses, resume em vez de listar todos (ex.: "média ponderada de 8 meses, entre 1.980 € e 2.510 €, com mais peso nos recentes"). Reproduz o "metodo" por palavras tuas, de forma clara.`;
 }
 function _aiExec(name,args){ let res; try{ const fn=AI_TOOLS[name]; res=fn?fn(args||{}):{erro:'ferramenta desconhecida'}; }catch(e){ res={erro:String(e.message||e)}; } return res; }
 function _lc(s){ if(!s||typeof s!=='object')return s; const o=Array.isArray(s)?[]:{}; for(const k in s){ o[k]=(k==='type'&&typeof s[k]==='string')?s[k].toLowerCase():_lc(s[k]); } return o; }
