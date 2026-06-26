@@ -1946,6 +1946,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v45',d:'26 jun',bul:['Assistente IA: a resposta deixa de ficar "pendurada" — fecha sozinha em Esc, clique fora, scroll, ao bloquear (timeout) e ao minimizar/trocar de app. Já não aparece por cima do ecrã de PIN.']},
   {v:'v44',d:'26 jun',bul:['Assistente IA: passa a EXPLICAR a origem de cada valor — o método/fórmula usada, quantos lançamentos foram somados e, nas previsões, os meses e valores que entraram na média (e os outliers excluídos). Continua a usar os números exatos calculados pela app.']},
   {v:'v43',d:'26 jun',bul:['Header (PC): a 2.ª linha deixa de ter espaço morto — a barra da IA ocupa a esquerda e os ícones ficam à direita, na mesma linha. Saldos no topo-direito.','Assistente IA (OpenRouter): corrigida a rotação de modelos — passa a experimentar sempre os modelos grátis conhecidos (llama, mistral…), mesmo quando os modelos detetados guardados já não estão grátis (ex.: deepseek).']},
   {v:'v42',d:'26 jun',bul:['Header (PC): os saldos voltam ao topo-direito; quando há pouco espaço, os ícones passam para a 2.ª linha alinhados à direita (debaixo dos saldos), sem se separarem.','A barra da IA passou a ser uma faixa própria por baixo do header — deixa de empurrar os saldos.','Largura do conteúdo 1200→1320 px para caber tudo sem partir.']},
@@ -2444,7 +2445,10 @@ document.addEventListener('change',e=>{
 });
 // close popover when clicking outside
 document.addEventListener('mousedown',e=>{ if(popCell && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); const ap=document.getElementById('alertPanel'); if(ap&&ap.classList.contains('on')&&!e.target.closest('#alertPanel')&&!e.target.closest('#bell')) ap.classList.remove('on'); const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none'&&!e.target.closest('#aiPanel')&&!e.target.closest('#aiBar')) aiHide(); });
-document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='aiQ'&&e.key==='Enter'){ e.preventDefault(); aiAsk(); } });
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='aiQ'&&e.key==='Enter'){ e.preventDefault(); aiAsk(); } else if(e.key==='Escape'){ const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); } });
+/* fechar a resposta da IA quando se faz scroll (deixaria de estar junto à barra) ou ao minimizar/trocar de app */
+window.addEventListener('scroll',()=>{ const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); }, true);
+document.addEventListener('visibilitychange',()=>{ if(document.hidden){ const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); } });
 /* fechar popover ao redimensionar — só quando muda a LARGURA (rotação/janela);
    ignora mudanças só de altura (teclado virtual no telemóvel, que senão fechava o popover ao focar o input) */
 let _popWinW=window.innerWidth;
@@ -3944,12 +3948,12 @@ async function _orChat(question,useTools,model){
   }
   return 'Não consegui responder (demasiados passos).';
 }
-let _aiLastQ='';
+let _aiLastQ='',_aiClosed=false;
 function aiAsk(){
-  const q=(val('aiQ')||'').trim(); if(!q)return; _aiLastQ=q;
+  const q=(val('aiQ')||'').trim(); if(!q)return; _aiLastQ=q; _aiClosed=false;
   if(!aiKey()){ aiShow('Falta a chave de '+esc(AI_PROVIDERS[aiProvider()].nome)+'. Adiciona-a em <b>Definições → Assistente IA</b> — fica só neste dispositivo.','err'); return; }
   aiShow('A pensar…','loading');
-  askAI(q).then(a=>aiShow(esc(a).replace(/\n/g,'<br>'),'')).catch(e=>{ const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/not found|not supported|no endpoints|NOT_FOUND|tool/i.test(raw))hint='<br><br><b>Dica:</b> o modelo <b>'+esc(aiModel())+'</b> não existe ou não suporta ferramentas nesta chave. Em <b>Definições → Assistente IA</b> carrega em <b>Detetar modelos</b> e escolhe outro.'; else if(/quota|limit|rate|429|RESOURCE_EXHAUSTED|credit/i.test(raw))hint='<br><br><b>Dica:</b> sem quota grátis para <b>'+esc(aiModel())+'</b>. Tenta outro modelo (botão <b>Detetar modelos</b>) ou troca de fornecedor (Gemini ↔ OpenRouter) nas Definições.'; } aiShow('Não consegui responder: '+esc(m).slice(0,300)+hint,'err'); });
+  askAI(q).then(a=>{ if(_aiClosed)return; aiShow(esc(a).replace(/\n/g,'<br>'),''); }).catch(e=>{ if(_aiClosed)return; const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/not found|not supported|no endpoints|NOT_FOUND|tool/i.test(raw))hint='<br><br><b>Dica:</b> o modelo <b>'+esc(aiModel())+'</b> não existe ou não suporta ferramentas nesta chave. Em <b>Definições → Assistente IA</b> carrega em <b>Detetar modelos</b> e escolhe outro.'; else if(/quota|limit|rate|429|RESOURCE_EXHAUSTED|credit/i.test(raw))hint='<br><br><b>Dica:</b> sem quota grátis para <b>'+esc(aiModel())+'</b>. Tenta outro modelo (botão <b>Detetar modelos</b>) ou troca de fornecedor (Gemini ↔ OpenRouter) nas Definições.'; } aiShow('Não consegui responder: '+esc(m).slice(0,300)+hint,'err'); });
 }
 function aiShow(html,kind){
   let p=document.getElementById('aiPanel'); if(!p){p=document.createElement('div');p.id='aiPanel';document.body.appendChild(p);}
@@ -3958,7 +3962,7 @@ function aiShow(html,kind){
   const a=document.getElementById('aiQ'); const r=a?a.getBoundingClientRect():{left:20,bottom:54};
   p.style.left=Math.max(10,Math.min(r.left, window.innerWidth-430))+'px'; p.style.top=(r.bottom+8)+'px'; p.style.display='';
 }
-function aiHide(){const p=document.getElementById('aiPanel');if(p)p.style.display='none';}
+function aiHide(){_aiClosed=true;const p=document.getElementById('aiPanel');if(p)p.style.display='none';}
 /* ===== Bloqueio de acesso (código simples) ===== */
 function isUnlocked(){ return !state.settings.codigo || sessionStorage.getItem('casa-unlock')==='1'; }
 let _pinEntry='';
@@ -3966,6 +3970,7 @@ function _shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floo
 function showLock(){
   const ex=document.getElementById('lock');
   if(isUnlocked()){ if(ex)ex.remove(); return; }
+  aiHide(); // não deixar a resposta da IA pendurada por cima do ecrã de bloqueio
   if(ex)return;
   _pinEntry='';
   const d=document.createElement('div'); d.id='lock';
