@@ -306,6 +306,15 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .utilnav b{min-width:108px;text-align:center;font-size:14px}
 .alert-x{flex:none;width:25px;height:25px;border-radius:7px;border:1px solid var(--line);background:var(--card2);color:var(--mut);cursor:pointer;font-size:13px;line-height:1;align-self:center}
 .alert-x:hover{border-color:var(--acc);color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,var(--card2))}
+.chlog{display:flex;flex-direction:column;gap:2px}
+.chlog-v{padding:10px 0;border-bottom:1px solid var(--line)}
+.chlog-v:last-child{border-bottom:0}
+.chlog-v.cur{background:color-mix(in srgb,var(--acc) 8%,transparent);margin:0 -14px;padding:10px 14px;border-radius:10px;border-bottom:0}
+.chlog-h{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.chlog-h b{font-size:14px;font-variant-numeric:tabular-nums}
+.chlog-d{color:var(--mut);font-size:11.5px}
+.chlog-l{margin:0;padding-left:18px} .chlog-l li{font-size:12.5px;color:var(--mut);margin:2px 0;line-height:1.45}
+.chlog-v.cur .chlog-l li{color:var(--txt)}
 @media(max-width:560px){.ana-util .utilhide{display:none}}
 .utilheat{width:100%;border-collapse:collapse;font-size:11.5px;font-variant-numeric:tabular-nums}
 .utilheat th,.utilheat td{padding:5px 4px;text-align:center;border:1px solid var(--bg2);min-width:42px;white-space:nowrap}
@@ -1922,6 +1931,42 @@ function vAnalytics(m){
 }
 
 /* ================= DEFINIÇÕES ================= */
+/* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
+const CHANGELOG=[
+  {v:'v34',d:'26 jun',bul:['Histórico de versões aqui nas Definições.']},
+  {v:'v33',d:'26 jun',bul:['Header mobile definitivo: 2 linhas, saldos entre o logo e os ícones, menu e ano à largura toda.','Aviso Valete ≠ banco (Δ) integrado no chip dos saldos.']},
+  {v:'v32',d:'25 jun',bul:['Nota do sino movida para um “!” (painel mais limpo).']},
+  {v:'v31',d:'25 jun',bul:['Ajuste do header mobile (revisto na v33).']},
+  {v:'v30',d:'25 jun',bul:['Marcar como lido também nos avisos das Utilities; arquivo de alertas pesquisável.']},
+  {v:'v29',d:'25 jun',bul:['Alertas do sino com “marcar como lido” (✓ por alerta e em massa) + arquivo no Analytics.']},
+  {v:'v28',d:'23 jun',bul:['Segurança do PIN: teclado físico desligado (só o teclado baralhado no ecrã).']},
+  {v:'v27',d:'23 jun',bul:['Utilities: avisos sazonais (ex.: gás alto no verão; mensalidade que mudou) + heatmap do ano.']},
+  {v:'v26',d:'23 jun',bul:['Utilities: navegação por mês + valor do mês homólogo; correção do mês de referência.']},
+  {v:'v25',d:'22 jun',bul:['Novo painel “Utilities · vigilância” (Luz/Água/Gás/Telecom) no Analytics.']},
+  {v:'v24',d:'22 jun',bul:['Aviso quando o Valete não bate certo com o saldo do banco (acerto a 1 toque).']},
+  {v:'v23',d:'22 jun',bul:['Juros de mora na Dívida (juros legais civis 4%/ano).']},
+  {v:'v22',d:'22 jun',bul:['Barras receita/despesa por mês no Resumo Mensal.']},
+  {v:'v21',d:'22 jun',bul:['Ícones de categoria mais sóbrios e biblioteca melhorada.']},
+  {v:'v20',d:'22 jun',bul:['Ano integrado na barra dos menus (uma só barra).']},
+  {v:'v19',d:'22 jun',bul:['Saldo do Valete e do Coverflex no cabeçalho, com as cores das marcas.']},
+  {v:'v18',d:'22 jun',bul:['Receitas em 2 fases (salário provisório → substituído pelo recibo); cores e ordem das receitas.']},
+  {v:'Marcos anteriores',d:'9–20 jun',bul:[
+    'Analytics: comparar despesas mês/ano + alertas gerais configuráveis.',
+    'Previsão de património (cenários, meta, reforços) que cabe em mobile.',
+    'Dívida: registo mês a mês + acertos pontuais (impostos de 2016) + detalhe por mês.',
+    'Ligação ao banco (open banking) e faturas por email → Caixa de entrada.',
+    'Importar recibo/fatura (PDF) e extrato (CSV); foto da fatura (OCR local).',
+    'Bloqueio por PIN/biometria + bloqueio automático por inatividade.',
+    'App single-file estilo Excel: grelha anual, sub-categorias, Poupanças, acerto da Dívida.'
+  ]}
+];
+function renderChangelog(){
+  return `<details class="defgroup" data-dg="versoes" ${defGroupsOpen.has('versoes')?'open':''}><summary>${svg(I.repeat)} Histórico de versões <span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc);margin-left:6px">${esc(CHANGELOG[0].v)} · em uso</span></summary>
+  <div class="defs-grid"><div class="card span2">
+    <p class="dsub" style="margin-top:0">As melhorias de cada versão. A app atualiza-se sozinha quando há uma nova (barra “Nova versão disponível”).</p>
+    <div class="chlog">${CHANGELOG.map((e,i)=>`<div class="chlog-v${i===0?' cur':''}"><div class="chlog-h"><b>${esc(e.v)}</b><span class="chlog-d">${esc(e.d)}</span>${i===0?'<span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">em uso</span>':''}</div><ul class="chlog-l">${e.bul.map(b=>`<li>${esc(b)}</li>`).join('')}</ul></div>`).join('')}</div>
+  </div></div></details>`;
+}
 function vDefs(m){
   const [a,b]=P();
   const dh=(ic,t,sub)=>`<h3 class="dh">${svg(ic)} ${t}${sub?hlp(sub):''}</h3>`;
@@ -2135,6 +2180,7 @@ function vDefs(m){
       <button class="btn sm danger" id="reset">${svg(I.trash)}Repor de origem</button>
     </div>
   </div></details>
+  ${renderChangelog()}
   </div>
   <div class="foot-credit">CASA · Finanças — app local (dados neste dispositivo). Feito para o Diogo Vale.</div>`;
 }
