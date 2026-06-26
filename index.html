@@ -31,7 +31,7 @@
   --nb:#1bb6a6; --cflex:#fb8168; /* verde novobanco · coral Coverflex (marcas) */
   --acc-10:rgba(122,161,131,.10); --acc-12:rgba(122,161,131,.12); --acc-15:rgba(122,161,131,.15); --acc-16:rgba(122,161,131,.16);
   --r:20px; --r-sm:13px; --r-lg:26px;
-  --maxw:1200px;
+  --maxw:1320px;
   --sh-sm:0 1px 2px rgba(0,0,0,.22);
   --sh:0 1px 2px rgba(0,0,0,.18),0 14px 34px -16px rgba(0,0,0,.55);
   --sh-lg:0 24px 60px -16px rgba(0,0,0,.6);
@@ -376,7 +376,8 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .bal.cf .bdot{background:var(--cflex)} .bal.cf b{color:var(--cflex)}
 .bal.vb{color:var(--out);cursor:pointer} .bal.vb b{color:var(--out)} .bal.vb svg{width:13px;height:13px} .bal.vb .dshort{display:none}
 .bsep{width:1px;height:15px;background:var(--line);margin:0 11px;flex:none}
-#aiBar{flex:1 1 220px;min-width:150px;display:flex;align-items:center}
+#aiBar{max-width:var(--maxw);margin:0 auto;padding:0 18px 9px;display:flex;align-items:center} /* faixa própria por baixo do header — não interfere com os saldos */
+.topbar #searchBtn{margin-left:auto} /* quando os ícones passam para a 2ª linha, ficam à direita (alinhados com os saldos) */
 #aiBar input{width:100%;height:34px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:0 12px;color:var(--txt);font-size:13px}
 #aiBar input::placeholder{color:var(--mut)}
 #aiBar input:focus{border-color:var(--acc);outline:none;background:var(--card2)}
@@ -498,9 +499,10 @@ html:has(#lock),html:has(#splash){overflow:hidden}
     <button id="refreshBtn" title="Atualizar — limpar cache e recarregar"></button>
     <button id="bell" title="Alertas & poupança"></button>
     <button id="lockNow" title="Bloquear (sair)"></button>
-    <div id="aiBar"><input id="aiQ" type="text" autocomplete="off" spellcheck="false" placeholder="Pergunta à IA: ex. quanto gastei em super no mês passado?"></div>
     <div id="topright"></div>
-  </div></div>
+  </div>
+  <div id="aiBar"><input id="aiQ" type="text" autocomplete="off" spellcheck="false" placeholder="Pergunta à IA: ex. quanto gastei em super no mês passado?"></div>
+  </div>
   <div class="main" id="main"></div>
   <div class="pop" id="alertPanel" style="width:340px"></div>
 </div>
@@ -1944,6 +1946,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v42',d:'26 jun',bul:['Header (PC): os saldos voltam ao topo-direito; quando há pouco espaço, os ícones passam para a 2.ª linha alinhados à direita (debaixo dos saldos), sem se separarem.','A barra da IA passou a ser uma faixa própria por baixo do header — deixa de empurrar os saldos.','Largura do conteúdo 1200→1320 px para caber tudo sem partir.']},
   {v:'v41',d:'26 jun',bul:['Assistente IA (OpenRouter): se o modelo grátis estiver ocupado (rate-limited), a app tenta automaticamente os outros modelos detetados e fica com o que funcionar.','A lista de modelos detetados passa a ser guardada (sobrevive ao reload).']},
   {v:'v40',d:'26 jun',bul:['Assistente IA (OpenRouter): se o modelo :free não fizer function-calling, faz fallback automático — responde a partir de um resumo dos teus dados (totais por mês, ~18 meses; sem o detalhe da dívida).','Erros do OpenRouter passam a mostrar a causa real (rate-limit, etc.).']},
   {v:'v39',d:'26 jun',bul:['Assistente IA: novo fornecedor <b>OpenRouter</b> (com modelos mesmo gratuitos) além do Gemini — escolhe nas Definições.','Resolve o "limit: 0" do Gemini: trocas para o OpenRouter e usas um modelo :free.']},
@@ -3902,7 +3905,7 @@ function _aiContext(){
 async function askOpenRouter(question){
   const key=aiKey(); if(!key) throw new Error('SEM_CHAVE');
   // tenta o modelo escolhido e, se estiver ocupado (rate-limit), roda pelos outros modelos grátis detetados
-  const list=[aiModel(),...aiDetectedModels().filter(m=>m!==aiModel())].slice(0,6); let lastErr;
+  const list=[aiModel(),...(aiDetectedModels().length?aiDetectedModels():AI_PROVIDERS.openrouter.presets).filter(m=>m!==aiModel())].slice(0,6); let lastErr;
   for(let mi=0;mi<list.length;mi++){ const model=list[mi];
     try{ const a=await _orChat(question,true,model); if(mi>0)setAiModel(model); return a; }
     catch(e){ lastErr=e; if(/rate|temporar|429|busy|overload|capacity/i.test(String(e.message||''))) continue; // congestionado → próximo modelo
