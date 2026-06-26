@@ -1944,6 +1944,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v39',d:'26 jun',bul:['Assistente IA: novo fornecedor <b>OpenRouter</b> (com modelos mesmo gratuitos) além do Gemini — escolhe nas Definições.','Resolve o "limit: 0" do Gemini: trocas para o OpenRouter e usas um modelo :free.']},
   {v:'v38',d:'26 jun',bul:['Assistente IA: botão "Detetar modelos" — pergunta à API quais os modelos que a tua chave suporta e preenche a lista (resolve "model not found"/quota por modelo errado).']},
   {v:'v37',d:'26 jun',bul:['Assistente IA: o modelo do Gemini passa a ser escolhível nas Definições (por defeito gemini-1.5-flash, o mais disponível no plano grátis).','Erro de quota mais claro: explica o "limit: 0" e sugere trocar de modelo.']},
   {v:'v36',d:'26 jun',bul:['Barra de perguntas à IA no topo (só no PC): pergunta em linguagem natural (ex.: "quanto gastei em super no mês passado?").','A IA entende a pergunta e a app calcula os números exatos — só a pergunta e os resultados saem do dispositivo; movimentos e dívida ficam locais.','Chave do Gemini nas Definições → Assistente IA (pessoal, fica só no dispositivo).']},
@@ -2189,15 +2190,17 @@ function vDefs(m){
     </div>
 
   </div></details>
-  <details class="defgroup" data-dg="ia" ${defGroupsOpen.has('ia')?'open':''}><summary>${svg(I.bell)} Assistente IA (Gemini)</summary>
+  <details class="defgroup" data-dg="ia" ${defGroupsOpen.has('ia')?'open':''}><summary>${svg(I.bell)} Assistente IA</summary>
   <div class="defs-grid">
     <div class="card span2">${dh(I.bell,'Barra de perguntas (só no PC)','No computador, a barra no topo deixa-te perguntar em linguagem natural (ex.: "quanto gastei em super no mês passado?"). A IA entende a pergunta e a app calcula os números — só a pergunta e os resultados saem do dispositivo; os movimentos e a dívida ficam locais.')}
-      <label style="margin-top:4px">Chave da API Google AI Studio (Gemini)</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aiKey" type="password" autocomplete="off" value="${esc(geminiKey())}" placeholder="cola aqui a tua chave (AIza…)" style="flex:1 1 220px;min-width:0"><button class="btn sm primary" id="aiKeySave">${svg(I.check)}Guardar</button>${geminiKey()?`<button class="btn sm" id="aiKeyDel">Remover</button>`:''}</div>
-      <div style="margin-top:12px"><label>Modelo ${hlp('Carrega em "Detetar modelos" para ver os que a tua chave suporta. Se der "not found" ou "limit: 0", escolhe outro da lista.')}</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="aiModel" style="max-width:280px;min-width:0;flex:1 1 200px">${[...new Set([geminiModel(),...(_aiModels.length?_aiModels:GEMINI_MODELOS)])].map(m=>`<option ${m===geminiModel()?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="btn sm" id="aiDetect">${svg(I.repeat)}Detetar modelos</button></div>
+      <label style="margin-top:4px">Fornecedor de IA</label>
+      <div class="seg" style="max-width:340px">${Object.keys(AI_PROVIDERS).map(p=>`<button data-aiprov="${p}" class="${aiProvider()===p?'on':''}">${esc(AI_PROVIDERS[p].nome)}</button>`).join('')}</div>
+      <label style="margin-top:12px">Chave da API (${esc(AI_PROVIDERS[aiProvider()].nome)})</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aiKey" type="password" autocomplete="off" value="${esc(aiKey())}" placeholder="${esc(AI_PROVIDERS[aiProvider()].placeholder)}" style="flex:1 1 220px;min-width:0"><button class="btn sm primary" id="aiKeySave">${svg(I.check)}Guardar</button>${aiKey()?`<button class="btn sm" id="aiKeyDel">Remover</button>`:''}</div>
+      <div style="margin-top:12px"><label>Modelo ${hlp('Carrega em "Detetar modelos" para ver os que a tua chave suporta. Se der erro de modelo/quota, escolhe outro ou troca de fornecedor.')}</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="aiModel" style="max-width:320px;min-width:0;flex:1 1 220px">${[...new Set([aiModel(),...(_aiModels.length?_aiModels:AI_PROVIDERS[aiProvider()].presets)])].map(m=>`<option ${m===aiModel()?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="btn sm" id="aiDetect">${svg(I.repeat)}Detetar modelos</button></div>
         ${_aiModels.length?`<p class="dsub" style="margin-top:6px">${_aiModels.length} modelo(s) detetado(s) nesta chave.</p>`:''}</div>
-      <p class="dsub" style="margin-top:10px">Gera uma chave grátis em <b>aistudio.google.com → Get API key</b>. Fica guardada só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. ${geminiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
+      <p class="dsub" style="margin-top:10px">Chave grátis em <b>${esc(AI_PROVIDERS[aiProvider()].onde)}</b>. Fica só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. ${aiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
     </div>
   </div></details>
   <details class="defgroup" data-dg="perigo" ${defGroupsOpen.has('perigo')?'open':''}><summary>${svg(I.trash)} Zona perigosa</summary>
@@ -2311,8 +2314,9 @@ document.addEventListener('click',e=>{
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
   if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
-  if(t.id==='aiKeySave'){ setGeminiKey((val('aiKey')||'').trim()); toast(geminiKey()?'Chave guardada (só neste dispositivo)':'Chave removida'); render(); return; }
-  if(t.id==='aiKeyDel'){ setGeminiKey(''); toast('Chave removida'); render(); return; }
+  if(d.aiprov){ setAiProvider(d.aiprov); _aiModels=[]; render(); return; }
+  if(t.id==='aiKeySave'){ setAiKey((val('aiKey')||'').trim()); toast(aiKey()?'Chave guardada (só neste dispositivo)':'Chave removida'); render(); return; }
+  if(t.id==='aiKeyDel'){ setAiKey(''); toast('Chave removida'); render(); return; }
   if(t.id==='aiDetect'){ aiListModels(); return; }
   if(d.aiclose){ aiHide(); return; }
   if(d.alertread!=null){ const it=_panelAlerts[+d.alertread]; if(it){ markAlertRead(it); render(); renderAlertPanel(); } return; }
@@ -2394,7 +2398,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('input',e=>{ if(e.target.id==='arqFilter'){ const q=e.target.value.trim().toLowerCase(); document.querySelectorAll('#arqList .pe').forEach(r=>{ r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none'; }); } });
 document.addEventListener('change',e=>{
-  if(e.target.id==='aiModel'){setGeminiModel(e.target.value);toast('Modelo IA: '+e.target.value);return;}
+  if(e.target.id==='aiModel'){setAiModel(e.target.value);toast('Modelo IA: '+e.target.value);return;}
   if(e.target.id==='anaCatSel'){anaCat=e.target.value;render();return;}
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
   if(e.target.id==='pdfIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
@@ -3795,23 +3799,36 @@ async function bioUnlock(silent){
 
 /* ===== Pergunta à IA (Gemini) — só no PC. A IA entende a pergunta e REDIGE; a APP calcula os números (function-calling).
    Só a pergunta + os resultados calculados saem do dispositivo; os movimentos, notas e a dívida ficam locais. Chave: localStorage 'casa-gemini'. ===== */
-const GEMINI_MODELOS=['gemini-1.5-flash','gemini-1.5-flash-8b','gemini-2.0-flash-lite','gemini-2.0-flash','gemini-2.5-flash'];
-function geminiKey(){ try{return localStorage.getItem('casa-gemini')||'';}catch(e){return '';} }
-function setGeminiKey(k){ try{ if(k)localStorage.setItem('casa-gemini',k); else localStorage.removeItem('casa-gemini'); }catch(e){} }
-function geminiModel(){ try{return localStorage.getItem('casa-gemini-model')||'gemini-2.0-flash';}catch(e){return 'gemini-2.0-flash';} }
-function setGeminiModel(m){ try{ if(m)localStorage.setItem('casa-gemini-model',m); else localStorage.removeItem('casa-gemini-model'); }catch(e){} }
+const AI_PROVIDERS={
+  gemini:{nome:'Google Gemini', onde:'aistudio.google.com → Get API key', placeholder:'cola a tua chave (AIza… ou AQ…)', defModel:'gemini-2.0-flash', presets:['gemini-2.0-flash','gemini-2.0-flash-lite','gemini-2.5-flash','gemini-2.5-flash-lite']},
+  openrouter:{nome:'OpenRouter (modelos grátis)', onde:'openrouter.ai → Keys (cria conta grátis)', placeholder:'cola a tua chave (sk-or-…)', defModel:'meta-llama/llama-3.3-70b-instruct:free', presets:['meta-llama/llama-3.3-70b-instruct:free','google/gemini-2.0-flash-exp:free','mistralai/mistral-small-3.2-24b-instruct:free','deepseek/deepseek-chat-v3-0324:free']}
+};
+function aiProvider(){ try{return AI_PROVIDERS[localStorage.getItem('casa-ai-provider')]?localStorage.getItem('casa-ai-provider'):'gemini';}catch(e){return 'gemini';} }
+function setAiProvider(p){ try{localStorage.setItem('casa-ai-provider',p);}catch(e){} }
+function _aiKeyName(){ return aiProvider()==='openrouter'?'casa-openrouter':'casa-gemini'; }
+function aiKey(){ try{return localStorage.getItem(_aiKeyName())||'';}catch(e){return '';} }
+function setAiKey(k){ try{ if(k)localStorage.setItem(_aiKeyName(),k); else localStorage.removeItem(_aiKeyName()); }catch(e){} }
+function aiModel(){ try{return localStorage.getItem('casa-ai-model-'+aiProvider())||AI_PROVIDERS[aiProvider()].defModel;}catch(e){return AI_PROVIDERS[aiProvider()].defModel;} }
+function setAiModel(m){ try{ if(m)localStorage.setItem('casa-ai-model-'+aiProvider(),m); else localStorage.removeItem('casa-ai-model-'+aiProvider()); }catch(e){} }
 let _aiModels=[];
-/* pergunta à API quais os modelos que a chave suporta para generateContent (resolve "not found"/quota por modelo errado) */
+/* pergunta à API quais os modelos que a chave suporta (resolve "not found"/quota por modelo errado) */
 async function aiListModels(){
-  const key=geminiKey(); if(!key){toast('Adiciona a chave primeiro');return;}
+  const key=aiKey(); if(!key){toast('Adiciona a chave primeiro');return;}
   toast('A detetar modelos…');
   try{
-    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(key));
-    const d=await r.json(); if(!r.ok) throw new Error((d&&d.error&&d.error.message)||('HTTP '+r.status));
-    const ms=(d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>(m.name||'').replace(/^models\//,'')).filter(Boolean);
-    if(!ms.length){toast('Nenhum modelo com generateContent nesta chave');return;}
+    let ms=[];
+    if(aiProvider()==='openrouter'){
+      const r=await fetch('https://openrouter.ai/api/v1/models',{headers:{'Authorization':'Bearer '+key}});
+      const d=await r.json(); if(!r.ok) throw new Error((d&&d.error&&(d.error.message||d.error))||('HTTP '+r.status));
+      ms=(d.data||[]).filter(m=>{const p=m.pricing||{}; return (p.prompt==='0'&&p.completion==='0')&&(m.supported_parameters||[]).includes('tools');}).map(m=>m.id);
+    } else {
+      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(key));
+      const d=await r.json(); if(!r.ok) throw new Error((d&&d.error&&d.error.message)||('HTTP '+r.status));
+      ms=(d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>(m.name||'').replace(/^models\//,'')).filter(Boolean);
+    }
+    if(!ms.length){toast('Nenhum modelo compatível (com ferramentas) nesta chave');return;}
     _aiModels=ms;
-    if(!ms.includes(geminiModel())){ const pick=ms.find(m=>/flash/.test(m)&&!/thinking|exp|lite|preview/.test(m))||ms.find(m=>/flash/.test(m))||ms[0]; setGeminiModel(pick); }
+    if(!ms.includes(aiModel())){ const pick=ms.find(m=>/flash|llama|mistral/i.test(m)&&!/thinking|preview|vision/i.test(m))||ms[0]; setAiModel(pick); }
     render(); toast(ms.length+' modelo(s) detetado(s) ✓');
   }catch(e){ toast('Falha a detetar: '+(e.message||e)); }
 }
@@ -3844,33 +3861,57 @@ const AI_FNS=[
   {name:'patrimonio',description:'Património total atual (poupanças + cofre).',parameters:{type:'OBJECT',properties:{}}},
   {name:'top_categorias',description:'As maiores categorias de despesa de um mês (ou do ano se omitires mes).',parameters:{type:'OBJECT',properties:{ano:{type:'INTEGER'},mes:{type:'INTEGER'},n:{type:'INTEGER'}},required:['ano']}}
 ];
-async function askGemini(question){
-  const key=geminiKey(); if(!key) throw new Error('SEM_CHAVE');
+function _aiSystemPrompt(){
   const cats=topCats('despesa').map(c=>c.nome).concat(catsOf('receita').filter(c=>!c.parent).map(c=>c.nome)).join(', ');
-  const sys=`És o assistente da app de finanças pessoais "CASA" (português de Portugal, moeda €). Hoje é ${isoToday()}. Responde curto e direto, em pt-PT. NUNCA inventes ou estimes números de cabeça — usa SEMPRE as ferramentas e usa os valores que devolvem tal e qual. Resolve datas relativas ("mês passado", "próximo mês", "este ano", "ano passado") a partir da data de hoje. Categorias disponíveis: ${cats}. Se a categoria pedida não existir, diz quais existem. Se a pergunta não for sobre as finanças da CASA, diz que só ajudas com isso.`;
+  return `És o assistente da app de finanças pessoais "CASA" (português de Portugal, moeda €). Hoje é ${isoToday()}. Responde curto e direto, em pt-PT. NUNCA inventes ou estimes números de cabeça — usa SEMPRE as ferramentas e usa os valores que devolvem tal e qual. Resolve datas relativas ("mês passado", "próximo mês", "este ano", "ano passado") a partir da data de hoje. Categorias disponíveis: ${cats}. Se a categoria pedida não existir, diz quais existem. Se a pergunta não for sobre as finanças da CASA, diz que só ajudas com isso.`;
+}
+function _aiExec(name,args){ let res; try{ const fn=AI_TOOLS[name]; res=fn?fn(args||{}):{erro:'ferramenta desconhecida'}; }catch(e){ res={erro:String(e.message||e)}; } return res; }
+function _lc(s){ if(!s||typeof s!=='object')return s; const o=Array.isArray(s)?[]:{}; for(const k in s){ o[k]=(k==='type'&&typeof s[k]==='string')?s[k].toLowerCase():_lc(s[k]); } return o; }
+function _aiFnsOpenAI(){ return AI_FNS.map(f=>({type:'function',function:{name:f.name,description:f.description,parameters:_lc(f.parameters)}})); }
+function askAI(q){ return aiProvider()==='openrouter'?askOpenRouter(q):askGemini(q); }
+async function askGemini(question){
+  const key=aiKey(); if(!key) throw new Error('SEM_CHAVE');
   let contents=[{role:'user',parts:[{text:question}]}];
   for(let i=0;i<5;i++){
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents,tools:[{functionDeclarations:AI_FNS}]})});
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel()}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:_aiSystemPrompt()}]},contents,tools:[{functionDeclarations:AI_FNS}]})});
     const d=await r.json();
     if(!r.ok) throw new Error((d&&d.error&&d.error.message)||('HTTP '+r.status));
     const parts=(((d.candidates||[])[0]||{}).content||{}).parts||[];
     const calls=parts.filter(p=>p.functionCall);
     if(calls.length){
       contents.push({role:'model',parts});
-      contents.push({role:'user',parts:calls.map(p=>{ let res; try{ const fn=AI_TOOLS[p.functionCall.name]; res=fn?fn(p.functionCall.args||{}):{erro:'ferramenta desconhecida'}; }catch(e){ res={erro:String(e.message||e)}; } return {functionResponse:{name:p.functionCall.name,response:{result:res}}}; })});
+      contents.push({role:'user',parts:calls.map(p=>({functionResponse:{name:p.functionCall.name,response:{result:_aiExec(p.functionCall.name,p.functionCall.args)}}}))});
       continue;
     }
-    const txt=parts.filter(p=>p.text).map(p=>p.text).join('').trim();
-    return txt||'(sem resposta)';
+    return parts.filter(p=>p.text).map(p=>p.text).join('').trim()||'(sem resposta)';
+  }
+  return 'Não consegui responder (demasiados passos).';
+}
+async function askOpenRouter(question){
+  const key=aiKey(); if(!key) throw new Error('SEM_CHAVE');
+  let messages=[{role:'system',content:_aiSystemPrompt()},{role:'user',content:question}];
+  const tools=_aiFnsOpenAI();
+  for(let i=0;i<5;i++){
+    const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key,'HTTP-Referer':location.origin,'X-Title':'CASA'},body:JSON.stringify({model:aiModel(),messages,tools,tool_choice:'auto'})});
+    const d=await r.json();
+    if(!r.ok) throw new Error((d&&d.error&&(d.error.message||(typeof d.error==='string'?d.error:JSON.stringify(d.error))))||('HTTP '+r.status));
+    const msg=((d.choices||[])[0]||{}).message||{};
+    const calls=msg.tool_calls||[];
+    if(calls.length){
+      messages.push(msg);
+      calls.forEach(tc=>{ let args={}; try{args=JSON.parse(tc.function.arguments||'{}');}catch(e){} messages.push({role:'tool',tool_call_id:tc.id,content:JSON.stringify(_aiExec(tc.function.name,args))}); });
+      continue;
+    }
+    return (msg.content||'').trim()||'(sem resposta)';
   }
   return 'Não consegui responder (demasiados passos).';
 }
 let _aiLastQ='';
 function aiAsk(){
   const q=(val('aiQ')||'').trim(); if(!q)return; _aiLastQ=q;
-  if(!geminiKey()){ aiShow('Falta a chave do Gemini. Adiciona-a em <b>Definições → Assistente IA</b> — é pessoal e fica só neste dispositivo.','err'); return; }
+  if(!aiKey()){ aiShow('Falta a chave de '+esc(AI_PROVIDERS[aiProvider()].nome)+'. Adiciona-a em <b>Definições → Assistente IA</b> — fica só neste dispositivo.','err'); return; }
   aiShow('A pensar…','loading');
-  askGemini(q).then(a=>aiShow(esc(a).replace(/\n/g,'<br>'),'')).catch(e=>{ const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/not found|not supported|NOT_FOUND/i.test(raw))hint='<br><br><b>Dica:</b> o modelo <b>'+esc(geminiModel())+'</b> não existe/não é suportado nesta chave. Em <b>Definições → Assistente IA</b> carrega em <b>Detetar modelos</b> e escolhe um da lista.'; else if(/quota|limit|rate|429|RESOURCE_EXHAUSTED/i.test(raw))hint='<br><br><b>Dica:</b> "limit: 0" = a tua chave não tem quota grátis para <b>'+esc(geminiModel())+'</b>. Carrega em <b>Detetar modelos</b> (Definições) e tenta outro. Se nenhum funcionar, o projeto pode precisar de ativar a faturação.'; } aiShow('Não consegui responder: '+esc(m).slice(0,300)+hint,'err'); });
+  askAI(q).then(a=>aiShow(esc(a).replace(/\n/g,'<br>'),'')).catch(e=>{ const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/not found|not supported|no endpoints|NOT_FOUND|tool/i.test(raw))hint='<br><br><b>Dica:</b> o modelo <b>'+esc(aiModel())+'</b> não existe ou não suporta ferramentas nesta chave. Em <b>Definições → Assistente IA</b> carrega em <b>Detetar modelos</b> e escolhe outro.'; else if(/quota|limit|rate|429|RESOURCE_EXHAUSTED|credit/i.test(raw))hint='<br><br><b>Dica:</b> sem quota grátis para <b>'+esc(aiModel())+'</b>. Tenta outro modelo (botão <b>Detetar modelos</b>) ou troca de fornecedor (Gemini ↔ OpenRouter) nas Definições.'; } aiShow('Não consegui responder: '+esc(m).slice(0,300)+hint,'err'); });
 }
 function aiShow(html,kind){
   let p=document.getElementById('aiPanel'); if(!p){p=document.createElement('div');p.id='aiPanel';document.body.appendChild(p);}
