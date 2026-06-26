@@ -365,8 +365,9 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .bal b{font-weight:800}
 .bal.nb .bdot{background:var(--nb)} .bal.nb b{color:var(--nb)}
 .bal.cf .bdot{background:var(--cflex)} .bal.cf b{color:var(--cflex)}
+.bal.vb{color:var(--out);cursor:pointer} .bal.vb b{color:var(--out)} .bal.vb svg{width:13px;height:13px} .bal.vb .dshort{display:none}
 .bsep{width:1px;height:15px;background:var(--line);margin:0 11px;flex:none}
-@media(max-width:720px){.bal .vlbl{display:none} .bal .bdot{display:none} .balchip{padding:0 10px} .bsep{margin:0 9px}}
+@media(max-width:720px){.bal .vlbl{display:none} .bal .bdot{display:none} .balchip{padding:0 9px} .bsep{margin:0 7px}}
 .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
 #lockNow{background:none;border:0;color:var(--mut);cursor:pointer;border-radius:9px;display:inline-flex}
 #lockNow:hover{color:var(--out);background:var(--card)}
@@ -383,25 +384,25 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .foot-credit{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
 @media(max-width:720px){
   .main{padding:12px 10px 80px}
-  /* header mobile em 3 linhas alinhadas: (1) logo + ícones · (2) saldos + Δ (linha própria) · (3) menus + ano */
-  .topbar-inner{gap:5px;padding:9px 11px}
+  /* header mobile em 2 LINHAS: (1) logo + saldos (entre logo e ícones) + ícones · (2) menus + ano à largura toda */
+  .topbar-inner{gap:4px;padding:9px 10px}
   .spacer{display:none}
-  .brand{order:1}
-  #searchBtn{order:2;margin-left:auto}
-  #inboxTop{order:3} #refreshBtn{order:4} #bell{order:5} #lockNow{order:6}
-  #valeteHead{order:7;flex:1 1 100%;min-width:0;justify-content:flex-start;margin-top:1px}
-  .tabs{order:8;flex:0 1 auto;width:auto;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  #topright{order:9} /* ano colado aos menus (coeso), não empurrado para a direita */
+  .brand{order:1;flex:none}
+  #valeteHead{order:2;flex:0 1 auto;min-width:0;gap:4px}
+  #searchBtn{order:3;margin-left:auto} #inboxTop{order:4} #refreshBtn{order:5} #bell{order:6} #lockNow{order:7}
+  .tabs{order:8;flex:1 1 100%;width:100%;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .tabs .yearnav{margin-left:auto} /* ano colado ao fim da 2ª linha — sem espaço morto */
+  #topright{order:9;display:none}
+  .bal.vb svg{display:none} .bal.vb .dfull{display:none} .bal.vb .dshort{display:inline} /* Δ compacto no mobile */
   .topbar .yearnav{height:32px}
   .topbar .yearnav{padding:2px}
   .topbar .yearnav button{width:22px;height:24px;font-size:14px}
   .topbar .yearnav .y{min-width:36px;font-size:13px}
   .tabs::-webkit-scrollbar{display:none}
   .tabs button{flex:0 0 auto;padding:8px 8px;font-size:13.5px;white-space:nowrap}
-  .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:30px;width:30px}
-  .topbar #refreshBtn svg,.topbar #bell svg,.topbar #lockNow svg,.topbar #searchBtn svg,.topbar #inboxTop svg{width:17px;height:17px}
-  .topbar .chip{height:30px;padding:0 9px;font-size:11.5px}
-  #valeteHead{gap:4px}
+  .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:28px;width:27px;flex:none}
+  .topbar #refreshBtn svg,.topbar #bell svg,.topbar #lockNow svg,.topbar #searchBtn svg,.topbar #inboxTop svg{width:16px;height:16px}
+  .topbar .chip{height:30px;padding:0 9px;font-size:11.5px;flex:0 1 auto;min-width:0}
   /* mobile: grelha 50/50 — Valor·Sai de / Mês·Categoria / Nota·Adicionar */
   .qadd{grid-template-columns:1fr 1fr;gap:9px}
   .qadd .fld-val{grid-column:1;grid-row:1}
@@ -433,6 +434,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 @media(max-width:380px){
   .sumtable th,.sumtable td{padding:6px 5px;font-size:11px}
   .sumtable .barscell,.sumtable .barhd{display:none} /* sem espaço p/ as barras em ecrãs minúsculos */
+  .bal.vb{display:none} .balchip.vbwarn{border-color:var(--out);cursor:pointer} /* ecrãs minúsculos: sem segmento Δ (cabe sempre); chip âmbar + clicável p/ acertar */
 }
 /* ----- Splash de arranque: a casa emerge do fundo sálvia (igual ao ícone) ----- */
 #splash{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;
@@ -949,17 +951,19 @@ function render(){
   document.getElementById('topright').innerHTML='';
   const _va=valeteAtual(); const _vf=valeteForecast(); const _alerta=_va!=null&&_vf.faltaDia;
   const _cf=coverflexConta(); const _cfv=_cf?(parseFloat(_cf.valor)||0):null;
+  const _vb=valeteVsBanco(); const _vbWarn=_vb&&_vb.abs>=0.01&&!_vb.stale;
   let _vChip='';
   if(_va!=null||_cfv!=null){
-    _vChip='<div class="chip balchip" title="Valete = saldo real da conta (novobanco) · Coverflex = saldo do cartão de benefícios">';
+    _vChip=`<div class="chip balchip${_vbWarn?' vbwarn':''}" ${_vbWarn?'title="O Valete não bate certo com o banco — toca para acertar."':'title="Valete = saldo real da conta (novobanco) · Coverflex = saldo do cartão de benefícios"'}>`;
     if(_va!=null) _vChip+=`<span class="bal nb"><span class="bdot"></span><span class="vlbl">Valete</span><b>${fmt(_va)}</b></span>`;
     if(_va!=null&&_cfv!=null) _vChip+='<span class="bsep"></span>';
     if(_cfv!=null) _vChip+=`<span class="bal cf"><span class="bdot"></span><span class="vlbl">Coverflex</span><b>${fmt(_cfv)}</b></span>`;
+    if(_vbWarn) _vChip+=`<span class="bsep"></span><span class="bal vb" id="vbWarn" style="cursor:pointer" title="O Valete (${fmt(_vb.valete)}) não bate certo com o banco (${fmt(_vb.banco)}). Diferença ${fmt(_vb.diff)}. Clica para acertar o Valete ao banco.">${svg(I.bank)}<b><span class="dfull">Δ&nbsp;${fmt(_vb.diff)}</span><span class="dshort">Δ&nbsp;${_vb.diff<0?'−':'+'}${Math.abs(Math.round(_vb.diff))}</span></b></span>`;
     _vChip+='</div>';
+  } else if(_vbWarn){
+    _vChip += `<div class="chip warn" id="vbWarn" style="cursor:pointer" title="O Valete não bate certo com o banco. Diferença ${fmt(_vb.diff)}. Clica para acertar.">${svg(I.bank)}<b>Δ&nbsp;${fmt(_vb.diff)}</b></div>`;
   }
   if(_alerta){ _vChip += `<div class="chip warn" title="Estimativa: por volta do dia ${_vf.faltaDia} o saldo desce abaixo da margem (faltam ~${fmt(_vf.faltaValor)}). Detalhe no sino.">${svg(I.bell)}<b>−${fmt(_vf.faltaValor)}</b></div>`; }
-  const _vb=valeteVsBanco(); const _vbWarn=_vb&&_vb.abs>=0.01&&!_vb.stale;
-  if(_vbWarn){ _vChip += `<div class="chip warn" id="vbWarn" style="cursor:pointer" title="O Valete (${fmt(_vb.valete)}) não bate certo com o banco (${fmt(_vb.banco)}). Diferença ${fmt(_vb.diff)}. Clica para acertar o Valete ao banco.">${svg(I.bank)}<b>Δ&nbsp;${fmt(_vb.diff)}</b></div>`; }
   document.getElementById('valeteHead').innerHTML = _vChip;
   const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
   document.getElementById('searchBtn').innerHTML=svg(I.search);
@@ -2183,7 +2187,7 @@ document.addEventListener('click',e=>{
   const asel=e.target.closest('[data-anasel]'); if(asel){ anaCat=asel.dataset.anasel; tab='analytics'; render(); return; }
   const dco=e.target.closest('[data-defcatopen]'); if(dco){ const id=dco.dataset.defcatopen; defCatOpen.has(id)?defCatOpen.delete(id):defCatOpen.add(id); render(); return; }
   const sgo=e.target.closest('[data-go]'); if(sgo){ gotoMov(sgo.dataset.go); return; }
-  if(e.target.closest('#vbWarn')){ acertarValeteAoBanco(); return; }
+  if(e.target.closest('#vbWarn')||e.target.closest('.balchip.vbwarn')){ acertarValeteAoBanco(); return; }
   const delHead=e.target.closest('.delcol[data-delcat]');
   if(delHead){ delCat(delHead.dataset.delcat); return; }
   const cellTd=e.target.closest('[data-cell]');
