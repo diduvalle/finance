@@ -1944,6 +1944,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v37',d:'26 jun',bul:['Assistente IA: o modelo do Gemini passa a ser escolhível nas Definições (por defeito gemini-1.5-flash, o mais disponível no plano grátis).','Erro de quota mais claro: explica o "limit: 0" e sugere trocar de modelo.']},
   {v:'v36',d:'26 jun',bul:['Barra de perguntas à IA no topo (só no PC): pergunta em linguagem natural (ex.: "quanto gastei em super no mês passado?").','A IA entende a pergunta e a app calcula os números exatos — só a pergunta e os resultados saem do dispositivo; movimentos e dívida ficam locais.','Chave do Gemini nas Definições → Assistente IA (pessoal, fica só no dispositivo).']},
   {v:'v35',d:'26 jun',bul:['Login biométrico: corrigido o loop ao voltar de uma app minimizada (já não volta a pedir o dedo).','Atualizações: com a app bloqueada, a nova versão aplica-se sozinha — a biometria é pedida só 1×.']},
   {v:'v34',d:'26 jun',bul:['Histórico de versões aqui nas Definições.']},
@@ -2192,7 +2193,9 @@ function vDefs(m){
     <div class="card span2">${dh(I.bell,'Barra de perguntas (só no PC)','No computador, a barra no topo deixa-te perguntar em linguagem natural (ex.: "quanto gastei em super no mês passado?"). A IA entende a pergunta e a app calcula os números — só a pergunta e os resultados saem do dispositivo; os movimentos e a dívida ficam locais.')}
       <label style="margin-top:4px">Chave da API Google AI Studio (Gemini)</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aiKey" type="password" autocomplete="off" value="${esc(geminiKey())}" placeholder="cola aqui a tua chave (AIza…)" style="flex:1 1 220px;min-width:0"><button class="btn sm primary" id="aiKeySave">${svg(I.check)}Guardar</button>${geminiKey()?`<button class="btn sm" id="aiKeyDel">Remover</button>`:''}</div>
-      <p class="dsub" style="margin-top:8px">Gera uma chave grátis em <b>aistudio.google.com → Get API key</b>. Fica guardada só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. Modelo: <b>${esc(GEMINI_MODEL)}</b>. ${geminiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
+      <div style="margin-top:12px"><label>Modelo ${hlp('Se der erro de "quota/limit: 0", a tua chave não tem tier grátis nesse modelo — escolhe outro. O gemini-1.5-flash costuma ser o mais disponível no plano grátis.')}</label>
+        <select id="aiModel" style="max-width:260px">${[...new Set([geminiModel(),...GEMINI_MODELOS])].map(m=>`<option ${m===geminiModel()?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
+      <p class="dsub" style="margin-top:10px">Gera uma chave grátis em <b>aistudio.google.com → Get API key</b>. Fica guardada só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. ${geminiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
     </div>
   </div></details>
   <details class="defgroup" data-dg="perigo" ${defGroupsOpen.has('perigo')?'open':''}><summary>${svg(I.trash)} Zona perigosa</summary>
@@ -2388,6 +2391,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('input',e=>{ if(e.target.id==='arqFilter'){ const q=e.target.value.trim().toLowerCase(); document.querySelectorAll('#arqList .pe').forEach(r=>{ r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none'; }); } });
 document.addEventListener('change',e=>{
+  if(e.target.id==='aiModel'){setGeminiModel(e.target.value);toast('Modelo IA: '+e.target.value);return;}
   if(e.target.id==='anaCatSel'){anaCat=e.target.value;render();return;}
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
   if(e.target.id==='pdfIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
@@ -3788,9 +3792,11 @@ async function bioUnlock(silent){
 
 /* ===== Pergunta à IA (Gemini) — só no PC. A IA entende a pergunta e REDIGE; a APP calcula os números (function-calling).
    Só a pergunta + os resultados calculados saem do dispositivo; os movimentos, notas e a dívida ficam locais. Chave: localStorage 'casa-gemini'. ===== */
-const GEMINI_MODEL='gemini-2.0-flash';
+const GEMINI_MODELOS=['gemini-1.5-flash','gemini-1.5-flash-8b','gemini-2.0-flash-lite','gemini-2.0-flash','gemini-2.5-flash'];
 function geminiKey(){ try{return localStorage.getItem('casa-gemini')||'';}catch(e){return '';} }
 function setGeminiKey(k){ try{ if(k)localStorage.setItem('casa-gemini',k); else localStorage.removeItem('casa-gemini'); }catch(e){} }
+function geminiModel(){ try{return localStorage.getItem('casa-gemini-model')||'gemini-1.5-flash';}catch(e){return 'gemini-1.5-flash';} }
+function setGeminiModel(m){ try{ if(m)localStorage.setItem('casa-gemini-model',m); else localStorage.removeItem('casa-gemini-model'); }catch(e){} }
 function _aiNorm(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();}
 function _aiCat(nome){ const n=_aiNorm(nome); if(!n||n==='todas'||n==='tudo'||n==='geral')return null;
   return state.categorias.find(x=>_aiNorm(x.nome)===n) || state.categorias.find(x=>_aiNorm(x.nome).includes(n)) || state.categorias.find(x=>n.includes(_aiNorm(x.nome))) || undefined; }
@@ -3826,7 +3832,7 @@ async function askGemini(question){
   const sys=`És o assistente da app de finanças pessoais "CASA" (português de Portugal, moeda €). Hoje é ${isoToday()}. Responde curto e direto, em pt-PT. NUNCA inventes ou estimes números de cabeça — usa SEMPRE as ferramentas e usa os valores que devolvem tal e qual. Resolve datas relativas ("mês passado", "próximo mês", "este ano", "ano passado") a partir da data de hoje. Categorias disponíveis: ${cats}. Se a categoria pedida não existir, diz quais existem. Se a pergunta não for sobre as finanças da CASA, diz que só ajudas com isso.`;
   let contents=[{role:'user',parts:[{text:question}]}];
   for(let i=0;i<5;i++){
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents,tools:[{functionDeclarations:AI_FNS}]})});
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${geminiModel()}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents,tools:[{functionDeclarations:AI_FNS}]})});
     const d=await r.json();
     if(!r.ok) throw new Error((d&&d.error&&d.error.message)||('HTTP '+r.status));
     const parts=(((d.candidates||[])[0]||{}).content||{}).parts||[];
@@ -3846,7 +3852,7 @@ function aiAsk(){
   const q=(val('aiQ')||'').trim(); if(!q)return; _aiLastQ=q;
   if(!geminiKey()){ aiShow('Falta a chave do Gemini. Adiciona-a em <b>Definições → Assistente IA</b> — é pessoal e fica só neste dispositivo.','err'); return; }
   aiShow('A pensar…','loading');
-  askGemini(q).then(a=>aiShow(esc(a).replace(/\n/g,'<br>'),'')).catch(e=>{ const m=(e&&e.message==='SEM_CHAVE')?'falta a chave (Definições → Assistente IA)':(e&&e.message||'erro'); aiShow('Não consegui responder: '+esc(m),'err'); });
+  askGemini(q).then(a=>aiShow(esc(a).replace(/\n/g,'<br>'),'')).catch(e=>{ const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/quota|limit|rate|429|RESOURCE_EXHAUSTED/i.test(raw))hint='<br><br><b>Dica:</b> "limit: 0" = a tua chave não tem quota grátis para <b>'+esc(geminiModel())+'</b>. Experimenta outro modelo em <b>Definições → Assistente IA</b> (ex.: gemini-1.5-flash, gemini-2.0-flash-lite). Se nenhum funcionar, o projeto da chave pode precisar de ativar a faturação no Google AI Studio.'; } aiShow('Não consegui responder: '+esc(m).slice(0,300)+hint,'err'); });
 }
 function aiShow(html,kind){
   let p=document.getElementById('aiPanel'); if(!p){p=document.createElement('div');p.id='aiPanel';document.body.appendChild(p);}
