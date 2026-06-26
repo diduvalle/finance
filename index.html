@@ -1933,6 +1933,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v35',d:'26 jun',bul:['Login biométrico: corrigido o loop ao voltar de uma app minimizada (já não volta a pedir o dedo).','Atualizações: com a app bloqueada, a nova versão aplica-se sozinha — a biometria é pedida só 1×.']},
   {v:'v34',d:'26 jun',bul:['Histórico de versões aqui nas Definições.']},
   {v:'v33',d:'26 jun',bul:['Header mobile definitivo: 2 linhas, saldos entre o logo e os ícones, menu e ano à largura toda.','Aviso Valete ≠ banco (Δ) integrado no chip dos saldos.']},
   {v:'v32',d:'25 jun',bul:['Nota do sino movida para um “!” (painel mais limpo).']},
@@ -3747,14 +3748,18 @@ async function bioRegister(){
   }catch(e){ toast('Não ativou: '+(e.name||e.message)); }
 }
 function bioRemove(){ if(!confirm('Remover a biometria deste dispositivo? Voltarás a entrar apenas com o código.'))return; localStorage.removeItem('casa-bio'); toast('Biometria removida'); render(); }
+let _bioBusy=false;
 async function bioUnlock(silent){
   const c=bioCfg(); if(!c)return false;
+  if(_bioBusy||document.hidden) return false; // evita chamadas sobrepostas e o WebAuthn em background (causa do loop)
+  _bioBusy=true;
   try{
     const pk={ challenge:crypto.getRandomValues(new Uint8Array(32)), rpId:location.hostname, userVerification:'required', timeout:60000 };
     if(c.id) pk.allowCredentials=[{type:'public-key',id:_b64urlBuf(c.id)}]; // ajuda o telemóvel a encontrar a passkey
     await navigator.credentials.get({publicKey:pk});
     sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){} try{resetIdle();}catch(_){} return true;
   }catch(e){ if(!silent){ const m=document.getElementById('lockMsg'); if(m)m.textContent='Biometria: '+(e.name||'cancelada')+' — usa o código'; } return false; }
+  finally{ _bioBusy=false; }
 }
 
 /* ===== Bloqueio de acesso (código simples) ===== */
@@ -3781,7 +3786,7 @@ function showLock(){
   lockRenderPad(); pinUpdate();
   const pad=document.getElementById('lockPad');
   pad.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.pinback)pinBack();else if(b.dataset.pin!=null)pinPress(b.dataset.pin);});
-  if(hasBio){ const bb=document.getElementById('lockBio'); if(bb)bb.addEventListener('click',()=>bioUnlock(false)); setTimeout(()=>bioUnlock(true),250); }
+  if(hasBio){ const bb=document.getElementById('lockBio'); if(bb)bb.addEventListener('click',()=>bioUnlock(false)); if(!document.hidden) setTimeout(()=>{ if(!_bioBusy) bioUnlock(true); },300); }
 }
 function lockRenderPad(){
   const pad=document.getElementById('lockPad'); if(!pad)return;
@@ -3849,19 +3854,28 @@ try{bankAutoImport();}catch(e){}
 try{bankConsentCheck();}catch(e){}
 try{resetIdle();}catch(e){}
 if(dbxOn()) syncOpen().then(dailyBackup).catch(()=>{});
+let _updReady=false;
 function showUpdateBar(){
   if(document.getElementById('updBar'))return;
   const d=document.createElement('div'); d.id='updBar';
   d.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:18px;z-index:10001;background:var(--acc);color:#10160f;padding:10px 14px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.35);display:flex;gap:10px;align-items:center;font-size:14px;font-weight:700';
   d.innerHTML='Nova versão disponível <button id="updGo" style="background:#10160f;color:#fff;border:0;border-radius:8px;padding:6px 12px;cursor:pointer;font-weight:700">Atualizar</button>';
   document.body.appendChild(d);
-  document.getElementById('updGo').onclick=()=>{ try{hardRefresh();}catch(e){location.reload();} };
+  document.getElementById('updGo').onclick=()=>{ _updReady=false; try{hardRefresh();}catch(e){location.reload();} };
+}
+/* Se há update e a app está BLOQUEADA (sem trabalho em curso), aplica-o sozinho → a biometria é pedida 1× já na versão nova.
+   Desbloqueada/em uso: mostra a barra "Atualizar" (não recarrega por baixo do utilizador). */
+function maybeApplyUpdate(){
+  if(_updReady && document.getElementById('lock')){ _updReady=false; const b=document.getElementById('updBar'); if(b)b.remove(); try{hardRefresh();}catch(e){location.reload();} return true; }
+  return false;
 }
 if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
   navigator.serviceWorker.register('sw.js').then(reg=>{
-    reg.addEventListener('updatefound',()=>{ const nw=reg.installing; if(!nw)return; nw.addEventListener('statechange',()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller) showUpdateBar(); }); });
+    reg.addEventListener('updatefound',()=>{ const nw=reg.installing; if(!nw)return; nw.addEventListener('statechange',()=>{ if(nw.state==='installed' && navigator.serviceWorker.controller){ _updReady=true; if(!maybeApplyUpdate()) showUpdateBar(); } }); });
   }).catch(()=>{});
 }
+/* Ao voltar ao 1º plano: 1) aplica update pendente se bloqueado; 2) senão, auto-pede a biometria 1× (evita o loop de re-login). */
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) return; if(maybeApplyUpdate()) return; if(document.getElementById('lock') && bioCfg() && !_bioBusy) setTimeout(()=>{ if(!_bioBusy && document.getElementById('lock')) bioUnlock(true); },300); });
 /* desvanece a splash depois da casa se desenhar (a app já está pronta por baixo) */
 (function(){var sp=document.getElementById('splash');if(!sp){document.documentElement.style.background='';return;}setTimeout(function(){sp.classList.add('done');setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp);document.documentElement.style.background='';},650);},1250);})();
 </script>
