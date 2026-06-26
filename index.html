@@ -376,6 +376,16 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .bal.cf .bdot{background:var(--cflex)} .bal.cf b{color:var(--cflex)}
 .bal.vb{color:var(--out);cursor:pointer} .bal.vb b{color:var(--out)} .bal.vb svg{width:13px;height:13px} .bal.vb .dshort{display:none}
 .bsep{width:1px;height:15px;background:var(--line);margin:0 11px;flex:none}
+#aiBar{flex:1 1 220px;min-width:150px;display:flex;align-items:center}
+#aiBar input{width:100%;height:34px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:0 12px;color:var(--txt);font-size:13px}
+#aiBar input::placeholder{color:var(--mut)}
+#aiBar input:focus{border-color:var(--acc);outline:none;background:var(--card2)}
+@media(max-width:720px){#aiBar{display:none}}
+#aiPanel{position:fixed;z-index:10002;background:var(--card2);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);padding:13px 15px;width:min(420px,calc(100vw - 20px));font-size:13.5px;line-height:1.5;color:var(--txt)}
+#aiPanel.err{border-color:var(--out)}
+#aiPanel .aiq{color:var(--mut);font-size:11.5px;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+#aiPanel .aiq svg{width:13px;height:13px}
+.aidots{color:var(--mut)}
 @media(max-width:720px){.bal .vlbl{display:none} .bal .bdot{display:none} .balchip{padding:0 9px} .bsep{margin:0 7px}}
 .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
 #lockNow{background:none;border:0;color:var(--mut);cursor:pointer;border-radius:9px;display:inline-flex}
@@ -488,6 +498,7 @@ html:has(#lock),html:has(#splash){overflow:hidden}
     <button id="refreshBtn" title="Atualizar — limpar cache e recarregar"></button>
     <button id="bell" title="Alertas & poupança"></button>
     <button id="lockNow" title="Bloquear (sair)"></button>
+    <div id="aiBar"><input id="aiQ" type="text" autocomplete="off" spellcheck="false" placeholder="Pergunta à IA: ex. quanto gastei em super no mês passado?"></div>
     <div id="topright"></div>
   </div></div>
   <div class="main" id="main"></div>
@@ -1933,6 +1944,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v36',d:'26 jun',bul:['Barra de perguntas à IA no topo (só no PC): pergunta em linguagem natural (ex.: "quanto gastei em super no mês passado?").','A IA entende a pergunta e a app calcula os números exatos — só a pergunta e os resultados saem do dispositivo; movimentos e dívida ficam locais.','Chave do Gemini nas Definições → Assistente IA (pessoal, fica só no dispositivo).']},
   {v:'v35',d:'26 jun',bul:['Login biométrico: corrigido o loop ao voltar de uma app minimizada (já não volta a pedir o dedo).','Atualizações: com a app bloqueada, a nova versão aplica-se sozinha — a biometria é pedida só 1×.']},
   {v:'v34',d:'26 jun',bul:['Histórico de versões aqui nas Definições.']},
   {v:'v33',d:'26 jun',bul:['Header mobile definitivo: 2 linhas, saldos entre o logo e os ícones, menu e ano à largura toda.','Aviso Valete ≠ banco (Δ) integrado no chip dos saldos.']},
@@ -2175,6 +2187,14 @@ function vDefs(m){
     </div>
 
   </div></details>
+  <details class="defgroup" data-dg="ia" ${defGroupsOpen.has('ia')?'open':''}><summary>${svg(I.bell)} Assistente IA (Gemini)</summary>
+  <div class="defs-grid">
+    <div class="card span2">${dh(I.bell,'Barra de perguntas (só no PC)','No computador, a barra no topo deixa-te perguntar em linguagem natural (ex.: "quanto gastei em super no mês passado?"). A IA entende a pergunta e a app calcula os números — só a pergunta e os resultados saem do dispositivo; os movimentos e a dívida ficam locais.')}
+      <label style="margin-top:4px">Chave da API Google AI Studio (Gemini)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aiKey" type="password" autocomplete="off" value="${esc(geminiKey())}" placeholder="cola aqui a tua chave (AIza…)" style="flex:1 1 220px;min-width:0"><button class="btn sm primary" id="aiKeySave">${svg(I.check)}Guardar</button>${geminiKey()?`<button class="btn sm" id="aiKeyDel">Remover</button>`:''}</div>
+      <p class="dsub" style="margin-top:8px">Gera uma chave grátis em <b>aistudio.google.com → Get API key</b>. Fica guardada só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. Modelo: <b>${esc(GEMINI_MODEL)}</b>. ${geminiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
+    </div>
+  </div></details>
   <details class="defgroup" data-dg="perigo" ${defGroupsOpen.has('perigo')?'open':''}><summary>${svg(I.trash)} Zona perigosa</summary>
   <div class="defs-grid">
     <div class="card">${dh(I.trash,'Zona perigosa','Repõe todos os dados ao estado original importado do Excel.')}
@@ -2286,6 +2306,9 @@ document.addEventListener('click',e=>{
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
   if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
+  if(t.id==='aiKeySave'){ setGeminiKey((val('aiKey')||'').trim()); toast(geminiKey()?'Chave guardada (só neste dispositivo)':'Chave removida'); render(); return; }
+  if(t.id==='aiKeyDel'){ setGeminiKey(''); toast('Chave removida'); render(); return; }
+  if(d.aiclose){ aiHide(); return; }
   if(d.alertread!=null){ const it=_panelAlerts[+d.alertread]; if(it){ markAlertRead(it); render(); renderAlertPanel(); } return; }
   if(d.alertreadall){ _panelAlerts.slice().forEach(it=>markAlertRead(it)); render(); renderAlertPanel(); return; }
   if(d.alertlogclear){ if((state.alertLog||[]).length&&confirm('Limpar o arquivo de alertas?')){state.alertLog=[];state.alertReads={};save();render();} return; }
@@ -2402,7 +2425,8 @@ document.addEventListener('change',e=>{
   if(e.target.id==='fcMetaA'){state.forecast.meta.ano=e.target.value.trim();save();render();}
 });
 // close popover when clicking outside
-document.addEventListener('mousedown',e=>{ if(popCell && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); const ap=document.getElementById('alertPanel'); if(ap&&ap.classList.contains('on')&&!e.target.closest('#alertPanel')&&!e.target.closest('#bell')) ap.classList.remove('on'); });
+document.addEventListener('mousedown',e=>{ if(popCell && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); const ap=document.getElementById('alertPanel'); if(ap&&ap.classList.contains('on')&&!e.target.closest('#alertPanel')&&!e.target.closest('#bell')) ap.classList.remove('on'); const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none'&&!e.target.closest('#aiPanel')&&!e.target.closest('#aiBar')) aiHide(); });
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='aiQ'&&e.key==='Enter'){ e.preventDefault(); aiAsk(); } });
 /* fechar popover ao redimensionar — só quando muda a LARGURA (rotação/janela);
    ignora mudanças só de altura (teclado virtual no telemóvel, que senão fechava o popover ao focar o input) */
 let _popWinW=window.innerWidth;
@@ -3762,6 +3786,76 @@ async function bioUnlock(silent){
   finally{ _bioBusy=false; }
 }
 
+/* ===== Pergunta à IA (Gemini) — só no PC. A IA entende a pergunta e REDIGE; a APP calcula os números (function-calling).
+   Só a pergunta + os resultados calculados saem do dispositivo; os movimentos, notas e a dívida ficam locais. Chave: localStorage 'casa-gemini'. ===== */
+const GEMINI_MODEL='gemini-2.0-flash';
+function geminiKey(){ try{return localStorage.getItem('casa-gemini')||'';}catch(e){return '';} }
+function setGeminiKey(k){ try{ if(k)localStorage.setItem('casa-gemini',k); else localStorage.removeItem('casa-gemini'); }catch(e){} }
+function _aiNorm(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();}
+function _aiCat(nome){ const n=_aiNorm(nome); if(!n||n==='todas'||n==='tudo'||n==='geral')return null;
+  return state.categorias.find(x=>_aiNorm(x.nome)===n) || state.categorias.find(x=>_aiNorm(x.nome).includes(n)) || state.categorias.find(x=>n.includes(_aiNorm(x.nome))) || undefined; }
+function _aiCatIds(c){ return new Set([c.id,...childrenOf(c.id).map(k=>k.id)]); }
+function _aiSum(tipo,year,mes,catIds){ return round2(state.movimentos.filter(m=>m.tipo===tipo && +m.data.slice(0,4)===year && (mes==null|| +m.data.slice(5,7)===mes) && (!catIds||catIds.has(m.categoriaId))).reduce((a,m)=>a+m.valor,0)); }
+const AI_TOOLS={
+  gasto:({categoria,ano,mes})=>{ const c=_aiCat(categoria); if(categoria&&c===undefined)return {erro:'Categoria não encontrada: '+categoria}; return {tipo:'despesa', categoria:c?catName(c.id):'todas', ano,mes:mes||null, total:_aiSum('despesa',ano,mes,c?_aiCatIds(c):null)}; },
+  receita:({categoria,ano,mes})=>{ const c=_aiCat(categoria); if(categoria&&c===undefined)return {erro:'Categoria não encontrada: '+categoria}; return {tipo:'receita', categoria:c?catName(c.id):'todas', ano,mes:mes||null, total:_aiSum('receita',ano,mes,c?_aiCatIds(c):null)}; },
+  saldo_mes:({ano,mes})=>{ const r=_aiSum('receita',ano,mes), d=_aiSum('despesa',ano,mes); return {ano,mes,receita:r,despesa:d,saldo:round2(r-d)}; },
+  total_ano:({ano})=>{ const r=_aiSum('receita',ano), d=_aiSum('despesa',ano); return {ano,receita:r,despesa:d,saldo:round2(r-d)}; },
+  previsao_despesa:({ano,mes})=>({ano,mes,previsao_despesa:estimativaMensal(ano+'-'+String(mes).padStart(2,'0'))}),
+  previsao_receita:({ano,mes})=>({ano,mes,previsao_receita_liquida:estimativaReceitaLiq(ano+'-'+String(mes).padStart(2,'0'))}),
+  valete:()=>{ const F=valeteForecast(); return {saldo_atual:valeteAtual(), saldo_minimo_previsto_mes:F.minSaldo, dia_do_minimo:F.minDia, dia_em_que_falta_dinheiro:F.faltaDia, ainda_vai_entrar:F.restReceita, ainda_vai_sair:F.need}; },
+  divida:({com_juros})=>{ const led=acertoLedger(); const mensal=led.length?led[led.length-1].acc:0, extras=acertoExtrasTotal(), total=round2(mensal+extras); const o={divida_total:total, registo_mensal:mensal, acertos_pontuais:extras}; if(com_juros){const j=computeJuros(); o.juros_mora=j.juros; o.total_com_juros=round2(total+j.juros);} return o; },
+  patrimonio:()=>{ const y=ultimoAnoPoup(); return {patrimonio_total:round2(patrimonioDe(y)), ano:+y}; },
+  top_categorias:({ano,mes,n})=>({ano,mes:mes||null,top:topCats('despesa').map(c=>({categoria:c.nome,total:_aiSum('despesa',ano,mes,_aiCatIds(c))})).filter(x=>x.total>0).sort((a,b)=>b.total-a.total).slice(0,n||5)})
+};
+const AI_FNS=[
+  {name:'gasto',description:'Total de DESPESA de uma categoria (inclui sub-categorias) num mês ou no ano todo. Omite "mes" para o ano inteiro. Usa categoria="todas" para o total de despesa.',parameters:{type:'OBJECT',properties:{categoria:{type:'STRING'},ano:{type:'INTEGER'},mes:{type:'INTEGER',description:'1 a 12; omite para o ano inteiro'}},required:['ano']}},
+  {name:'receita',description:'Total de RECEITA de uma categoria num mês ou ano. categoria="todas" para o total.',parameters:{type:'OBJECT',properties:{categoria:{type:'STRING'},ano:{type:'INTEGER'},mes:{type:'INTEGER'}},required:['ano']}},
+  {name:'saldo_mes',description:'Receita, despesa e saldo de um mês concreto.',parameters:{type:'OBJECT',properties:{ano:{type:'INTEGER'},mes:{type:'INTEGER'}},required:['ano','mes']}},
+  {name:'total_ano',description:'Totais do ano: receita, despesa e saldo.',parameters:{type:'OBJECT',properties:{ano:{type:'INTEGER'}},required:['ano']}},
+  {name:'previsao_despesa',description:'Estimativa da despesa total de um mês (útil para meses futuros), pela média ponderada dos últimos 12 meses.',parameters:{type:'OBJECT',properties:{ano:{type:'INTEGER'},mes:{type:'INTEGER'}},required:['ano','mes']}},
+  {name:'previsao_receita',description:'Estimativa da receita líquida de um mês.',parameters:{type:'OBJECT',properties:{ano:{type:'INTEGER'},mes:{type:'INTEGER'}},required:['ano','mes']}},
+  {name:'valete',description:'Saldo atual da conta Valete (conta real do banco) e previsão do saldo ao longo do mês.',parameters:{type:'OBJECT',properties:{}}},
+  {name:'divida',description:'Dívida acumulada atual. com_juros=true inclui os juros de mora.',parameters:{type:'OBJECT',properties:{com_juros:{type:'BOOLEAN'}}}},
+  {name:'patrimonio',description:'Património total atual (poupanças + cofre).',parameters:{type:'OBJECT',properties:{}}},
+  {name:'top_categorias',description:'As maiores categorias de despesa de um mês (ou do ano se omitires mes).',parameters:{type:'OBJECT',properties:{ano:{type:'INTEGER'},mes:{type:'INTEGER'},n:{type:'INTEGER'}},required:['ano']}}
+];
+async function askGemini(question){
+  const key=geminiKey(); if(!key) throw new Error('SEM_CHAVE');
+  const cats=topCats('despesa').map(c=>c.nome).concat(catsOf('receita').filter(c=>!c.parent).map(c=>c.nome)).join(', ');
+  const sys=`És o assistente da app de finanças pessoais "CASA" (português de Portugal, moeda €). Hoje é ${isoToday()}. Responde curto e direto, em pt-PT. NUNCA inventes ou estimes números de cabeça — usa SEMPRE as ferramentas e usa os valores que devolvem tal e qual. Resolve datas relativas ("mês passado", "próximo mês", "este ano", "ano passado") a partir da data de hoje. Categorias disponíveis: ${cats}. Se a categoria pedida não existir, diz quais existem. Se a pergunta não for sobre as finanças da CASA, diz que só ajudas com isso.`;
+  let contents=[{role:'user',parts:[{text:question}]}];
+  for(let i=0;i<5;i++){
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:sys}]},contents,tools:[{functionDeclarations:AI_FNS}]})});
+    const d=await r.json();
+    if(!r.ok) throw new Error((d&&d.error&&d.error.message)||('HTTP '+r.status));
+    const parts=(((d.candidates||[])[0]||{}).content||{}).parts||[];
+    const calls=parts.filter(p=>p.functionCall);
+    if(calls.length){
+      contents.push({role:'model',parts});
+      contents.push({role:'user',parts:calls.map(p=>{ let res; try{ const fn=AI_TOOLS[p.functionCall.name]; res=fn?fn(p.functionCall.args||{}):{erro:'ferramenta desconhecida'}; }catch(e){ res={erro:String(e.message||e)}; } return {functionResponse:{name:p.functionCall.name,response:{result:res}}}; })});
+      continue;
+    }
+    const txt=parts.filter(p=>p.text).map(p=>p.text).join('').trim();
+    return txt||'(sem resposta)';
+  }
+  return 'Não consegui responder (demasiados passos).';
+}
+let _aiLastQ='';
+function aiAsk(){
+  const q=(val('aiQ')||'').trim(); if(!q)return; _aiLastQ=q;
+  if(!geminiKey()){ aiShow('Falta a chave do Gemini. Adiciona-a em <b>Definições → Assistente IA</b> — é pessoal e fica só neste dispositivo.','err'); return; }
+  aiShow('A pensar…','loading');
+  askGemini(q).then(a=>aiShow(esc(a).replace(/\n/g,'<br>'),'')).catch(e=>{ const m=(e&&e.message==='SEM_CHAVE')?'falta a chave (Definições → Assistente IA)':(e&&e.message||'erro'); aiShow('Não consegui responder: '+esc(m),'err'); });
+}
+function aiShow(html,kind){
+  let p=document.getElementById('aiPanel'); if(!p){p=document.createElement('div');p.id='aiPanel';document.body.appendChild(p);}
+  p.className=kind||'';
+  p.innerHTML=`<div class="aiq">${svg(I.bell)} ${esc(_aiLastQ||'')}</div><div class="aia">${kind==='loading'?'<span class="aidots">A pensar…</span>':html}</div>${kind==='loading'?'':'<div style="text-align:right;margin-top:8px"><button class="btn sm" data-aiclose="1">Fechar</button></div>'}`;
+  const a=document.getElementById('aiQ'); const r=a?a.getBoundingClientRect():{left:20,bottom:54};
+  p.style.left=Math.max(10,Math.min(r.left, window.innerWidth-430))+'px'; p.style.top=(r.bottom+8)+'px'; p.style.display='';
+}
+function aiHide(){const p=document.getElementById('aiPanel');if(p)p.style.display='none';}
 /* ===== Bloqueio de acesso (código simples) ===== */
 function isUnlocked(){ return !state.settings.codigo || sessionStorage.getItem('casa-unlock')==='1'; }
 let _pinEntry='';
