@@ -1944,6 +1944,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v38',d:'26 jun',bul:['Assistente IA: botão "Detetar modelos" — pergunta à API quais os modelos que a tua chave suporta e preenche a lista (resolve "model not found"/quota por modelo errado).']},
   {v:'v37',d:'26 jun',bul:['Assistente IA: o modelo do Gemini passa a ser escolhível nas Definições (por defeito gemini-1.5-flash, o mais disponível no plano grátis).','Erro de quota mais claro: explica o "limit: 0" e sugere trocar de modelo.']},
   {v:'v36',d:'26 jun',bul:['Barra de perguntas à IA no topo (só no PC): pergunta em linguagem natural (ex.: "quanto gastei em super no mês passado?").','A IA entende a pergunta e a app calcula os números exatos — só a pergunta e os resultados saem do dispositivo; movimentos e dívida ficam locais.','Chave do Gemini nas Definições → Assistente IA (pessoal, fica só no dispositivo).']},
   {v:'v35',d:'26 jun',bul:['Login biométrico: corrigido o loop ao voltar de uma app minimizada (já não volta a pedir o dedo).','Atualizações: com a app bloqueada, a nova versão aplica-se sozinha — a biometria é pedida só 1×.']},
@@ -2193,8 +2194,9 @@ function vDefs(m){
     <div class="card span2">${dh(I.bell,'Barra de perguntas (só no PC)','No computador, a barra no topo deixa-te perguntar em linguagem natural (ex.: "quanto gastei em super no mês passado?"). A IA entende a pergunta e a app calcula os números — só a pergunta e os resultados saem do dispositivo; os movimentos e a dívida ficam locais.')}
       <label style="margin-top:4px">Chave da API Google AI Studio (Gemini)</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aiKey" type="password" autocomplete="off" value="${esc(geminiKey())}" placeholder="cola aqui a tua chave (AIza…)" style="flex:1 1 220px;min-width:0"><button class="btn sm primary" id="aiKeySave">${svg(I.check)}Guardar</button>${geminiKey()?`<button class="btn sm" id="aiKeyDel">Remover</button>`:''}</div>
-      <div style="margin-top:12px"><label>Modelo ${hlp('Se der erro de "quota/limit: 0", a tua chave não tem tier grátis nesse modelo — escolhe outro. O gemini-1.5-flash costuma ser o mais disponível no plano grátis.')}</label>
-        <select id="aiModel" style="max-width:260px">${[...new Set([geminiModel(),...GEMINI_MODELOS])].map(m=>`<option ${m===geminiModel()?'selected':''}>${esc(m)}</option>`).join('')}</select></div>
+      <div style="margin-top:12px"><label>Modelo ${hlp('Carrega em "Detetar modelos" para ver os que a tua chave suporta. Se der "not found" ou "limit: 0", escolhe outro da lista.')}</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="aiModel" style="max-width:280px;min-width:0;flex:1 1 200px">${[...new Set([geminiModel(),...(_aiModels.length?_aiModels:GEMINI_MODELOS)])].map(m=>`<option ${m===geminiModel()?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="btn sm" id="aiDetect">${svg(I.repeat)}Detetar modelos</button></div>
+        ${_aiModels.length?`<p class="dsub" style="margin-top:6px">${_aiModels.length} modelo(s) detetado(s) nesta chave.</p>`:''}</div>
       <p class="dsub" style="margin-top:10px">Gera uma chave grátis em <b>aistudio.google.com → Get API key</b>. Fica guardada só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. ${geminiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
     </div>
   </div></details>
@@ -2311,6 +2313,7 @@ document.addEventListener('click',e=>{
   if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
   if(t.id==='aiKeySave'){ setGeminiKey((val('aiKey')||'').trim()); toast(geminiKey()?'Chave guardada (só neste dispositivo)':'Chave removida'); render(); return; }
   if(t.id==='aiKeyDel'){ setGeminiKey(''); toast('Chave removida'); render(); return; }
+  if(t.id==='aiDetect'){ aiListModels(); return; }
   if(d.aiclose){ aiHide(); return; }
   if(d.alertread!=null){ const it=_panelAlerts[+d.alertread]; if(it){ markAlertRead(it); render(); renderAlertPanel(); } return; }
   if(d.alertreadall){ _panelAlerts.slice().forEach(it=>markAlertRead(it)); render(); renderAlertPanel(); return; }
@@ -3795,8 +3798,23 @@ async function bioUnlock(silent){
 const GEMINI_MODELOS=['gemini-1.5-flash','gemini-1.5-flash-8b','gemini-2.0-flash-lite','gemini-2.0-flash','gemini-2.5-flash'];
 function geminiKey(){ try{return localStorage.getItem('casa-gemini')||'';}catch(e){return '';} }
 function setGeminiKey(k){ try{ if(k)localStorage.setItem('casa-gemini',k); else localStorage.removeItem('casa-gemini'); }catch(e){} }
-function geminiModel(){ try{return localStorage.getItem('casa-gemini-model')||'gemini-1.5-flash';}catch(e){return 'gemini-1.5-flash';} }
+function geminiModel(){ try{return localStorage.getItem('casa-gemini-model')||'gemini-2.0-flash';}catch(e){return 'gemini-2.0-flash';} }
 function setGeminiModel(m){ try{ if(m)localStorage.setItem('casa-gemini-model',m); else localStorage.removeItem('casa-gemini-model'); }catch(e){} }
+let _aiModels=[];
+/* pergunta à API quais os modelos que a chave suporta para generateContent (resolve "not found"/quota por modelo errado) */
+async function aiListModels(){
+  const key=geminiKey(); if(!key){toast('Adiciona a chave primeiro');return;}
+  toast('A detetar modelos…');
+  try{
+    const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(key));
+    const d=await r.json(); if(!r.ok) throw new Error((d&&d.error&&d.error.message)||('HTTP '+r.status));
+    const ms=(d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>(m.name||'').replace(/^models\//,'')).filter(Boolean);
+    if(!ms.length){toast('Nenhum modelo com generateContent nesta chave');return;}
+    _aiModels=ms;
+    if(!ms.includes(geminiModel())){ const pick=ms.find(m=>/flash/.test(m)&&!/thinking|exp|lite|preview/.test(m))||ms.find(m=>/flash/.test(m))||ms[0]; setGeminiModel(pick); }
+    render(); toast(ms.length+' modelo(s) detetado(s) ✓');
+  }catch(e){ toast('Falha a detetar: '+(e.message||e)); }
+}
 function _aiNorm(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();}
 function _aiCat(nome){ const n=_aiNorm(nome); if(!n||n==='todas'||n==='tudo'||n==='geral')return null;
   return state.categorias.find(x=>_aiNorm(x.nome)===n) || state.categorias.find(x=>_aiNorm(x.nome).includes(n)) || state.categorias.find(x=>n.includes(_aiNorm(x.nome))) || undefined; }
@@ -3852,7 +3870,7 @@ function aiAsk(){
   const q=(val('aiQ')||'').trim(); if(!q)return; _aiLastQ=q;
   if(!geminiKey()){ aiShow('Falta a chave do Gemini. Adiciona-a em <b>Definições → Assistente IA</b> — é pessoal e fica só neste dispositivo.','err'); return; }
   aiShow('A pensar…','loading');
-  askGemini(q).then(a=>aiShow(esc(a).replace(/\n/g,'<br>'),'')).catch(e=>{ const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/quota|limit|rate|429|RESOURCE_EXHAUSTED/i.test(raw))hint='<br><br><b>Dica:</b> "limit: 0" = a tua chave não tem quota grátis para <b>'+esc(geminiModel())+'</b>. Experimenta outro modelo em <b>Definições → Assistente IA</b> (ex.: gemini-1.5-flash, gemini-2.0-flash-lite). Se nenhum funcionar, o projeto da chave pode precisar de ativar a faturação no Google AI Studio.'; } aiShow('Não consegui responder: '+esc(m).slice(0,300)+hint,'err'); });
+  askGemini(q).then(a=>aiShow(esc(a).replace(/\n/g,'<br>'),'')).catch(e=>{ const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/not found|not supported|NOT_FOUND/i.test(raw))hint='<br><br><b>Dica:</b> o modelo <b>'+esc(geminiModel())+'</b> não existe/não é suportado nesta chave. Em <b>Definições → Assistente IA</b> carrega em <b>Detetar modelos</b> e escolhe um da lista.'; else if(/quota|limit|rate|429|RESOURCE_EXHAUSTED/i.test(raw))hint='<br><br><b>Dica:</b> "limit: 0" = a tua chave não tem quota grátis para <b>'+esc(geminiModel())+'</b>. Carrega em <b>Detetar modelos</b> (Definições) e tenta outro. Se nenhum funcionar, o projeto pode precisar de ativar a faturação.'; } aiShow('Não consegui responder: '+esc(m).slice(0,300)+hint,'err'); });
 }
 function aiShow(html,kind){
   let p=document.getElementById('aiPanel'); if(!p){p=document.createElement('div');p.id='aiPanel';document.body.appendChild(p);}
