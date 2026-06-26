@@ -1944,6 +1944,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v40',d:'26 jun',bul:['Assistente IA (OpenRouter): se o modelo :free não fizer function-calling, faz fallback automático — responde a partir de um resumo dos teus dados (totais por mês, ~18 meses; sem o detalhe da dívida).','Erros do OpenRouter passam a mostrar a causa real (rate-limit, etc.).']},
   {v:'v39',d:'26 jun',bul:['Assistente IA: novo fornecedor <b>OpenRouter</b> (com modelos mesmo gratuitos) além do Gemini — escolhe nas Definições.','Resolve o "limit: 0" do Gemini: trocas para o OpenRouter e usas um modelo :free.']},
   {v:'v38',d:'26 jun',bul:['Assistente IA: botão "Detetar modelos" — pergunta à API quais os modelos que a tua chave suporta e preenche a lista (resolve "model not found"/quota por modelo errado).']},
   {v:'v37',d:'26 jun',bul:['Assistente IA: o modelo do Gemini passa a ser escolhível nas Definições (por defeito gemini-1.5-flash, o mais disponível no plano grátis).','Erro de quota mais claro: explica o "limit: 0" e sugere trocar de modelo.']},
@@ -3887,21 +3888,33 @@ async function askGemini(question){
   }
   return 'Não consegui responder (demasiados passos).';
 }
+/* resumo compacto dos dados (totais por mês, ~18 meses) p/ o fallback sem ferramentas — exclui o detalhe da dívida */
+function _aiContext(){
+  const yN=new Date().getFullYear(); const d=new Date(); d.setMonth(d.getMonth()-18); const cut=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  const lines=['RESUMO DOS DADOS (totais em €, por mês AAAA-MM — usa SÓ estes valores, não inventes; se faltar um mês, não houve gasto):'];
+  topCats('despesa').forEach(c=>{ const ids=_aiCatIds(c); const r=[]; for(let y=yN-1;y<=yN;y++)for(let mo=1;mo<=12;mo++){const ym=y+'-'+String(mo).padStart(2,'0'); if(ym<cut)continue; const v=_aiSum('despesa',y,mo,ids); if(v>0)r.push(ym+'='+v);} if(r.length)lines.push('Despesa '+c.nome+': '+r.join(' ')); });
+  const rr=[]; for(let y=yN-1;y<=yN;y++)for(let mo=1;mo<=12;mo++){const ym=y+'-'+String(mo).padStart(2,'0'); if(ym<cut)continue; const v=_aiSum('receita',y,mo); if(v)rr.push(ym+'='+v);} if(rr.length)lines.push('Receita líquida total: '+rr.join(' '));
+  lines.push('Saldos atuais: Valete='+valeteAtual()+', Coverflex='+(coverflexConta()?round2(parseFloat(coverflexConta().valor)||0):0)+', Património='+round2(patrimonioDe(ultimoAnoPoup())));
+  return lines.join('\n');
+}
 async function askOpenRouter(question){
   const key=aiKey(); if(!key) throw new Error('SEM_CHAVE');
-  let messages=[{role:'system',content:_aiSystemPrompt()},{role:'user',content:question}];
-  const tools=_aiFnsOpenAI();
-  for(let i=0;i<5;i++){
-    const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key,'HTTP-Referer':location.origin,'X-Title':'CASA'},body:JSON.stringify({model:aiModel(),messages,tools,tool_choice:'auto'})});
+  try{ return await _orChat(question,true); }              // 1º: com ferramentas (números exatos)
+  catch(e){ try{ return await _orChat(question,false); }   // fallback: sem ferramentas, com resumo (p/ modelos :free sem tool-calling)
+    catch(e2){ throw e; } }                                // mantém o 1º erro (mais informativo)
+}
+async function _orChat(question,useTools){
+  const key=aiKey();
+  const sys=_aiSystemPrompt()+(useTools?'':('\n\n(Não tens ferramentas — responde apenas a partir deste resumo.)\n'+_aiContext()));
+  let messages=[{role:'system',content:sys},{role:'user',content:question}];
+  const base={model:aiModel(),messages}; if(useTools){ base.tools=_aiFnsOpenAI(); base.tool_choice='auto'; }
+  for(let i=0;i<(useTools?5:1);i++){
+    const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key,'HTTP-Referer':location.origin,'X-Title':'CASA'},body:JSON.stringify(base)});
     const d=await r.json();
-    if(!r.ok) throw new Error((d&&d.error&&(d.error.message||(typeof d.error==='string'?d.error:JSON.stringify(d.error))))||('HTTP '+r.status));
+    if(!r.ok){ let em=(d&&d.error&&(d.error.message||(typeof d.error==='string'?d.error:'')))||('HTTP '+r.status); const meta=d&&d.error&&d.error.metadata; if(meta)em+=' — '+String(meta.raw||meta.provider_name||JSON.stringify(meta)).slice(0,180); throw new Error(em); }
     const msg=((d.choices||[])[0]||{}).message||{};
     const calls=msg.tool_calls||[];
-    if(calls.length){
-      messages.push(msg);
-      calls.forEach(tc=>{ let args={}; try{args=JSON.parse(tc.function.arguments||'{}');}catch(e){} messages.push({role:'tool',tool_call_id:tc.id,content:JSON.stringify(_aiExec(tc.function.name,args))}); });
-      continue;
-    }
+    if(useTools&&calls.length){ messages.push(msg); calls.forEach(tc=>{ let args={}; try{args=JSON.parse(tc.function.arguments||'{}');}catch(e){} messages.push({role:'tool',tool_call_id:tc.id,content:JSON.stringify(_aiExec(tc.function.name,args))}); }); continue; }
     return (msg.content||'').trim()||'(sem resposta)';
   }
   return 'Não consegui responder (demasiados passos).';
