@@ -1944,6 +1944,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v41',d:'26 jun',bul:['Assistente IA (OpenRouter): se o modelo grátis estiver ocupado (rate-limited), a app tenta automaticamente os outros modelos detetados e fica com o que funcionar.','A lista de modelos detetados passa a ser guardada (sobrevive ao reload).']},
   {v:'v40',d:'26 jun',bul:['Assistente IA (OpenRouter): se o modelo :free não fizer function-calling, faz fallback automático — responde a partir de um resumo dos teus dados (totais por mês, ~18 meses; sem o detalhe da dívida).','Erros do OpenRouter passam a mostrar a causa real (rate-limit, etc.).']},
   {v:'v39',d:'26 jun',bul:['Assistente IA: novo fornecedor <b>OpenRouter</b> (com modelos mesmo gratuitos) além do Gemini — escolhe nas Definições.','Resolve o "limit: 0" do Gemini: trocas para o OpenRouter e usas um modelo :free.']},
   {v:'v38',d:'26 jun',bul:['Assistente IA: botão "Detetar modelos" — pergunta à API quais os modelos que a tua chave suporta e preenche a lista (resolve "model not found"/quota por modelo errado).']},
@@ -2199,8 +2200,8 @@ function vDefs(m){
       <label style="margin-top:12px">Chave da API (${esc(AI_PROVIDERS[aiProvider()].nome)})</label>
       <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aiKey" type="password" autocomplete="off" value="${esc(aiKey())}" placeholder="${esc(AI_PROVIDERS[aiProvider()].placeholder)}" style="flex:1 1 220px;min-width:0"><button class="btn sm primary" id="aiKeySave">${svg(I.check)}Guardar</button>${aiKey()?`<button class="btn sm" id="aiKeyDel">Remover</button>`:''}</div>
       <div style="margin-top:12px"><label>Modelo ${hlp('Carrega em "Detetar modelos" para ver os que a tua chave suporta. Se der erro de modelo/quota, escolhe outro ou troca de fornecedor.')}</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="aiModel" style="max-width:320px;min-width:0;flex:1 1 220px">${[...new Set([aiModel(),...(_aiModels.length?_aiModels:AI_PROVIDERS[aiProvider()].presets)])].map(m=>`<option ${m===aiModel()?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="btn sm" id="aiDetect">${svg(I.repeat)}Detetar modelos</button></div>
-        ${_aiModels.length?`<p class="dsub" style="margin-top:6px">${_aiModels.length} modelo(s) detetado(s) nesta chave.</p>`:''}</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="aiModel" style="max-width:320px;min-width:0;flex:1 1 220px">${[...new Set([aiModel(),...(aiDetectedModels().length?aiDetectedModels():AI_PROVIDERS[aiProvider()].presets)])].map(m=>`<option ${m===aiModel()?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="btn sm" id="aiDetect">${svg(I.repeat)}Detetar modelos</button></div>
+        ${aiDetectedModels().length?`<p class="dsub" style="margin-top:6px">${aiDetectedModels().length} modelo(s) detetado(s). Se um estiver ocupado, a app tenta os outros automaticamente.</p>`:''}</div>
       <p class="dsub" style="margin-top:10px">Chave grátis em <b>${esc(AI_PROVIDERS[aiProvider()].onde)}</b>. Fica só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. ${aiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
     </div>
   </div></details>
@@ -3811,6 +3812,7 @@ function aiKey(){ try{return localStorage.getItem(_aiKeyName())||'';}catch(e){re
 function setAiKey(k){ try{ if(k)localStorage.setItem(_aiKeyName(),k); else localStorage.removeItem(_aiKeyName()); }catch(e){} }
 function aiModel(){ try{return localStorage.getItem('casa-ai-model-'+aiProvider())||AI_PROVIDERS[aiProvider()].defModel;}catch(e){return AI_PROVIDERS[aiProvider()].defModel;} }
 function setAiModel(m){ try{ if(m)localStorage.setItem('casa-ai-model-'+aiProvider(),m); else localStorage.removeItem('casa-ai-model-'+aiProvider()); }catch(e){} }
+function aiDetectedModels(){ try{return JSON.parse(localStorage.getItem('casa-ai-models-'+aiProvider())||'[]');}catch(e){return [];} }
 let _aiModels=[];
 /* pergunta à API quais os modelos que a chave suporta (resolve "not found"/quota por modelo errado) */
 async function aiListModels(){
@@ -3828,7 +3830,7 @@ async function aiListModels(){
       ms=(d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>(m.name||'').replace(/^models\//,'')).filter(Boolean);
     }
     if(!ms.length){toast('Nenhum modelo compatível (com ferramentas) nesta chave');return;}
-    _aiModels=ms;
+    _aiModels=ms; try{localStorage.setItem('casa-ai-models-'+aiProvider(),JSON.stringify(ms));}catch(e){}
     if(!ms.includes(aiModel())){ const pick=ms.find(m=>/flash|llama|mistral/i.test(m)&&!/thinking|preview|vision/i.test(m))||ms[0]; setAiModel(pick); }
     render(); toast(ms.length+' modelo(s) detetado(s) ✓');
   }catch(e){ toast('Falha a detetar: '+(e.message||e)); }
@@ -3899,15 +3901,20 @@ function _aiContext(){
 }
 async function askOpenRouter(question){
   const key=aiKey(); if(!key) throw new Error('SEM_CHAVE');
-  try{ return await _orChat(question,true); }              // 1º: com ferramentas (números exatos)
-  catch(e){ try{ return await _orChat(question,false); }   // fallback: sem ferramentas, com resumo (p/ modelos :free sem tool-calling)
-    catch(e2){ throw e; } }                                // mantém o 1º erro (mais informativo)
+  // tenta o modelo escolhido e, se estiver ocupado (rate-limit), roda pelos outros modelos grátis detetados
+  const list=[aiModel(),...aiDetectedModels().filter(m=>m!==aiModel())].slice(0,6); let lastErr;
+  for(let mi=0;mi<list.length;mi++){ const model=list[mi];
+    try{ const a=await _orChat(question,true,model); if(mi>0)setAiModel(model); return a; }
+    catch(e){ lastErr=e; if(/rate|temporar|429|busy|overload|capacity/i.test(String(e.message||''))) continue; // congestionado → próximo modelo
+      try{ const a=await _orChat(question,false,model); if(mi>0)setAiModel(model); return a; }catch(e2){ continue; } } // outro erro → tenta sem ferramentas; senão próximo
+  }
+  throw lastErr||new Error('Sem modelos disponíveis');
 }
-async function _orChat(question,useTools){
+async function _orChat(question,useTools,model){
   const key=aiKey();
   const sys=_aiSystemPrompt()+(useTools?'':('\n\n(Não tens ferramentas — responde apenas a partir deste resumo.)\n'+_aiContext()));
   let messages=[{role:'system',content:sys},{role:'user',content:question}];
-  const base={model:aiModel(),messages}; if(useTools){ base.tools=_aiFnsOpenAI(); base.tool_choice='auto'; }
+  const base={model:model||aiModel(),messages}; if(useTools){ base.tools=_aiFnsOpenAI(); base.tool_choice='auto'; }
   for(let i=0;i<(useTools?5:1);i++){
     const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key,'HTTP-Referer':location.origin,'X-Title':'CASA'},body:JSON.stringify(base)});
     const d=await r.json();
