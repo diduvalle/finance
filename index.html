@@ -196,6 +196,19 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .mimo-calc>div{display:flex;justify-content:space-between;gap:12px}
 .mimo-calc .mimo-eq{border-top:1px solid var(--line);padding-top:6px;margin-top:1px;font-weight:700}
 .mimo-calc b.pos{color:var(--in)} .mimo-calc b.neg{color:var(--out)}
+/* cartão "Resumo do mês" (narrativa da IA + alertas) */
+.resumocard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--info);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;box-shadow:var(--sh)}
+.resumo-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.resumo-ttl{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
+.resumo-ttl svg{width:16px;height:16px;color:var(--info)}
+.resumo-narr{margin-top:10px;font-size:14.5px;line-height:1.55;color:var(--txt)}
+.resumo-meta{margin-top:7px;font-size:11px;color:var(--mut)}
+.resumo-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:11px}
+.resumo-chip{background:var(--card2);border:1px solid var(--line);border-radius:18px;padding:4px 10px;font-size:12px;font-weight:600}
+.resumo-chip.up{color:var(--out)} .resumo-chip.down{color:var(--in)} .resumo-chip.alert{border-color:var(--warn);color:var(--warn)}
+.resumo-regen{background:none;border:0;color:var(--mut);cursor:pointer;font-size:11.5px;display:inline-flex;align-items:center;gap:4px;border-radius:7px;padding:3px 7px;flex:none}
+.resumo-regen:hover{color:var(--acc);background:var(--card2)}
+.resumo-regen svg{width:13px;height:13px}
 table.grid{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table.grid th,table.grid td{border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);padding:0;text-align:right;white-space:nowrap}
 table.grid thead th{position:sticky;top:0;background:linear-gradient(180deg,var(--card2),color-mix(in srgb,var(--card2) 70%,var(--bg)));z-index:2;font-size:11.5px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:12px 14px;cursor:default}
@@ -2001,6 +2014,74 @@ function anaUtilitiesPanel(){
   </div>`;
 }
 
+/* ===== Resumo mensal automático (com narrativa da IA + alertas) ===== */
+function _resumoKey(ym){ return 'casa-resumo-'+ym; }
+function resumoNarrativa(ym){ try{ return localStorage.getItem(_resumoKey(ym))||''; }catch(e){ return ''; } }
+function _resumoTargetYm(){
+  const t=new Date(); let pm=t.getMonth(), py=t.getFullYear(); if(pm===0){pm=12;py--;} // mês anterior (acabado de fechar)
+  const ym=py+'-'+String(pm).padStart(2,'0');
+  if(state.movimentos.some(x=>x.data.slice(0,7)===ym)) return ym;
+  const ms=mesesTipo('despesa'); return ms.length?ms[ms.length-1]:''; // fallback: último mês com despesa
+}
+function _resumoMes(ym){
+  const [y,m]=ym.split('-').map(Number);
+  const desp=_aiSum('despesa',y,m), rec=_aiSum('receita',y,m);
+  const pm=m===1?[y-1,12]:[y,m-1];
+  const despAnt=_aiSum('despesa',pm[0],pm[1]);
+  const despHom=_aiSum('despesa',y-1,m);
+  const tops=topCats('despesa').map(c=>({nome:c.nome,val:_aiSum('despesa',y,m,_aiCatIds(c))})).filter(x=>x.val>0).sort((a,b)=>b.val-a.val).slice(0,3);
+  const alertas=[]; topCats('despesa').forEach(c=>{ const cur=catMesTotal(c.id,ym); if(cur<20)return; const hist=mesesTipo('despesa').filter(x=>x<ym).slice(-12).map(x=>catMesTotal(c.id,x)).filter(v=>v>0); if(hist.length<3)return; const med=mediana(hist); if(med>0&&cur>med*1.4&&cur-med>=20)alertas.push({nome:c.nome,cur:round2(cur),med:round2(med),pct:Math.round((cur-med)/med*100)}); });
+  alertas.sort((a,b)=>(b.cur-b.med)-(a.cur-a.med));
+  const dAnt=despAnt>0?Math.round((desp-despAnt)/despAnt*100):null;
+  const dHom=despHom>0?Math.round((desp-despHom)/despHom*100):null;
+  return {ym,y,m,desp,rec,saldo:round2(rec-desp),despAnt,despHom,dAnt,dHom,tops,alertas};
+}
+function _resumoFactsTxt(f){
+  const L=[`Mês: ${MESES[f.m-1]} ${f.y}`,`Despesa total: ${fmt(f.desp)}`];
+  if(f.dAnt!=null)L.push(`vs mês anterior: ${f.dAnt>=0?'+':''}${f.dAnt}% (era ${fmt(f.despAnt)})`);
+  if(f.dHom!=null)L.push(`vs mesmo mês do ano passado: ${f.dHom>=0?'+':''}${f.dHom}% (era ${fmt(f.despHom)})`);
+  L.push(`Receita: ${fmt(f.rec)} · Saldo do mês: ${fmt(f.saldo)}`);
+  if(f.tops.length)L.push(`Maiores gastos: ${f.tops.map(t=>t.nome+' '+fmt(t.val)).join(', ')}`);
+  L.push(f.alertas.length?`Alertas (acima do habitual): ${f.alertas.map(a=>a.nome+' +'+a.pct+'% ('+fmt(a.cur)+' vs normal '+fmt(a.med)+')').join('; ')}`:'Sem categorias acima do habitual.');
+  return L.join('\n');
+}
+function _resumoTemplate(f){
+  let s=`Em ${MESES[f.m-1]} gastaste ${fmt(f.desp)}`;
+  if(f.dAnt!=null)s+=` (${f.dAnt>=0?'+':''}${f.dAnt}% face a ${MESES[(f.m+10)%12]})`;
+  s+=f.saldo>=0?`, com saldo positivo de ${fmt(f.saldo)}. `:`, com saldo negativo de ${fmt(Math.abs(f.saldo))}. `;
+  if(f.tops[0])s+=`O maior gasto foi ${f.tops[0].nome} (${fmt(f.tops[0].val)}). `;
+  if(f.alertas[0])s+=`Atenção: ${f.alertas[0].nome} esteve ${f.alertas[0].pct}% acima do habitual.`;
+  return s.trim();
+}
+let _resumoBusy='', _resumoTried=new Set();
+function gerarResumo(ym,force){
+  if(_resumoBusy) return;
+  if(!force){ if(resumoNarrativa(ym)) return; if(_resumoTried.has(ym)) return; }
+  if(!aiKey()){ if(force)toast('Liga a IA em Definições → Assistente IA'); return; }
+  _resumoBusy=ym; _resumoTried.add(ym);
+  const f=_resumoMes(ym);
+  const prompt='És o assistente da app de finanças pessoais CASA. Escreve um resumo simpático e curto (2 a 3 frases, em português de Portugal) do mês, com base APENAS nestes números — não inventes outros. Destaca o mais relevante e, se houver, o alerta principal. Tom encorajador mas honesto, sem repetir todos os números em lista.\n\n'+_resumoFactsTxt(f);
+  askAI(prompt).then(a=>{ try{localStorage.setItem(_resumoKey(ym),a.trim());}catch(e){} _resumoBusy=''; if(tab==='analytics')render(); }).catch(e=>{ _resumoBusy=''; if(force&&tab==='analytics')render(); });
+}
+function resumoMesCard(){
+  const ym=_resumoTargetYm(); if(!ym) return '';
+  const f=_resumoMes(ym); if(f.desp===0&&f.rec===0) return '';
+  const cached=resumoNarrativa(ym); const narr=cached||_resumoTemplate(f); const busy=_resumoBusy===ym;
+  if(!cached&&!busy&&!_resumoTried.has(ym)&&aiKey()) setTimeout(()=>gerarResumo(ym),0);
+  const chips=[`<span class="resumo-chip">Despesa ${fmt(f.desp)}</span>`];
+  if(f.dAnt!=null)chips.push(`<span class="resumo-chip ${f.dAnt>0?'up':'down'}">${f.dAnt>=0?'▲':'▼'} ${Math.abs(f.dAnt)}% vs mês anterior</span>`);
+  if(f.dHom!=null)chips.push(`<span class="resumo-chip ${f.dHom>0?'up':'down'}">${f.dHom>=0?'▲':'▼'} ${Math.abs(f.dHom)}% homólogo</span>`);
+  chips.push(`<span class="resumo-chip ${f.saldo>=0?'down':'up'}">Saldo ${fmt(f.saldo)}</span>`);
+  if(f.tops[0])chips.push(`<span class="resumo-chip">Maior: ${esc(f.tops[0].nome)} ${fmt(f.tops[0].val)}</span>`);
+  f.alertas.slice(0,2).forEach(a=>chips.push(`<span class="resumo-chip alert">⚠ ${esc(a.nome)} +${a.pct}%</span>`));
+  const btn=busy?`<span class="resumo-regen">${svg(I.repeat)} a escrever…</span>`:`<button class="resumo-regen" data-resumogen="${ym}" title="${cached?'Regenerar com a IA':'Gerar com a IA'}">${svg(I.repeat)} ${cached?'regenerar':'IA'}</button>`;
+  return `<div class="resumocard">
+    <div class="resumo-h"><div class="resumo-ttl">${svg(I.report)} Resumo de ${MESES[f.m-1]} ${f.y}</div>${btn}</div>
+    <div class="resumo-narr">${(busy&&!cached)?'<span class="aidots">A escrever o resumo…</span>':esc(narr).replace(/\n/g,'<br>')}</div>
+    ${cached?'':`<div class="resumo-meta">${aiKey()?'resumo automático — a IA está a escrever a versão final…':'resumo automático · liga a IA em Definições para um resumo escrito'}</div>`}
+    <div class="resumo-chips">${chips.join('')}</div>
+  </div>`;
+}
 function vAnalytics(m){
   const cats=anaCatsList();
   if(!cats.length){ m.innerHTML=`<div class="card" style="text-align:center;color:var(--mut);padding:30px">Sem despesas suficientes para analisar. Lança movimentos na Grelha.</div>`; return; }
@@ -2023,6 +2104,7 @@ function vAnalytics(m){
   const xlabels=MC.map((mc,i)=>`<text x="${xx(i).toFixed(0)}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--mut)">${mc}</text>`).join('');
   const legend=years.map(y=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:3px;background:${ycol(y)};border-radius:2px;display:inline-block"></span>${y}</span>`).join('');
   m.innerHTML=`
+  ${resumoMesCard()}
   ${anaUtilitiesPanel()}
   ${glob.length?`<div class="card" style="margin-bottom:14px"><h3 class="dh">${svg(I.bell)} Alertas — todas as categorias</h3><p class="dsub" style="margin-top:-6px">Despesas que dispararam face a anos anteriores. Toca para analisar.</p>${glob.map(a=>`<div class="hint" data-anasel="${a.catId}" style="border-left:3px solid ${a.lvl==='high'?'var(--out)':'var(--warn)'};margin-bottom:8px;cursor:pointer"><b>${esc(a.cat)}</b> · ${a.txt}</div>`).join('')}</div>`:`<div class="hint" style="margin-bottom:14px;border-left:3px solid var(--in)">Sem alertas gerais — os consumos estão dentro do padrão dos anos anteriores ✓</div>`}
   <div class="card" style="margin-bottom:14px"><label>Analisar categoria em detalhe</label>
@@ -2060,6 +2142,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v50',d:'27 jun',bul:['Novo: «Resumo do mês» no Analytics — recap do mês anterior com comparação ao mês anterior e ao homólogo, maiores gastos e alertas. A IA escreve a narrativa em 2-3 frases (e guarda-a); sem IA, mostra um resumo automático.']},
   {v:'v49',d:'27 jun',bul:['Novo: cartão «Para mimos» na Grelha — mostra quanto sobra este mês para a parte lúdica depois das despesas essenciais e da poupança, e quanto já usaste. Usa as categorias marcadas como supérfluas (★). Nova definição «Poupança mensal» (Definições → Valete · previsão & margem).']},
   {v:'v48',d:'27 jun',bul:['Resumo mensal: a coluna Saldo deixa de ficar cortada em mobile — coluna das barras mais estreita e espaçamentos afinados (as barras mantêm-se até telemóveis muito pequenos).','Novo: chat flutuante da IA no telemóvel — botão no canto inferior direito que abre uma folha de conversa, com o mesmo motor da barra do PC.']},
   {v:'v47',d:'27 jun',bul:['Barra de ferramentas da Grelha arrumada: caixa única que preenche o espaço todo (sem espaço morto), numa só linha. No PC mostra ícone + rótulo curto; no telemóvel fica só com os ícones.']},
@@ -2442,6 +2525,7 @@ document.addEventListener('click',e=>{
   if(t.id==='metaAdd'){saveMetaAdd(1);return;}
   if(t.id==='metaSub'){saveMetaAdd(-1);return;}
   if(d.superflag){ const c=cat(d.superflag); if(c){c.superfluo=!c.superfluo; save(); render();} return; }
+  if(d.resumogen){ try{localStorage.removeItem(_resumoKey(d.resumogen));}catch(e){} _resumoTried.delete(d.resumogen); gerarResumo(d.resumogen,true); render(); return; }
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
   if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.poupancaMensal=Math.max(0,parseFloat(val('poupancaMensal'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
