@@ -387,7 +387,8 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 #aiPanel .aiq{color:var(--mut);font-size:11.5px;margin-bottom:7px;display:flex;align-items:center;gap:5px}
 #aiPanel .aiq svg{width:13px;height:13px}
 .aidots{color:var(--mut)}
-@media(max-width:720px){.bal .vlbl{display:none} .bal .bdot{display:none} .balchip{padding:0 9px} .bsep{margin:0 7px}}
+@media(max-width:720px){.bal .vlbl{display:none} .bal .bdot{display:none} .balchip{padding:0 9px} .bsep{margin:0 5px}}
+@media(max-width:360px){.bal.vb{display:none}} /* ecrãs muito estreitos: esconde o Δ em vez de o cortar a meio (Valete+Coverflex inteiros) */
 .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
 #lockNow{background:none;border:0;color:var(--mut);cursor:pointer;border-radius:9px;display:inline-flex}
 #lockNow:hover{color:var(--out);background:var(--card)}
@@ -408,7 +409,8 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .topbar-inner{gap:4px;padding:9px 10px}
   .spacer{display:none}
   .brand{order:1;flex:none}
-  #valeteHead{order:2;flex:0 1 auto;min-width:0;gap:4px}
+  /* limita a largura dos saldos para que os 5 ícones NUNCA quebrem de linha — header sempre 2 linhas em mobile. Os saldos cedem (clipam o Δ) quando o ecrã é estreito. 216 = logo+5 ícones+gaps+padding */
+  #valeteHead{order:2;flex:0 1 auto;min-width:0;gap:4px;overflow:hidden;max-width:calc(100vw - 216px)}
   #searchBtn{order:3;margin-left:auto} #inboxTop{order:4} #refreshBtn{order:5} #bell{order:6} #lockNow{order:7}
   .tabs{order:8;flex:1 1 100%;width:100%;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .tabs .yearnav{margin-left:auto} /* ano colado ao fim da 2ª linha — sem espaço morto */
@@ -1946,6 +1948,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v46',d:'27 jun',bul:['Header mobile: definitivamente 2 linhas. Os 5 ícones nunca quebram — quando o ecrã é estreito, são os saldos que cedem (escondem o Δ em vez de empurrar tudo para uma 3.ª linha). Testado de 320 a 390 px.']},
   {v:'v45',d:'26 jun',bul:['Assistente IA: a resposta deixa de ficar "pendurada" — fecha sozinha em Esc, clique fora, scroll, ao bloquear (timeout) e ao minimizar/trocar de app. Já não aparece por cima do ecrã de PIN.']},
   {v:'v44',d:'26 jun',bul:['Assistente IA: passa a EXPLICAR a origem de cada valor — o método/fórmula usada, quantos lançamentos foram somados e, nas previsões, os meses e valores que entraram na média (e os outliers excluídos). Continua a usar os números exatos calculados pela app.']},
   {v:'v43',d:'26 jun',bul:['Header (PC): a 2.ª linha deixa de ter espaço morto — a barra da IA ocupa a esquerda e os ícones ficam à direita, na mesma linha. Saldos no topo-direito.','Assistente IA (OpenRouter): corrigida a rotação de modelos — passa a experimentar sempre os modelos grátis conhecidos (llama, mistral…), mesmo quando os modelos detetados guardados já não estão grátis (ex.: deepseek).']},
