@@ -392,6 +392,30 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 #aiBar input::placeholder{color:var(--mut)}
 #aiBar input:focus{border-color:var(--acc);outline:none;background:var(--card2)}
 @media(max-width:720px){#aiBar{display:none}}
+/* ----- Chat flutuante (mobile) ----- */
+#aiFab{display:none}
+@media(max-width:720px){
+  #aiFab{display:inline-flex;align-items:center;justify-content:center;position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:9000;width:54px;height:54px;border-radius:50%;border:0;background:var(--acc);color:#fff;box-shadow:var(--sh-lg);cursor:pointer}
+  #aiFab svg{width:24px;height:24px}
+  #aiFab:active{transform:scale(.93)}
+}
+#aiSheet{display:none;position:fixed;inset:0;z-index:9001;background:rgba(0,0,0,.42);align-items:flex-end;justify-content:center}
+#aiSheet.on{display:flex}
+.aiSheet-card{width:100%;max-width:560px;background:var(--card);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:var(--sh-lg);max-height:82vh;display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom));animation:sheetUp .22s ease}
+@keyframes sheetUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.aiSheet-h{display:flex;align-items:center;gap:8px;padding:14px 16px 11px;font-size:15px;border-bottom:1px solid var(--line)}
+.aiSheet-h svg{width:18px;height:18px;color:var(--acc)}
+.aiSheet-x{margin-left:auto;background:none;border:0;color:var(--mut);font-size:22px;line-height:1;cursor:pointer;width:34px;height:34px;border-radius:9px}
+.aiSheet-x:active{background:var(--card2)}
+.aiSheet-body{padding:15px 16px;overflow-y:auto;font-size:14px;line-height:1.55;color:var(--txt);flex:1;min-height:90px}
+.aiSheet-body.err{color:var(--out)}
+.aiSheet-empty{color:var(--mut);font-size:13px;line-height:1.55}
+.aiSheet-q{color:var(--mut);font-size:12px;margin-bottom:8px;font-weight:700;border-left:2px solid var(--acc);padding-left:8px}
+.aiSheet-input{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line)}
+.aiSheet-input input{flex:1;min-width:0;height:42px;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:0 14px;color:var(--txt);font-size:15px}
+.aiSheet-input input:focus{border-color:var(--acc);outline:none}
+.aiSheet-input button{flex:none;width:42px;height:42px;border-radius:12px;border:0;background:var(--acc);color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
+.aiSheet-input button svg{width:18px;height:18px}
 #aiPanel{position:fixed;z-index:10002;background:var(--card2);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);padding:13px 15px;width:min(420px,calc(100vw - 20px));font-size:13.5px;line-height:1.5;color:var(--txt)}
 #aiPanel.err{border-color:var(--out)}
 #aiPanel .aiq{color:var(--mut);font-size:11.5px;margin-bottom:7px;display:flex;align-items:center;gap:5px}
@@ -453,9 +477,10 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .acerto-av{width:50px;height:50px;font-size:17px}
   .acerto-amt{font-size:30px}
   .savetot .savebig{font-size:22px}
-  .sumtable th,.sumtable td{padding:7px 7px;font-size:12px}
+  .sumtable th,.sumtable td{padding:7px 6px;font-size:12px}
   .sumtable th:first-child,.sumtable td:first-child{padding-left:10px;white-space:normal}
-  .sumtable td.barscell{width:78px;padding:6px 8px 6px 6px} .mbars{min-width:48px;gap:4px} .mbars .mbar{height:6px}
+  .sumtable th:last-child,.sumtable td:last-child{padding-right:10px} /* Saldo não cola ao bordo */
+  .sumtable td.barscell{width:44px;padding:6px 6px 6px 4px} .mbars{min-width:30px;gap:4px} .mbars .mbar{height:6px}
   /* Dívida: em mobile esconde "Pago" e "Saldo do mês" (redundantes — Pago=0) p/ caber sem scroll horizontal */
   .acerto-table th:nth-child(3),.acerto-table td:nth-child(3),.acerto-table th:nth-child(4),.acerto-table td:nth-child(4){display:none}
   /* Previsão: em mobile esconde colunas para caber sem scroll horizontal */
@@ -464,10 +489,10 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .proj-table th:nth-child(2),.proj-table td:nth-child(2),.proj-table th:nth-child(3),.proj-table td:nth-child(3){display:none}
 }
 @media(max-width:380px){
-  .sumtable th,.sumtable td{padding:6px 5px;font-size:11px}
-  .sumtable .barscell,.sumtable .barhd{display:none} /* sem espaço p/ as barras em ecrãs minúsculos */
+  .sumtable th,.sumtable td{padding:6px 4px;font-size:11px}
   .bal.vb{display:none} .balchip.vbwarn{border-color:var(--out);cursor:pointer} /* ecrãs minúsculos: sem segmento Δ (cabe sempre); chip âmbar + clicável p/ acertar */
 }
+@media(max-width:330px){ .sumtable .barscell,.sumtable .barhd{display:none} } /* só em ecrãs minúsculos é que as barras saem */
 /* ----- Splash de arranque: a casa emerge do fundo sálvia (igual ao ícone) ----- */
 #splash{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;
   background:#839982;
@@ -521,6 +546,16 @@ html:has(#lock),html:has(#splash){overflow:hidden}
 <div class="pop" id="pop"></div>
 <div class="back" id="back"></div>
 <div class="toast" id="toast"></div>
+
+<!-- Chat flutuante (só mobile): botão no canto + folha que usa o mesmo motor da barra de IA do PC -->
+<button id="aiFab" title="Perguntar à IA" aria-label="Perguntar à IA"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4 4 1.7-4 1.7L12 14l-1.7-4-4-1.7 4-1.7z"/><path d="M18.5 13.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg></button>
+<div id="aiSheet" aria-hidden="true">
+  <div class="aiSheet-card">
+    <div class="aiSheet-h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4 4 1.7-4 1.7L12 14l-1.7-4-4-1.7 4-1.7z"/></svg><b>Assistente CASA</b><button id="aiSheetClose" class="aiSheet-x" aria-label="Fechar">&times;</button></div>
+    <div class="aiSheet-body" id="aiSheetAns"><div class="aiSheet-empty">Pergunta o que quiseres sobre as tuas finanças.<br><span style="opacity:.65">ex.: «quanto gastei em super no mês passado?» · «previsão de despesa de agosto» · «saldo de maio»</span></div></div>
+    <div class="aiSheet-input"><input id="aiQm" type="text" autocomplete="off" spellcheck="false" placeholder="Escreve a tua pergunta…"><button id="aiSendM" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button></div>
+  </div>
+</div>
 
 <script>
 "use strict";
@@ -1960,6 +1995,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v48',d:'27 jun',bul:['Resumo mensal: a coluna Saldo deixa de ficar cortada em mobile — coluna das barras mais estreita e espaçamentos afinados (as barras mantêm-se até telemóveis muito pequenos).','Novo: chat flutuante da IA no telemóvel — botão no canto inferior direito que abre uma folha de conversa, com o mesmo motor da barra do PC.']},
   {v:'v47',d:'27 jun',bul:['Barra de ferramentas da Grelha arrumada: caixa única que preenche o espaço todo (sem espaço morto), numa só linha. No PC mostra ícone + rótulo curto; no telemóvel fica só com os ícones.']},
   {v:'v46',d:'27 jun',bul:['Header mobile: definitivamente 2 linhas. Os 5 ícones nunca quebram — quando o ecrã é estreito, são os saldos que cedem (escondem o Δ em vez de empurrar tudo para uma 3.ª linha). Testado de 320 a 390 px.']},
   {v:'v45',d:'26 jun',bul:['Assistente IA: a resposta deixa de ficar "pendurada" — fecha sozinha em Esc, clique fora, scroll, ao bloquear (timeout) e ao minimizar/trocar de app. Já não aparece por cima do ecrã de PIN.']},
@@ -2291,8 +2327,12 @@ document.addEventListener('click',e=>{
   if(delHead){ delCat(delHead.dataset.delcat); return; }
   const cellTd=e.target.closest('[data-cell]');
   if(cellTd){ popEditId=null; openCellPop(...cellTd.dataset.cell.split('|').map((v,i)=>i?+v:v), cellTd); return; }
+  if(e.target.id==='aiSheet'){ aiSheetClose(); return; } // clique no fundo escuro fecha a folha
   if(!t) return;
   const d=t.dataset;
+  if(t.id==='aiFab'){ aiSheetOpen(); return; }
+  if(t.id==='aiSheetClose'){ aiSheetClose(); return; }
+  if(t.id==='aiSendM'){ aiAskM(); return; }
   if(d.tab){tab=d.tab;closePop();render();return;}
   if(d.year){ano+=+d.year;render();return;}
   if(d.gt){gridTipo=d.gt;qCashMode=false;render();return;}
@@ -2461,7 +2501,7 @@ document.addEventListener('change',e=>{
 });
 // close popover when clicking outside
 document.addEventListener('mousedown',e=>{ if(popCell && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); const ap=document.getElementById('alertPanel'); if(ap&&ap.classList.contains('on')&&!e.target.closest('#alertPanel')&&!e.target.closest('#bell')) ap.classList.remove('on'); const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none'&&!e.target.closest('#aiPanel')&&!e.target.closest('#aiBar')) aiHide(); });
-document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='aiQ'&&e.key==='Enter'){ e.preventDefault(); aiAsk(); } else if(e.key==='Escape'){ const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); } });
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='aiQ'&&e.key==='Enter'){ e.preventDefault(); aiAsk(); } else if(e.target&&e.target.id==='aiQm'&&e.key==='Enter'){ e.preventDefault(); aiAskM(); } else if(e.key==='Escape'){ const sh=document.getElementById('aiSheet'); if(sh&&sh.classList.contains('on')){ aiSheetClose(); return; } const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); } });
 /* fechar a resposta da IA quando se faz scroll (deixaria de estar junto à barra) ou ao minimizar/trocar de app */
 window.addEventListener('scroll',()=>{ const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); }, true);
 document.addEventListener('visibilitychange',()=>{ if(document.hidden){ const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); } });
@@ -3965,11 +4005,24 @@ async function _orChat(question,useTools,model){
   return 'Não consegui responder (demasiados passos).';
 }
 let _aiLastQ='',_aiClosed=false;
+function _aiNoKeyHtml(){ return 'Falta a chave de '+esc(AI_PROVIDERS[aiProvider()].nome)+'. Adiciona-a em <b>Definições → Assistente IA</b> — fica só neste dispositivo.'; }
+function _aiErrHtml(e){ const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/not found|not supported|no endpoints|NOT_FOUND|tool/i.test(raw))hint='<br><br><b>Dica:</b> o modelo <b>'+esc(aiModel())+'</b> não existe ou não suporta ferramentas nesta chave. Em <b>Definições → Assistente IA</b> carrega em <b>Detetar modelos</b> e escolhe outro.'; else if(/quota|limit|rate|429|RESOURCE_EXHAUSTED|credit/i.test(raw))hint='<br><br><b>Dica:</b> sem quota grátis para <b>'+esc(aiModel())+'</b>. Tenta outro modelo (botão <b>Detetar modelos</b>) ou troca de fornecedor (Gemini ↔ OpenRouter) nas Definições.'; } return 'Não consegui responder: '+esc(m).slice(0,300)+hint; }
 function aiAsk(){
   const q=(val('aiQ')||'').trim(); if(!q)return; _aiLastQ=q; _aiClosed=false;
-  if(!aiKey()){ aiShow('Falta a chave de '+esc(AI_PROVIDERS[aiProvider()].nome)+'. Adiciona-a em <b>Definições → Assistente IA</b> — fica só neste dispositivo.','err'); return; }
+  if(!aiKey()){ aiShow(_aiNoKeyHtml(),'err'); return; }
   aiShow('A pensar…','loading');
-  askAI(q).then(a=>{ if(_aiClosed)return; aiShow(esc(a).replace(/\n/g,'<br>'),''); }).catch(e=>{ if(_aiClosed)return; const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/not found|not supported|no endpoints|NOT_FOUND|tool/i.test(raw))hint='<br><br><b>Dica:</b> o modelo <b>'+esc(aiModel())+'</b> não existe ou não suporta ferramentas nesta chave. Em <b>Definições → Assistente IA</b> carrega em <b>Detetar modelos</b> e escolhe outro.'; else if(/quota|limit|rate|429|RESOURCE_EXHAUSTED|credit/i.test(raw))hint='<br><br><b>Dica:</b> sem quota grátis para <b>'+esc(aiModel())+'</b>. Tenta outro modelo (botão <b>Detetar modelos</b>) ou troca de fornecedor (Gemini ↔ OpenRouter) nas Definições.'; } aiShow('Não consegui responder: '+esc(m).slice(0,300)+hint,'err'); });
+  askAI(q).then(a=>{ if(_aiClosed)return; aiShow(esc(a).replace(/\n/g,'<br>'),''); }).catch(e=>{ if(_aiClosed)return; aiShow(_aiErrHtml(e),'err'); });
+}
+/* ===== Chat flutuante (mobile) — botão no canto + folha com o mesmo motor da barra do PC ===== */
+function aiSheetOpen(){ const s=document.getElementById('aiSheet'); if(!s)return; s.classList.add('on'); setTimeout(()=>{const i=document.getElementById('aiQm'); if(i)i.focus();},80); }
+function aiSheetClose(){ const s=document.getElementById('aiSheet'); if(s)s.classList.remove('on'); }
+function aiSheetShow(html,kind){ const a=document.getElementById('aiSheetAns'); if(!a)return; a.className='aiSheet-body'+(kind?' '+kind:''); a.innerHTML=(kind==='loading')?'<span class="aidots">A pensar…</span>':html; a.scrollTop=a.scrollHeight; }
+function aiAskM(){
+  const q=(val('aiQm')||'').trim(); if(!q)return; _aiLastQ=q;
+  if(!aiKey()){ aiSheetShow(_aiNoKeyHtml(),'err'); return; }
+  aiSheetShow('A pensar…','loading');
+  const el=document.getElementById('aiQm'); if(el)el.value='';
+  askAI(q).then(a=>aiSheetShow('<div class="aiSheet-q">'+esc(q)+'</div>'+esc(a).replace(/\n/g,'<br>'),'')).catch(e=>aiSheetShow('<div class="aiSheet-q">'+esc(q)+'</div>'+_aiErrHtml(e),'err'));
 }
 function aiShow(html,kind){
   let p=document.getElementById('aiPanel'); if(!p){p=document.createElement('div');p.id='aiPanel';document.body.appendChild(p);}
@@ -3986,7 +4039,7 @@ function _shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floo
 function showLock(){
   const ex=document.getElementById('lock');
   if(isUnlocked()){ if(ex)ex.remove(); return; }
-  aiHide(); // não deixar a resposta da IA pendurada por cima do ecrã de bloqueio
+  aiHide(); aiSheetClose(); // não deixar a IA (barra ou folha mobile) pendurada por cima do ecrã de bloqueio
   if(ex)return;
   _pinEntry='';
   const d=document.createElement('div'); d.id='lock';
