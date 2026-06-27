@@ -350,6 +350,19 @@ button.cicon:hover{transform:scale(1.08)}
 .metacol:hover{transform:scale(1.08)}
 .metacol.on{border-color:var(--txt);box-shadow:0 0 0 3px var(--acc-12)}
 @media(max-width:780px){.defs-grid{grid-template-columns:minmax(0,1fr)}}
+/* ---- Fresh (novo visual, SÓ PC): Definições com menu lateral ---- */
+.freshbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:14px;font-size:13px;max-width:1180px}
+@media(max-width:899px){.freshbar{display:none}}
+.defs-wrap.fresh{display:flex;gap:22px;align-items:flex-start;max-width:1180px}
+.defs-wrap.fresh .freshrail{flex:0 0 212px;display:flex;flex-direction:column;gap:3px;position:sticky;top:78px}
+.freshrail-item{text-align:left;background:none;border:0;color:var(--mut);padding:9px 12px;border-radius:9px;cursor:pointer;font-size:13.5px;font-weight:600;line-height:1.25}
+.freshrail-item:hover{background:var(--card2);color:var(--txt)}
+.freshrail-item.on{background:var(--card2);color:var(--acc)}
+.defs-wrap.fresh .freshcontent{flex:1;min-width:0}
+.defs-wrap.fresh .defgroup{border:0;background:none;border-radius:0;margin:0;overflow:visible}
+.defs-wrap.fresh .defgroup>summary{display:none}
+.defs-wrap.fresh .defgroup:not(.fresh-active){display:none}
+.defs-wrap.fresh .defgroup .defs-grid{padding:0}
 /* tamanho seguro p/ todos os ícones SVG (evita ícones gigantes em h2/cartões) */
 svg{width:16px;height:16px;flex:none}
 h2 svg{width:18px;height:18px;vertical-align:middle}
@@ -2299,6 +2312,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v58',d:'27 jun',bul:['Novo: modo «Fresh» (beta) — em Definições há um botão para experimentar um novo visual/arrumação. Primeira página: Definições com menu lateral (no PC) em vez de scroll. É opcional, por dispositivo, e só muda o aspeto no computador — no telemóvel fica tudo igual.']},
   {v:'v57',d:'27 jun',bul:['Cartão «Mimos» redesenhado: movido para baixo das caixas de saldo, minimalista (Mimos · mês · valor + barra), cores invertidas (fundo cheio; vermelho quando passas). O detalhe «como é calculado» fica numa mini-seta.']},
   {v:'v56',d:'27 jun',bul:['Ícone da biometria melhorado — impressão digital mais nítida e reconhecível no teclado do PIN.']},
   {v:'v55',d:'27 jun',bul:['Login biométrico (mobile): a biometria deixa de abrir sozinha ao iniciar/voltar à app (era o que causava o loop). Passa a haver um ícone de impressão digital no canto do teclado do PIN — só pede a biometria quando o tocas.']},
@@ -2356,10 +2370,30 @@ function renderChangelog(){
     <div class="chlog">${CHANGELOG.map((e,i)=>`<div class="chlog-v${i===0?' cur':''}"><div class="chlog-h"><b>${esc(e.v)}</b><span class="chlog-d">${esc(e.d)}</span>${i===0?'<span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">em uso</span>':''}</div><ul class="chlog-l">${e.bul.map(b=>`<li>${esc(b)}</li>`).join('')}</ul></div>`).join('')}</div>
   </div></div></details>`;
 }
+/* ===== "Fresh" — novo visual/arrumação, SÓ no PC (flag por dispositivo) ===== */
+function freshOn(){ try{ return localStorage.getItem('casa-fresh')==='1'; }catch(e){ return false; } }
+function setFresh(on){ try{ if(on)localStorage.setItem('casa-fresh','1'); else localStorage.removeItem('casa-fresh'); }catch(e){} }
+function freshDesktop(){ return freshOn() && window.innerWidth>=900; }
+let defSec='';
+/* transforma os grupos colapsáveis das Definições num menu lateral (só Fresh+PC); não toca no conteúdo nem nos handlers */
+function applyFreshDefs(m){
+  if(!freshDesktop()) return;
+  const wrap=m.querySelector('.defs-wrap'); if(!wrap) return;
+  const groups=[...wrap.querySelectorAll(':scope > .defgroup')]; if(!groups.length) return;
+  const ids=groups.map(g=>g.dataset.dg);
+  if(ids.indexOf(defSec)<0) defSec=ids[0];
+  const rail=document.createElement('nav'); rail.className='freshrail';
+  rail.innerHTML=groups.map(g=>{const s=g.querySelector('summary'); const nm=s?s.textContent.trim():g.dataset.dg; return `<button class="freshrail-item${g.dataset.dg===defSec?' on':''}" data-defsec="${g.dataset.dg}">${esc(nm)}</button>`;}).join('');
+  const content=document.createElement('div'); content.className='freshcontent';
+  groups.forEach(g=>{ g.setAttribute('open',''); g.classList.toggle('fresh-active', g.dataset.dg===defSec); content.appendChild(g); });
+  wrap.classList.add('fresh');
+  wrap.appendChild(rail); wrap.appendChild(content);
+}
 function vDefs(m){
   const [a,b]=P();
   const dh=(ic,t,sub)=>`<h3 class="dh">${svg(ic)} ${t}${sub?hlp(sub):''}</h3>`;
   m.innerHTML=`
+  <div class="freshbar"><div>🌿 <b>Fresh</b> — novo visual & arrumação <span style="color:var(--mut)">(beta · só no computador; o telemóvel fica igual)</span></div><button class="btn sm ${freshOn()?'primary':''}" id="freshToggle">${freshOn()?svg(I.check)+'Ativo':'Experimentar'}</button></div>
   <div class="defs-wrap">
   <details class="defgroup" data-dg="pessoas" ${defGroupsOpen.has('pessoas')?'open':''}><summary>${svg(I.scale)} Pessoas & aparência</summary>
   <div class="defs-grid">
@@ -2586,6 +2620,7 @@ function vDefs(m){
   ${renderChangelog()}
   </div>
   <div class="foot-credit">CASA · Finanças — app local (dados neste dispositivo). Feito para o Diogo Vale.</div>`;
+  applyFreshDefs(m);
 }
 function catRow(c,child,lead,badge){return `<div class="catedit" style="${child?'padding-left:24px':''}">${child?'<span style="opacity:.4;margin-right:-2px">└</span>':(lead||'<span style="width:18px;display:inline-block;flex:none"></span>')}<button class="cicon ${c.icon&&CAT_ICONS[c.icon]?'':'dotcol'}" data-caticon="${c.id}" title="Escolher ícone e cor" style="width:28px;height:28px;background:${c.cor};color:#fff">${c.icon&&CAT_ICONS[c.icon]?`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${CAT_ICONS[c.icon]}"/></svg>`:''}</button><input class="pinp" value="${esc(c.nome)}" data-catname="${c.id}">${badge||''}${!child?`<button class="iconbtn" data-newsub="${c.id}" title="Adicionar sub-categoria">${svg(I.plus)}</button>`:''}<button class="iconbtn" data-movecat="${c.id}" title="Mover / re-aninhar">${svg(I.move)}</button><button class="iconbtn" data-delcat="${c.id}">${svg(I.trash)}</button></div>`;}
 function openCatIcon(catId){
@@ -2692,6 +2727,8 @@ document.addEventListener('click',e=>{
   if(d.resumogen){ try{localStorage.removeItem(_resumoKey(d.resumogen));}catch(e){} _resumoTried.delete(d.resumogen); gerarResumo(d.resumogen,true); render(); return; }
   if(d.tesh){ _tesH=+d.tesh; render(); return; }
   if(d.conssel){ _consSel=d.conssel; render(); return; }
+  if(t.id==='freshToggle'){ setFresh(!freshOn()); defSec=''; render(); toast(freshOn()?'Fresh ativado (só no PC)':'Fresh desativado'); return; }
+  if(d.defsec){ defSec=d.defsec; render(); return; }
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
   if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.poupancaMensal=Math.max(0,parseFloat(val('poupancaMensal'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
@@ -2826,7 +2863,8 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden){ const ai
 /* fechar popover ao redimensionar — só quando muda a LARGURA (rotação/janela);
    ignora mudanças só de altura (teclado virtual no telemóvel, que senão fechava o popover ao focar o input) */
 let _popWinW=window.innerWidth;
-window.addEventListener('resize',()=>{ if(window.innerWidth!==_popWinW){ _popWinW=window.innerWidth; closePop(); } });
+let _freshWide=window.innerWidth>=900;
+window.addEventListener('resize',()=>{ if(window.innerWidth!==_popWinW){ _popWinW=window.innerWidth; closePop(); } const w=window.innerWidth>=900; if(w!==_freshWide){ _freshWide=w; if(freshOn()&&tab==='defs') render(); } });
 
 /* ---- drag & drop de colunas (agrupar/desagrupar) + renomear ---- */
 let dragCat=null;
