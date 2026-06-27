@@ -1620,6 +1620,32 @@ function saveMetaAdd(sign){
   save(); closeBack(); render(); toast(sign>0?'Reforço registado':'Valor retirado'); _metaAddId=null;
 }
 function delMeta(id){ const g=(state.metas||[]).find(x=>x.id===id); if(!g)return; if(!confirm('Eliminar o objetivo "'+(g.nome||'')+'"?'))return; state.metas=state.metas.filter(x=>x.id!==id); save(); render(); toast('Objetivo eliminado'); }
+/* gráfico da evolução do património ao longo dos anos (snapshots anuais das poupanças) */
+function patrimonioEvolucaoCard(){
+  const years=Object.keys(state.poupancas||{}).map(Number).filter(y=>!isNaN(y)).sort((a,b)=>a-b);
+  if(years.length<2) return '';
+  const pts=years.map(y=>({y,v:round2(patrimonioDe(y))}));
+  const cur=pts[pts.length-1], prev=pts[pts.length-2], first=pts[0];
+  const dPrevPct=prev.v?Math.round((cur.v-prev.v)/prev.v*100):null, dPrevAbs=round2(cur.v-prev.v);
+  const dTotPct=first.v?Math.round((cur.v-first.v)/first.v*100):null, dTotAbs=round2(cur.v-first.v);
+  const eur=v=>Math.round(v).toLocaleString('pt-PT')+' €';
+  const maxV=Math.max(1,...pts.map(p=>p.v)), n=pts.length;
+  const W=640,H=180,padT=22,padB=26,padX=14, gap=(W-2*padX)/n, bw=Math.min(90,gap*0.58);
+  const bars=pts.map((p,i)=>{ const x=padX+gap*i+(gap-bw)/2, h=Math.max(2,(p.v/maxV)*(H-padB-padT)), y=H-padB-h, last=i===n-1;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="var(--acc)" opacity="${last?1:.5}"/>`+
+      `<text x="${(x+bw/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--txt)">${eur(p.v)}</text>`+
+      `<text x="${(x+bw/2).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--mut)">${p.y}</text>`; }).join('');
+  return `<div class="card" style="margin-bottom:14px">
+    <h2 style="border:0;padding:0;margin:0 0 4px;font-size:15px">${svg(I.trend)} Evolução do património</h2>
+    <p class="dsub" style="margin:0 0 10px">Património total no fim de cada ano (contas + Cofre).</p>
+    <div class="kstrip">
+      <div class="kbox"><div class="l">Atual (${cur.y})</div><div class="v pos">${fmt0(cur.v)}</div></div>
+      <div class="kbox"><div class="l">vs ${prev.y}</div><div class="v ${dPrevAbs>=0?'pos':'neg'}">${dPrevAbs>=0?'▲':'▼'} ${fmt0(Math.abs(dPrevAbs))}${dPrevPct!=null?` · ${dPrevPct>=0?'+':''}${dPrevPct}%`:''}</div></div>
+      <div class="kbox"><div class="l">Desde ${first.y}</div><div class="v ${dTotAbs>=0?'pos':'neg'}">${dTotAbs>=0?'+':''}${fmt0(dTotAbs)}${dTotPct!=null?` · ${dTotPct>=0?'+':''}${dTotPct}%`:''}</div></div>
+    </div>
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:12px">${bars}</svg>
+  </div>`;
+}
 function vPoupancas(m){
   const p = state.poupancas[ano] || {contas:[],contagem:[]};
   const cont = p.contagem||[];
@@ -1639,6 +1665,7 @@ function vPoupancas(m){
     <div class="kbox"><div class="l">Património ${ano}</div><div class="v pos">${fmt(total)}</div></div>
     <div class="kbox"><div class="l">Cofre (dinheiro)</div><div class="v">${fmt(cofre)}</div>${hasDisc?`<div style="font-size:12px;color:var(--warn)">esperado ${fmt(esperado)}</div>`:''}</div>
   </div>
+  ${patrimonioEvolucaoCard()}
   <div class="section-h" style="display:flex;align-items:center;gap:8px;margin-top:2px">Contas &amp; dinheiro${hlp(`Usa o botão +/− de cada conta para reforçar, mobilizar (levantar) ou definir o saldo exato (ex.: igualar o Valete ao banco). O Valete é o saldo real e o Cofre é o dinheiro físico (contado por denominação). As setas ‹ › em cima mudam de ano.`)}</div>
   <div class="gridwrap">
     <table class="sumtable">
@@ -2238,6 +2265,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v53',d:'27 jun',bul:['Novo: «Evolução do património» na tab Poupanças — gráfico do património total no fim de cada ano, com variação face ao ano anterior e desde o início.']},
   {v:'v52',d:'27 jun',bul:['Novo: cartão «Orçamentos do mês» na Grelha — barras de progresso por categoria (gasto vs limite), ordenadas pelas que estão acima/perto do limite, com total do mês. Aparece quando defines limites em Definições → Orçamentos.']},
   {v:'v51',d:'27 jun',bul:['Novo: «Tesouraria do Valete · próximos meses» na Previsão — projeta o saldo do Valete a partir de hoje (receita e despesa típicas dos últimos meses − poupança), com gráfico, toggle 6/12 meses e aviso se descer abaixo da margem de segurança.']},
   {v:'v50',d:'27 jun',bul:['Novo: «Resumo do mês» no Analytics — recap do mês anterior com comparação ao mês anterior e ao homólogo, maiores gastos e alertas. A IA escreve a narrativa em 2-3 frases (e guarda-a); sem IA, mostra um resumo automático.']},
