@@ -196,6 +196,23 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .mimo-calc>div{display:flex;justify-content:space-between;gap:12px}
 .mimo-calc .mimo-eq{border-top:1px solid var(--line);padding-top:6px;margin-top:1px;font-weight:700}
 .mimo-calc b.pos{color:var(--in)} .mimo-calc b.neg{color:var(--out)}
+/* cartão "Orçamentos do mês" (barras de progresso por categoria) */
+.orccard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:13px 16px;margin-bottom:12px;box-shadow:var(--sh)}
+.orc-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.orc-ttl{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
+.orc-ttl svg{width:16px;height:16px;color:var(--mut)}
+.orc-tot{font-weight:800;font-size:14px}
+.orc-note{font-size:12px;margin-top:6px}
+.orc-note.ok{color:var(--in)} .orc-note.warn{color:var(--warn)} .orc-note.over{color:var(--out)}
+.orc-list{margin-top:11px;display:flex;flex-direction:column;gap:10px}
+.orc-row-top{display:flex;justify-content:space-between;gap:10px;font-size:12.5px;margin-bottom:4px}
+.orc-name{display:inline-flex;align-items:center;gap:6px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.orc-dot{width:9px;height:9px;border-radius:50%;flex:none}
+.orc-val{color:var(--mut);white-space:nowrap;flex:none}
+.orc-row.over .orc-val{color:var(--out);font-weight:700}
+.orc-bar{height:7px;border-radius:4px;background:var(--card2);overflow:hidden;box-shadow:inset 0 0 0 1px var(--hair)}
+.orc-bar i{display:block;height:100%;background:var(--acc);border-radius:4px;min-width:2px}
+.orc-row.warn .orc-bar i{background:var(--warn)} .orc-row.over .orc-bar i{background:var(--out)}
 /* cartão "Resumo do mês" (narrativa da IA + alertas) */
 .resumocard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--info);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;box-shadow:var(--sh)}
 .resumo-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -1002,6 +1019,26 @@ function disponivelMimos(mi){
   const resta=round2(orcamento-mimosGasto);
   return {ym,receita,recReal,recPrev,essenciais,essReal,essPrev,mimosGasto,poup,orcamento,resta,semSuper:sup.size===0};
 }
+/* cartão "Orçamentos do mês" — barras de progresso das categorias com limite definido (só mês corrente do ano atual) */
+function orcamentosCard(){
+  const hoje=new Date(); if(ano!==hoje.getFullYear()) return '';
+  const mi=hoje.getMonth(); const ym=ano+'-'+String(mi+1).padStart(2,'0');
+  const items=topCats('despesa').map(c=>({c,lim:+state.orcamentos[c.id]||0})).filter(x=>x.lim>0).map(x=>{
+    const spent=round2(catMesTotal(x.c.id,ym)); const pct=spent/x.lim;
+    return {nome:x.c.nome,cor:x.c.cor,spent,lim:x.lim,pct,st:spent>x.lim?'over':(spent>x.lim*0.8?'warn':'ok')};
+  });
+  if(!items.length) return '';
+  items.sort((a,b)=>((b.st==='over')-(a.st==='over'))||(b.pct-a.pct));
+  const totSpent=round2(items.reduce((a,x)=>a+x.spent,0)), totLim=round2(items.reduce((a,x)=>a+x.lim,0));
+  const nOver=items.filter(x=>x.st==='over').length, nWarn=items.filter(x=>x.st==='warn').length;
+  return `<div class="orccard">
+    <div class="orc-h"><div class="orc-ttl">${svg(I.report)} Orçamentos · ${MESES[mi]}</div><div class="orc-tot">${fmt(totSpent)} <span style="color:var(--mut);font-weight:600">de ${fmt(totLim)}</span></div></div>
+    ${(nOver||nWarn)?`<div class="orc-note ${nOver?'over':'warn'}">${nOver?`${nOver} acima do limite`:''}${nOver&&nWarn?' · ':''}${nWarn?`${nWarn} perto do limite`:''}</div>`:`<div class="orc-note ok">Tudo dentro do orçamento ✓</div>`}
+    <div class="orc-list">${items.map(x=>{const p=Math.min(100,Math.round(x.pct*100));return `<div class="orc-row ${x.st}">
+      <div class="orc-row-top"><span class="orc-name"><span class="orc-dot" style="background:${x.cor||'var(--acc)'}"></span>${esc(x.nome)}</span><span class="orc-val">${fmt(x.spent)} / ${fmt(x.lim)}${x.st==='over'?` · +${fmt(round2(x.spent-x.lim))}`:''}</span></div>
+      <div class="orc-bar"><i style="width:${p}%"></i></div></div>`;}).join('')}</div>
+  </div>`;
+}
 /* cartão "Para mimos" — só para o mês corrente, quando o ano em vista é o ano atual */
 function mimoCard(){
   const hoje=new Date(); if(ano!==hoje.getFullYear()) return '';
@@ -1192,6 +1229,7 @@ function vGrelha(m){
   </div>
 
   ${mimoCard()}
+  ${orcamentosCard()}
 
   ${gridTipo==='receita'?(()=>{
     const movR=state.movimentos.filter(m=>m.tipo==='receita'&&+m.data.slice(0,4)===ano);
@@ -2200,6 +2238,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v52',d:'27 jun',bul:['Novo: cartão «Orçamentos do mês» na Grelha — barras de progresso por categoria (gasto vs limite), ordenadas pelas que estão acima/perto do limite, com total do mês. Aparece quando defines limites em Definições → Orçamentos.']},
   {v:'v51',d:'27 jun',bul:['Novo: «Tesouraria do Valete · próximos meses» na Previsão — projeta o saldo do Valete a partir de hoje (receita e despesa típicas dos últimos meses − poupança), com gráfico, toggle 6/12 meses e aviso se descer abaixo da margem de segurança.']},
   {v:'v50',d:'27 jun',bul:['Novo: «Resumo do mês» no Analytics — recap do mês anterior com comparação ao mês anterior e ao homólogo, maiores gastos e alertas. A IA escreve a narrativa em 2-3 frases (e guarda-a); sem IA, mostra um resumo automático.']},
   {v:'v49',d:'27 jun',bul:['Novo: cartão «Para mimos» na Grelha — mostra quanto sobra este mês para a parte lúdica depois das despesas essenciais e da poupança, e quanto já usaste. Usa as categorias marcadas como supérfluas (★). Nova definição «Poupança mensal» (Definições → Valete · previsão & margem).']},
