@@ -178,24 +178,26 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 /* Grid */
 .gridwrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:auto;box-shadow:var(--sh)}
 /* cartão "Para mimos" (disponível para lazer este mês) */
-.mimocard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:var(--r-lg);padding:13px 16px;margin-bottom:12px;box-shadow:var(--sh)}
-.mimocard.warn{border-left-color:var(--warn)} .mimocard.neg{border-left-color:var(--out)}
-.mimo-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.mimo-ttl{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
-.mimo-ttl svg{width:16px;height:16px;color:var(--acc)}
-.mimocard.warn .mimo-ttl svg{color:var(--warn)} .mimocard.neg .mimo-ttl svg{color:var(--out)}
-.mimo-big{font-weight:800;font-size:18px;color:var(--acc)}
-.mimocard.warn .mimo-big{color:var(--warn)} .mimocard.neg .mimo-big{color:var(--out)}
-.mimo-bar{height:8px;border-radius:5px;background:var(--card2);overflow:hidden;margin:11px 0 6px;box-shadow:inset 0 0 0 1px var(--hair)}
-.mimo-bar i{display:block;height:100%;background:var(--acc);border-radius:5px;min-width:2px}
-.mimocard.warn .mimo-bar i{background:var(--warn)} .mimocard.neg .mimo-bar i{background:var(--out)}
-.mimo-sub{font-size:12px;color:var(--mut)}
-.mimo-det{margin-top:9px} .mimo-det summary{font-size:11.5px;color:var(--mut);cursor:pointer;list-style:none}
+/* minimalista + cores invertidas (fundo cheio verde; vermelho quando negativo) */
+.mimocard{background:var(--acc);color:#fff;border:0;border-radius:var(--r-lg);padding:13px 15px;margin-bottom:14px;box-shadow:var(--sh)}
+.mimocard.neg{background:var(--out)}
+.mimo-top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.mimo-ttl{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.4px;opacity:.93}
+.mimo-ttl svg{width:15px;height:15px}
+.mimo-big{font-weight:800;font-size:21px;white-space:nowrap}
+.mimo-bar{height:8px;border-radius:5px;background:rgba(255,255,255,.28);overflow:hidden;margin:11px 0 0}
+.mimo-bar i{display:block;height:100%;background:#fff;border-radius:5px;min-width:2px}
+.mimo-sub{margin-top:8px;font-size:11.5px;opacity:.9}
+.mimo-det{margin-top:9px}
+.mimo-det summary{font-size:11px;opacity:.85;cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:5px}
 .mimo-det summary::-webkit-details-marker{display:none}
+.mimo-det summary::before{content:'▾';font-size:9px;display:inline-block;transition:transform .15s}
+.mimo-det[open] summary::before{transform:rotate(180deg)}
 .mimo-calc{margin-top:9px;font-size:12.5px;display:flex;flex-direction:column;gap:5px}
 .mimo-calc>div{display:flex;justify-content:space-between;gap:12px}
-.mimo-calc .mimo-eq{border-top:1px solid var(--line);padding-top:6px;margin-top:1px;font-weight:700}
-.mimo-calc b.pos{color:var(--in)} .mimo-calc b.neg{color:var(--out)}
+.mimo-calc>div span{opacity:.85}
+.mimo-calc .mimo-eq{border-top:1px solid rgba(255,255,255,.28);padding-top:6px;margin-top:1px;font-weight:700}
+.mimo-calc .mimo-eq span{opacity:1}
 /* cartão "Orçamentos do mês" (barras de progresso por categoria) */
 .orccard{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);padding:13px 16px;margin-bottom:12px;box-shadow:var(--sh)}
 .orc-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -1050,16 +1052,13 @@ function mimoCard(){
   const mi=hoje.getMonth(); const d=disponivelMimos(mi);
   const orc=d.orcamento, gasto=d.mimosGasto, resta=d.resta;
   const pct=orc>0?Math.min(100,Math.round(gasto/orc*100)):(gasto>0?100:0);
-  const estado=resta<0?'neg':(orc>0&&gasto/orc>0.85?'warn':'pos');
-  const restaTxt=resta>=0?`${fmt(resta)} para mimos`:`${fmt(Math.abs(resta))} acima do mimo`;
+  const estado=resta<0?'neg':'pos';
+  const calc=`<details class="mimo-det"><summary>como é calculado</summary><div class="mimo-calc"><div><span>Receita do mês</span><b>${fmt(d.receita)}${d.recReal>0?'':' (prev.)'}</b></div><div><span>− Despesas essenciais</span><b>${fmt(d.essenciais)}${d.essPrev>d.essReal?' (prev.)':''}</b></div><div><span>− Poupança do mês</span><b>${fmt(d.poup)}</b></div><div class="mimo-eq"><span>= Orçamento de lazer</span><b>${fmt(d.orcamento)}</b></div><div><span>Já gastaste em lazer (★)</span><b>${fmt(d.mimosGasto)}</b></div></div></details>`;
   return `<div class="mimocard ${estado}">
-    <div class="mimo-top"><div class="mimo-ttl">${svg(I.star)} Para mimos · ${MESES[mi]}</div><div class="mimo-big">${restaTxt}</div></div>
+    <div class="mimo-top"><span class="mimo-ttl">${svg(I.star)} Mimos · ${MESES[mi]}</span><b class="mimo-big">${fmt(resta)}</b></div>
     ${d.semSuper
-      ? `<div class="mimo-sub">É o que sobra depois do essencial e da poupança. Marca as categorias de lazer com <b>★</b> em <b>Definições → Supérfluos</b> para a app acompanhar quanto já usaste em mimos.</div>`
-      : orc>0
-        ? `<div class="mimo-bar"><i style="width:${pct}%"></i></div><div class="mimo-sub">Orçamento de lazer ${fmt(orc)} · já usaste ${fmt(gasto)}</div>`
-        : `<div class="mimo-sub">Este mês o essencial + poupança não deixam folga para mimos.</div>`}
-    <details class="mimo-det"><summary>como é calculado</summary><div class="mimo-calc"><div><span>Receita do mês</span><b class="pos">${fmt(d.receita)}${d.recReal>0?'':' <span style="font-weight:400;color:var(--mut)">(prev.)</span>'}</b></div><div><span>− Despesas essenciais</span><b class="neg">${fmt(d.essenciais)}${d.essPrev>d.essReal?' <span style="font-weight:400;color:var(--mut)">(prev.)</span>':''}</b></div><div><span>− Poupança do mês</span><b class="neg">${fmt(d.poup)}</b></div><div class="mimo-eq"><span>= Para mimos</span><b>${fmt(d.orcamento)}</b></div><div><span>Já gastaste em lazer (★)</span><b>${fmt(d.mimosGasto)}</b></div></div></details>
+      ? `<div class="mimo-sub">marca categorias de lazer com ★ em Definições → Supérfluos</div>`
+      : `<div class="mimo-bar"><i style="width:${pct}%"></i></div>${calc}`}
   </div>`;
 }
 /* valor típico de uma fixa = mediana do que essa categoria gastou nos últimos meses (cai bem quando o valor varia) */
@@ -1204,6 +1203,8 @@ function vGrelha(m){
     <div class="kbox k-accent k-info"><div class="l">${MESES[miv]} · saldo</div><div class="v ${recM-despM>=0?'pos':'neg'}">${fmt0(recM-despM)}</div></div>
   </div>
 
+  ${mimoCard()}
+
   ${editHist?`<div class="hint" style="border-left:3px solid var(--warn);display:flex;align-items:center;gap:10px;justify-content:space-between;flex-wrap:wrap"><span>🔓 <b>Histórico desbloqueado</b> — podes editar meses anteriores. Editar o passado <b>não</b> mexe nos saldos atuais (Valete/Cofre).</span><button class="btn sm" id="relock">${svg(I.check)}Voltar a bloquear</button></div>`:''}
 
   <div class="qadd">
@@ -1233,7 +1234,6 @@ function vGrelha(m){
     </div>
   </div>
 
-  ${mimoCard()}
   ${orcamentosCard()}
 
   ${gridTipo==='receita'?(()=>{
@@ -2299,6 +2299,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v57',d:'27 jun',bul:['Cartão «Mimos» redesenhado: movido para baixo das caixas de saldo, minimalista (Mimos · mês · valor + barra), cores invertidas (fundo cheio; vermelho quando passas). O detalhe «como é calculado» fica numa mini-seta.']},
   {v:'v56',d:'27 jun',bul:['Ícone da biometria melhorado — impressão digital mais nítida e reconhecível no teclado do PIN.']},
   {v:'v55',d:'27 jun',bul:['Login biométrico (mobile): a biometria deixa de abrir sozinha ao iniciar/voltar à app (era o que causava o loop). Passa a haver um ícone de impressão digital no canto do teclado do PIN — só pede a biometria quando o tocas.']},
   {v:'v54',d:'27 jun',bul:['Novo: «Consumos» no Analytics — regista o consumo de cada fatura de Luz (kWh), Água e Gás (m³) e a app calcula o preço unitário (€/kWh, €/m³). Mostra se o tarifário subiu (preço a aumentar com consumo parecido) — útil para comparar propostas da concorrência.']},
