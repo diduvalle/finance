@@ -95,6 +95,16 @@ body{background:
 .segtipo{border-radius:10px;padding:3px;gap:3px}
 .segtipo button{border-radius:7px;padding:5px 13px;display:inline-flex;align-items:center;justify-content:center}
 .segtipo button svg{width:16px;height:16px;display:block}
+/* barra de ferramentas da Grelha: toggle Despesa/Receita + caixa única de ações (ícones a preencher o espaço, 1 linha) */
+.gridtools{display:flex;gap:8px;align-items:stretch;margin-bottom:10px}
+.gtbar{flex:1;display:flex;gap:4px;align-items:stretch;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:3px;box-shadow:var(--sh-sm)}
+.gtbar>button{flex:1;min-width:0;display:inline-flex;align-items:center;justify-content:center;gap:6px;background:none;border:0;border-radius:7px;color:var(--mut);cursor:pointer;font-weight:800;font-size:12px;padding:5px 8px;transition:background .16s,color .16s}
+.gtbar>button:hover{background:var(--card);color:var(--acc)}
+.gtbar>button svg{width:16px;height:16px;display:block;flex:none}
+.gtbar>button.warn{color:var(--warn)} .gtbar>button.warn:hover{color:var(--warn)}
+.gtbar .gtbadge{font-size:11px;font-weight:800}
+.gtbar .gtlbl{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:560px){.gtbar .gtlbl{display:none}} /* telemóvel: só ícones, 1 linha compacta */
 button{font-family:inherit;letter-spacing:inherit}
 button:focus-visible,a:focus-visible,[role=button]:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 button:disabled,button[disabled]{opacity:.5;cursor:not-allowed;pointer-events:none}
@@ -1055,17 +1065,19 @@ function vGrelha(m){
     <button class="btn primary" id="qAdd">${svg(I.plus)}Adicionar</button>
   </div>
 
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
+  <div class="gridtools">
     <div class="seg segtipo" title="Despesas ou Receitas">
       <button class="${gridTipo==='despesa'?'on-out':''}" data-gt="despesa" title="Despesas" aria-label="Despesas">${svg(I.down)}</button>
       <button class="${gridTipo==='receita'?'on-in':''}" data-gt="receita" title="Receitas" aria-label="Receitas">${svg(I.up)}</button>
     </div>
-    ${gridTipo==='despesa'?`<button class="btn sm" id="impFatura">${svg(I.scan)}Importar fatura (PDF)</button><input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple style="display:none">`:''}
-    ${gridTipo==='despesa'?`<button class="btn sm" id="impFoto">${svg(I.camera)}Foto da fatura</button><input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none">`:''}
-    ${state.inbox&&state.inbox.length?`<button class="btn sm" id="inboxBtn" style="border-color:var(--warn);color:var(--warn)">${svg(I.inbox)}Caixa de entrada (${state.inbox.length})</button>`:''}
-    ${gridTipo==='receita'?`<button class="btn sm" id="impRecibo">${svg(I.scan)}Importar recibo (PDF)</button><input type="file" id="reciboIn" accept="application/pdf,.pdf" style="display:none">`:''}
-    <button class="btn sm" data-newcat="${gridTipo}">${svg(I.plus)}Nova categoria</button>
-    <button class="btn sm icon-only gvtoggle" data-gviewtoggle="1" title="${view==='lista'?'Ver em tabela':'Ver em lista'}" aria-label="Alternar vista (lista/tabela)">${svg(view==='lista'?I.grid:I.list)}</button>
+    <div class="gtbar">
+      ${gridTipo==='despesa'?`<button id="impFatura" title="Importar fatura (PDF)" aria-label="Importar fatura (PDF)">${svg(I.scan)}<span class="gtlbl">Fatura PDF</span></button><input type="file" id="pdfIn" accept="application/pdf,.pdf" multiple style="display:none">`:''}
+      ${gridTipo==='despesa'?`<button id="impFoto" title="Foto da fatura" aria-label="Foto da fatura">${svg(I.camera)}<span class="gtlbl">Foto</span></button><input type="file" id="fotoIn" accept="image/*" capture="environment" style="display:none">`:''}
+      ${gridTipo==='receita'?`<button id="impRecibo" title="Importar recibo (PDF)" aria-label="Importar recibo (PDF)">${svg(I.scan)}<span class="gtlbl">Recibo PDF</span></button><input type="file" id="reciboIn" accept="application/pdf,.pdf" style="display:none">`:''}
+      ${state.inbox&&state.inbox.length?`<button class="warn" id="inboxBtn" title="Caixa de entrada (${state.inbox.length} por classificar)" aria-label="Caixa de entrada (${state.inbox.length})">${svg(I.inbox)}<span class="gtlbl">Entrada</span><span class="gtbadge">${state.inbox.length}</span></button>`:''}
+      <button data-newcat="${gridTipo}" title="Nova categoria" aria-label="Nova categoria">${svg(I.plus)}<span class="gtlbl">Categoria</span></button>
+      <button data-gviewtoggle="1" title="${view==='lista'?'Ver em tabela':'Ver em lista'}" aria-label="Alternar vista (lista/tabela)">${svg(view==='lista'?I.grid:I.list)}<span class="gtlbl">${view==='lista'?'Tabela':'Lista'}</span></button>
+    </div>
   </div>
 
   ${gridTipo==='receita'?(()=>{
@@ -1948,6 +1960,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v47',d:'27 jun',bul:['Barra de ferramentas da Grelha arrumada: caixa única que preenche o espaço todo (sem espaço morto), numa só linha. No PC mostra ícone + rótulo curto; no telemóvel fica só com os ícones.']},
   {v:'v46',d:'27 jun',bul:['Header mobile: definitivamente 2 linhas. Os 5 ícones nunca quebram — quando o ecrã é estreito, são os saldos que cedem (escondem o Δ em vez de empurrar tudo para uma 3.ª linha). Testado de 320 a 390 px.']},
   {v:'v45',d:'26 jun',bul:['Assistente IA: a resposta deixa de ficar "pendurada" — fecha sozinha em Esc, clique fora, scroll, ao bloquear (timeout) e ao minimizar/trocar de app. Já não aparece por cima do ecrã de PIN.']},
   {v:'v44',d:'26 jun',bul:['Assistente IA: passa a EXPLICAR a origem de cada valor — o método/fórmula usada, quantos lançamentos foram somados e, nas previsões, os meses e valores que entraram na média (e os outliers excluídos). Continua a usar os números exatos calculados pela app.']},
