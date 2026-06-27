@@ -1772,6 +1772,62 @@ function tendenciasCard(){
   </div>`;
 }
 function inflacaoHistorica(){const cy=new Date().getFullYear();const anos=[...new Set(state.movimentos.filter(m=>m.tipo==='despesa').map(m=>+m.data.slice(0,4)))].sort().filter(y=>y!==cy);const yo=[];for(let i=1;i<anos.length;i++){const a=sumYearOf('despesa',anos[i-1]),b=sumYearOf('despesa',anos[i]);if(a>0&&b>0)yo.push((b-a)/a*100);}return yo.length?round2(mediana(yo)):null;}
+/* ===== Tesouraria do Valete · projeção dos próximos meses ===== */
+let _tesH=12;
+function projTesouraria(nMeses){
+  const v0=valeteAtual(); if(v0==null) return null;
+  const poup=Math.max(0,+state.settings.poupancaMensal||0);
+  const margem=Math.max(0,+state.settings.valeteMargem||0);
+  const t=new Date(); let y=t.getFullYear(), mo=t.getMonth()+1; // mês atual 1-12
+  let saldo=round2(v0); const rows=[];
+  for(let i=1;i<=nMeses;i++){
+    mo++; if(mo>12){mo=1;y++;}
+    const ym=y+'-'+String(mo).padStart(2,'0');
+    const rec=estimativaReceitaLiq(ym), desp=estimativaMensal(ym);
+    const net=round2(rec-desp-poup);
+    saldo=round2(saldo+net);
+    rows.push({ym,y,m:mo,rec,desp,poup,net,saldo});
+  }
+  return {v0:round2(v0),margem,poup,rows};
+}
+function tesourariaCard(){
+  const P=projTesouraria(_tesH); if(!P) return '';
+  const rows=P.rows, last=rows[rows.length-1];
+  const minRow=rows.reduce((a,r)=>r.saldo<a.saldo?r:a, rows[0]);
+  const below=rows.find(r=>r.saldo<P.margem);
+  const pts=[{m:'hoje',v:P.v0},...rows.map(r=>({m:MC[r.m-1],v:r.saldo}))];
+  const vals=pts.map(p=>p.v); const maxV=Math.max(P.margem,...vals), minV=Math.min(0,P.margem,...vals);
+  const W=640,H=160,pad=6, span=(maxV-minV)||1;
+  const xs=i=>pad+i*((W-2*pad)/(pts.length-1)), ys=v=>H-pad-((v-minV)/span)*(H-2*pad);
+  const line=pts.map((p,i)=>`${xs(i).toFixed(1)},${ys(p.v).toFixed(1)}`).join(' ');
+  const area=`${xs(0).toFixed(1)},${(H-pad).toFixed(1)} ${line} ${xs(pts.length-1).toFixed(1)},${(H-pad).toFixed(1)}`;
+  const stroke=minRow.saldo<P.margem?'var(--out)':'var(--acc)';
+  const my=ys(P.margem).toFixed(1);
+  const dots=pts.map((p,i)=>`<circle cx="${xs(i).toFixed(1)}" cy="${ys(p.v).toFixed(1)}" r="2.3" fill="${p.v<P.margem?'var(--out)':'var(--acc)'}"/>`).join('');
+  const xlab=pts.map((p,i)=>(i%2===0||i===pts.length-1)?`<text x="${xs(i).toFixed(0)}" y="${H-1}" text-anchor="middle" font-size="8.5" fill="var(--mut)">${p.m}</text>`:'').join('');
+  return `<div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h2 style="border:0;padding:0;margin:0;font-size:15px">${svg(I.trend)} Tesouraria do Valete · próximos meses</h2>
+      <div class="seg"><button data-tesh="6" class="${_tesH===6?'on-out':''}">6 meses</button><button data-tesh="12" class="${_tesH===12?'on-out':''}">12 meses</button></div></div>
+    <p class="dsub" style="margin:6px 0 12px">Projeção do saldo do Valete a partir de hoje, com a receita e a despesa típicas dos últimos meses${P.poup>0?` e ${fmt0(P.poup)}/mês para poupança`:''}. É uma estimativa (não considera sazonalidade).</p>
+    <div class="kstrip">
+      <div class="kbox"><div class="l">Saldo hoje</div><div class="v">${fmt0(P.v0)}</div></div>
+      <div class="kbox"><div class="l">Daqui a ${_tesH} meses</div><div class="v ${last.saldo>=0?'pos':'neg'}">${fmt0(last.saldo)}</div></div>
+      <div class="kbox"><div class="l">Menor saldo previsto</div><div class="v ${minRow.saldo<P.margem?'neg':(minRow.saldo<0?'neg':'')}">${fmt0(minRow.saldo)}</div><div class="l">${MESES[minRow.m-1]} ${minRow.y}</div></div>
+    </div>
+    ${below?`<div class="hint" style="border-left:3px solid var(--out);margin-top:12px">⚠ Por volta de <b>${MESES[below.m-1]} ${below.y}</b> o Valete pode descer abaixo da margem (${fmt0(P.margem)}). Convém reforçar a folga ou aliviar a poupança/gasto nesse período.</div>`:(P.margem>0?`<div class="hint" style="border-left:3px solid var(--in);margin-top:12px">O Valete mantém-se acima da margem (${fmt0(P.margem)}) nos próximos ${_tesH} meses ✓</div>`:'')}
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:12px">
+      <polygon points="${area}" fill="${stroke}" opacity=".08"/>
+      ${(P.margem>minV&&P.margem<maxV)?`<line x1="${pad}" y1="${my}" x2="${W-pad}" y2="${my}" stroke="var(--out)" stroke-width="1" stroke-dasharray="4 3" opacity=".7"/>`:''}
+      <polyline points="${line}" fill="none" stroke="${stroke}" stroke-width="2"/>
+      ${dots}${xlab}
+    </svg>
+    <details style="margin-top:8px"><summary style="font-size:12px;color:var(--mut);cursor:pointer">ver mês a mês</summary>
+      <div class="gridwrap" style="margin-top:8px"><table class="sumtable"><thead><tr><th>Mês</th><th>Receita</th><th>Despesa</th>${P.poup>0?'<th>Poup.</th>':''}<th>Saldo fim</th></tr></thead><tbody>
+      ${rows.map(r=>`<tr><td>${MC[r.m-1]} ${String(r.y).slice(2)}</td><td class="pos">${fmt0(r.rec)}</td><td class="neg">${fmt0(r.desp)}</td>${P.poup>0?`<td class="neg">${fmt0(r.poup)}</td>`:''}<td class="${r.saldo<P.margem?'neg':''}">${fmt0(r.saldo)}</td></tr>`).join('')}
+      </tbody></table></div>
+    </details>
+  </div>`;
+}
 function vPrevisao(m){
   const f=state.forecast;
   const anos=[...new Set(state.movimentos.map(x=>+x.data.slice(0,4)))].sort();
@@ -1806,6 +1862,8 @@ function vPrevisao(m){
     <div class="kbox"><div class="l">Daqui a ${f.horizonte} anos</div><div class="v pos">${fmt0(patrFim)}</div></div>
     <div class="kbox"><div class="l">Poupança média/ano</div><div class="v ${poupMedia>=0?'pos':'neg'}">${fmt0(poupMedia)}</div></div>
   </div>
+
+  ${tesourariaCard()}
 
   ${tendenciasCard()}
 
@@ -2142,6 +2200,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v51',d:'27 jun',bul:['Novo: «Tesouraria do Valete · próximos meses» na Previsão — projeta o saldo do Valete a partir de hoje (receita e despesa típicas dos últimos meses − poupança), com gráfico, toggle 6/12 meses e aviso se descer abaixo da margem de segurança.']},
   {v:'v50',d:'27 jun',bul:['Novo: «Resumo do mês» no Analytics — recap do mês anterior com comparação ao mês anterior e ao homólogo, maiores gastos e alertas. A IA escreve a narrativa em 2-3 frases (e guarda-a); sem IA, mostra um resumo automático.']},
   {v:'v49',d:'27 jun',bul:['Novo: cartão «Para mimos» na Grelha — mostra quanto sobra este mês para a parte lúdica depois das despesas essenciais e da poupança, e quanto já usaste. Usa as categorias marcadas como supérfluas (★). Nova definição «Poupança mensal» (Definições → Valete · previsão & margem).']},
   {v:'v48',d:'27 jun',bul:['Resumo mensal: a coluna Saldo deixa de ficar cortada em mobile — coluna das barras mais estreita e espaçamentos afinados (as barras mantêm-se até telemóveis muito pequenos).','Novo: chat flutuante da IA no telemóvel — botão no canto inferior direito que abre uma folha de conversa, com o mesmo motor da barra do PC.']},
@@ -2526,6 +2585,7 @@ document.addEventListener('click',e=>{
   if(t.id==='metaSub'){saveMetaAdd(-1);return;}
   if(d.superflag){ const c=cat(d.superflag); if(c){c.superfluo=!c.superfluo; save(); render();} return; }
   if(d.resumogen){ try{localStorage.removeItem(_resumoKey(d.resumogen));}catch(e){} _resumoTried.delete(d.resumogen); gerarResumo(d.resumogen,true); render(); return; }
+  if(d.tesh){ _tesH=+d.tesh; render(); return; }
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
   if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.poupancaMensal=Math.max(0,parseFloat(val('poupancaMensal'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
