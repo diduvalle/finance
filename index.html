@@ -177,6 +177,25 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 #qAddCash.on{background:var(--acc-15);box-shadow:inset 0 0 0 1.5px var(--acc)}#qAddCash.on svg{color:var(--acc)}
 /* Grid */
 .gridwrap{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);overflow:auto;box-shadow:var(--sh)}
+/* cartão "Para mimos" (disponível para lazer este mês) */
+.mimocard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--acc);border-radius:var(--r-lg);padding:13px 16px;margin-bottom:12px;box-shadow:var(--sh)}
+.mimocard.warn{border-left-color:var(--warn)} .mimocard.neg{border-left-color:var(--out)}
+.mimo-top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.mimo-ttl{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:12.5px;color:var(--mut);text-transform:uppercase;letter-spacing:.3px}
+.mimo-ttl svg{width:16px;height:16px;color:var(--acc)}
+.mimocard.warn .mimo-ttl svg{color:var(--warn)} .mimocard.neg .mimo-ttl svg{color:var(--out)}
+.mimo-big{font-weight:800;font-size:18px;color:var(--acc)}
+.mimocard.warn .mimo-big{color:var(--warn)} .mimocard.neg .mimo-big{color:var(--out)}
+.mimo-bar{height:8px;border-radius:5px;background:var(--card2);overflow:hidden;margin:11px 0 6px;box-shadow:inset 0 0 0 1px var(--hair)}
+.mimo-bar i{display:block;height:100%;background:var(--acc);border-radius:5px;min-width:2px}
+.mimocard.warn .mimo-bar i{background:var(--warn)} .mimocard.neg .mimo-bar i{background:var(--out)}
+.mimo-sub{font-size:12px;color:var(--mut)}
+.mimo-det{margin-top:9px} .mimo-det summary{font-size:11.5px;color:var(--mut);cursor:pointer;list-style:none}
+.mimo-det summary::-webkit-details-marker{display:none}
+.mimo-calc{margin-top:9px;font-size:12.5px;display:flex;flex-direction:column;gap:5px}
+.mimo-calc>div{display:flex;justify-content:space-between;gap:12px}
+.mimo-calc .mimo-eq{border-top:1px solid var(--line);padding-top:6px;margin-top:1px;font-weight:700}
+.mimo-calc b.pos{color:var(--in)} .mimo-calc b.neg{color:var(--out)}
 table.grid{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
 table.grid th,table.grid td{border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent);padding:0;text-align:right;white-space:nowrap}
 table.grid thead th{position:sticky;top:0;background:linear-gradient(180deg,var(--card2),color-mix(in srgb,var(--card2) 70%,var(--bg)));z-index:2;font-size:11.5px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:12px 14px;cursor:default}
@@ -703,6 +722,7 @@ function load(){
     state._recdiaV1=true;
   }
   state.settings.valeteMargem = state.settings.valeteMargem ?? 0; // margem de segurança do Valete
+  state.settings.poupancaMensal = state.settings.poupancaMensal ?? 150; // quanto desvio p/ poupança no início do mês (entra no cálculo do "para mimos")
   state.settings.diaSalario = state.settings.diaSalario ?? 23; // dia em que a receita líquida costuma entrar
   state.settings.salarioMatch = state.settings.salarioMatch ?? ''; // palavra-chave extra p/ reconhecer o salário no extrato do banco (ex.: nome da entidade patronal)
   if(state.settings.codigo===undefined) state.settings.codigo='197000'; // código de acesso (bloqueio simples)
@@ -944,6 +964,49 @@ function estimativaReceitaLiq(ymCur){
   const meses=mesesTipo('receita').filter(m=>m<ymCur).slice(-12);
   return _estPond(meses.map(m=>state.movimentos.filter(x=>x.tipo==='receita'&&x.data.slice(0,7)===m).reduce((a,x)=>a+x.valor,0)));
 }
+/* conjunto de categorias supérfluas (★) + filhos — o que é "mimo"/lazer */
+function _superSet(){ const s=new Set(); state.categorias.filter(c=>c.superfluo).forEach(c=>{s.add(c.id);childrenOf(c.id).forEach(k=>s.add(k.id));}); return s; }
+/* previsão das despesas ESSENCIAIS (não-supérfluas) de um mês — média ponderada dos meses anteriores */
+function prevEssenciais(ymCur,superSet){
+  superSet=superSet||_superSet();
+  const meses=mesesTipo('despesa').filter(m=>m<ymCur).slice(-12);
+  return _estPond(meses.map(m=>round2(state.movimentos.filter(x=>x.tipo==='despesa'&&x.data.slice(0,7)===m&&!superSet.has(x.categoriaId)).reduce((a,x)=>a+x.valor,0))));
+}
+/* "Disponível para mimos" de um mês: Receita − Essenciais − Poupança; e quanto já gastaste em supérfluos */
+function disponivelMimos(mi){
+  const ym=ano+'-'+String(mi+1).padStart(2,'0');
+  const sup=_superSet();
+  const recReal=round2(state.movimentos.filter(m=>m.tipo==='receita'&&m.data.slice(0,7)===ym).reduce((a,m)=>a+m.valor,0));
+  const recPrev=estimativaReceitaLiq(ym);
+  const receita=recReal>0?recReal:recPrev;
+  const desp=state.movimentos.filter(m=>m.tipo==='despesa'&&m.data.slice(0,7)===ym);
+  const essReal=round2(desp.filter(m=>!sup.has(m.categoriaId)).reduce((a,m)=>a+m.valor,0));
+  const essPrev=prevEssenciais(ym,sup);
+  const essenciais=Math.max(essReal,essPrev); // o maior: se a previsão é maior, ainda vêm contas; se já gastaste mais, conta o real
+  const mimosGasto=round2(desp.filter(m=>sup.has(m.categoriaId)).reduce((a,m)=>a+m.valor,0));
+  const poup=Math.max(0,+state.settings.poupancaMensal||0);
+  const orcamento=round2(receita-essenciais-poup);
+  const resta=round2(orcamento-mimosGasto);
+  return {ym,receita,recReal,recPrev,essenciais,essReal,essPrev,mimosGasto,poup,orcamento,resta,semSuper:sup.size===0};
+}
+/* cartão "Para mimos" — só para o mês corrente, quando o ano em vista é o ano atual */
+function mimoCard(){
+  const hoje=new Date(); if(ano!==hoje.getFullYear()) return '';
+  const mi=hoje.getMonth(); const d=disponivelMimos(mi);
+  const orc=d.orcamento, gasto=d.mimosGasto, resta=d.resta;
+  const pct=orc>0?Math.min(100,Math.round(gasto/orc*100)):(gasto>0?100:0);
+  const estado=resta<0?'neg':(orc>0&&gasto/orc>0.85?'warn':'pos');
+  const restaTxt=resta>=0?`${fmt(resta)} para mimos`:`${fmt(Math.abs(resta))} acima do mimo`;
+  return `<div class="mimocard ${estado}">
+    <div class="mimo-top"><div class="mimo-ttl">${svg(I.star)} Para mimos · ${MESES[mi]}</div><div class="mimo-big">${restaTxt}</div></div>
+    ${d.semSuper
+      ? `<div class="mimo-sub">É o que sobra depois do essencial e da poupança. Marca as categorias de lazer com <b>★</b> em <b>Definições → Supérfluos</b> para a app acompanhar quanto já usaste em mimos.</div>`
+      : orc>0
+        ? `<div class="mimo-bar"><i style="width:${pct}%"></i></div><div class="mimo-sub">Orçamento de lazer ${fmt(orc)} · já usaste ${fmt(gasto)}</div>`
+        : `<div class="mimo-sub">Este mês o essencial + poupança não deixam folga para mimos.</div>`}
+    <details class="mimo-det"><summary>como é calculado</summary><div class="mimo-calc"><div><span>Receita do mês</span><b class="pos">${fmt(d.receita)}${d.recReal>0?'':' <span style="font-weight:400;color:var(--mut)">(prev.)</span>'}</b></div><div><span>− Despesas essenciais</span><b class="neg">${fmt(d.essenciais)}${d.essPrev>d.essReal?' <span style="font-weight:400;color:var(--mut)">(prev.)</span>':''}</b></div><div><span>− Poupança do mês</span><b class="neg">${fmt(d.poup)}</b></div><div class="mimo-eq"><span>= Para mimos</span><b>${fmt(d.orcamento)}</b></div><div><span>Já gastaste em lazer (★)</span><b>${fmt(d.mimosGasto)}</b></div></div></details>
+  </div>`;
+}
 /* valor típico de uma fixa = mediana do que essa categoria gastou nos últimos meses (cai bem quando o valor varia) */
 function medValorFixa(r){
   const hist=mesesDespesa().slice(-12).map(m=>catMesTotal(r.categoriaId,m)).filter(v=>v>0);
@@ -1114,6 +1177,8 @@ function vGrelha(m){
       <button data-gviewtoggle="1" title="${view==='lista'?'Ver em tabela':'Ver em lista'}" aria-label="Alternar vista (lista/tabela)">${svg(view==='lista'?I.grid:I.list)}<span class="gtlbl">${view==='lista'?'Tabela':'Lista'}</span></button>
     </div>
   </div>
+
+  ${mimoCard()}
 
   ${gridTipo==='receita'?(()=>{
     const movR=state.movimentos.filter(m=>m.tipo==='receita'&&+m.data.slice(0,4)===ano);
@@ -1995,6 +2060,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v49',d:'27 jun',bul:['Novo: cartão «Para mimos» na Grelha — mostra quanto sobra este mês para a parte lúdica depois das despesas essenciais e da poupança, e quanto já usaste. Usa as categorias marcadas como supérfluas (★). Nova definição «Poupança mensal» (Definições → Valete · previsão & margem).']},
   {v:'v48',d:'27 jun',bul:['Resumo mensal: a coluna Saldo deixa de ficar cortada em mobile — coluna das barras mais estreita e espaçamentos afinados (as barras mantêm-se até telemóveis muito pequenos).','Novo: chat flutuante da IA no telemóvel — botão no canto inferior direito que abre uma folha de conversa, com o mesmo motor da barra do PC.']},
   {v:'v47',d:'27 jun',bul:['Barra de ferramentas da Grelha arrumada: caixa única que preenche o espaço todo (sem espaço morto), numa só linha. No PC mostra ícone + rótulo curto; no telemóvel fica só com os ícones.']},
   {v:'v46',d:'27 jun',bul:['Header mobile: definitivamente 2 linhas. Os 5 ícones nunca quebram — quando o ecrã é estreito, são os saldos que cedem (escondem o Δ em vez de empurrar tudo para uma 3.ª linha). Testado de 320 a 390 px.']},
@@ -2184,6 +2250,7 @@ function vDefs(m){
         <div><label>Margem de segurança</label><div style="display:flex;gap:6px;align-items:center"><input id="valeteMargem" type="number" step="10" min="0" value="${+state.settings.valeteMargem||0}" style="max-width:110px"><span>${moeda()}</span></div></div>
         <div><label>Dia de entrada do salário</label><input id="diaSalario" type="number" step="1" min="1" max="28" value="${+state.settings.diaSalario||23}" style="max-width:90px"></div>
       </div>
+      <div style="margin-top:8px"><label>Poupança mensal ${hlp('Quanto desvias para a poupança no início de cada mês. Entra no cálculo do "Para mimos" — o que sobra para lazer depois do essencial e da poupança.')}</label><div style="display:flex;gap:6px;align-items:center"><input id="poupancaMensal" type="number" step="10" min="0" value="${+state.settings.poupancaMensal||0}" style="max-width:110px"><span>${moeda()}</span></div></div>
       <div style="margin-top:8px"><label>Palavra-chave do salário no banco ${hlp('Texto que aparece no extrato do Novobanco quando entra o ordenado (ex.: nome da entidade patronal). Ao reconhecê-lo, a app lança o valor como Salário provisório, que depois substituis pelo recibo. "vencimento"/"ordenado"/"salário" já são reconhecidos automaticamente.')}</label><input id="salarioMatch" type="text" maxlength="40" placeholder="ex.: nome da empresa" value="${esc(state.settings.salarioMatch||'')}" style="max-width:260px"></div>
       <button class="btn sm" style="margin-top:12px" id="saveMargem">${svg(I.check)}Guardar</button>
     </div>
@@ -2377,7 +2444,7 @@ document.addEventListener('click',e=>{
   if(d.superflag){ const c=cat(d.superflag); if(c){c.superfluo=!c.superfluo; save(); render();} return; }
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
-  if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
+  if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.poupancaMensal=Math.max(0,parseFloat(val('poupancaMensal'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
   if(d.aiprov){ setAiProvider(d.aiprov); _aiModels=[]; render(); return; }
   if(t.id==='aiKeySave'){ setAiKey((val('aiKey')||'').trim()); toast(aiKey()?'Chave guardada (só neste dispositivo)':'Chave removida'); render(); return; }
   if(t.id==='aiKeyDel'){ setAiKey(''); toast('Chave removida'); render(); return; }
