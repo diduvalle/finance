@@ -363,6 +363,14 @@ button.cicon:hover{transform:scale(1.08)}
 .defs-wrap.fresh .defgroup>summary{display:none}
 .defs-wrap.fresh .defgroup:not(.fresh-active){display:none}
 .defs-wrap.fresh .defgroup .defs-grid{padding:0}
+/* Grelha Fresh em 2 colunas (PC) */
+.freshg{display:flex;gap:18px;align-items:flex-start}
+.freshg-left{flex:0 0 320px;display:flex;flex-direction:column;gap:14px}
+.freshg-right{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.freshg-left>*,.freshg-right>*{margin-top:0!important;margin-bottom:0!important}
+.freshg-left .qadd{display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.freshg-left .qadd .fld{grid-column:auto;grid-row:auto}
+.freshg-left .qadd #qAdd{grid-column:auto;grid-row:auto;width:100%}
 /* tamanho seguro p/ todos os ícones SVG (evita ícones gigantes em h2/cartões) */
 svg{width:16px;height:16px;flex:none}
 h2 svg{width:18px;height:18px;vertical-align:middle}
@@ -1288,6 +1296,7 @@ function vGrelha(m){
       <tfoot><tr><td>Total</td><td class="barscell"></td><td class="pos">${fmt0(sumYear('receita'))}</td><td class="neg">${fmt0(sumYear('despesa'))}</td><td class="${sumYear('receita')-sumYear('despesa')>=0?'pos':'neg'}">${fmt0(sumYear('receita')-sumYear('despesa'))}</td></tr></tfoot>
     </table>
   </div>`;
+  applyFreshGrelha(m);
 }
 
 /* ----- cell popover ----- */
@@ -2312,6 +2321,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v59',d:'27 jun',bul:['Fresh (beta): a Grelha passa a 2 colunas no PC — Mimos + Lançamento rápido + Orçamentos numa coluna lateral e a tabela ao lado, aproveitando o ecrã largo. No telemóvel mantém-se empilhada como sempre.']},
   {v:'v58',d:'27 jun',bul:['Novo: modo «Fresh» (beta) — em Definições há um botão para experimentar um novo visual/arrumação. Primeira página: Definições com menu lateral (no PC) em vez de scroll. É opcional, por dispositivo, e só muda o aspeto no computador — no telemóvel fica tudo igual.']},
   {v:'v57',d:'27 jun',bul:['Cartão «Mimos» redesenhado: movido para baixo das caixas de saldo, minimalista (Mimos · mês · valor + barra), cores invertidas (fundo cheio; vermelho quando passas). O detalhe «como é calculado» fica numa mini-seta.']},
   {v:'v56',d:'27 jun',bul:['Ícone da biometria melhorado — impressão digital mais nítida e reconhecível no teclado do PIN.']},
@@ -2388,6 +2398,20 @@ function applyFreshDefs(m){
   groups.forEach(g=>{ g.setAttribute('open',''); g.classList.toggle('fresh-active', g.dataset.dg===defSec); content.appendChild(g); });
   wrap.classList.add('fresh');
   wrap.appendChild(rail); wrap.appendChild(content);
+}
+/* Grelha em 2 colunas (só Fresh+PC): coluna esquerda = Mimos + Lançamento + Orçamentos; direita = tabela + resumo. Não toca no conteúdo. */
+function applyFreshGrelha(m){
+  if(!freshDesktop()) return;
+  const kstrip=m.querySelector(':scope > .kstrip'); if(!kstrip) return;
+  const after=[...m.children].slice([...m.children].indexOf(kstrip)+1); if(!after.length) return;
+  const isLeft=el=>el.classList&&(el.classList.contains('mimocard')||el.classList.contains('qadd')||el.classList.contains('orccard'));
+  const left=after.filter(isLeft), right=after.filter(e=>!isLeft(e));
+  const wrap=document.createElement('div'); wrap.className='freshg';
+  const lc=document.createElement('div'); lc.className='freshg-left';
+  const rc=document.createElement('div'); rc.className='freshg-right';
+  left.forEach(e=>lc.appendChild(e)); right.forEach(e=>rc.appendChild(e));
+  if(lc.children.length) wrap.appendChild(lc); wrap.appendChild(rc);
+  kstrip.after(wrap);
 }
 function vDefs(m){
   const [a,b]=P();
@@ -2864,7 +2888,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden){ const ai
    ignora mudanças só de altura (teclado virtual no telemóvel, que senão fechava o popover ao focar o input) */
 let _popWinW=window.innerWidth;
 let _freshWide=window.innerWidth>=900;
-window.addEventListener('resize',()=>{ if(window.innerWidth!==_popWinW){ _popWinW=window.innerWidth; closePop(); } const w=window.innerWidth>=900; if(w!==_freshWide){ _freshWide=w; if(freshOn()&&tab==='defs') render(); } });
+window.addEventListener('resize',()=>{ if(window.innerWidth!==_popWinW){ _popWinW=window.innerWidth; closePop(); } const w=window.innerWidth>=900; if(w!==_freshWide){ _freshWide=w; if(freshOn()) render(); } });
 
 /* ---- drag & drop de colunas (agrupar/desagrupar) + renomear ---- */
 let dragCat=null;
