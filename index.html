@@ -569,6 +569,10 @@ html:has(#lock),html:has(#splash){overflow:hidden}
 #lock .pad button.k-back{background:transparent;color:var(--mut);font-size:22px}
 #lock .pad button.k-back:active{background:transparent;transform:scale(.9)}
 #lock .pad button.k-empty{visibility:hidden;pointer-events:none}
+#lock .pad button.k-bio{background:transparent;color:var(--acc)}
+#lock .pad button.k-bio:hover{background:var(--card2)}
+#lock .pad button.k-bio:active{background:var(--card2);transform:scale(.9);color:var(--acc)}
+#lock .pad button.k-bio svg{width:30px;height:30px}
 #lockBox.shake{animation:lockShake .42s}
 @keyframes lockShake{0%,100%{transform:none}20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
 </style>
@@ -2295,6 +2299,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v55',d:'27 jun',bul:['Login biométrico (mobile): a biometria deixa de abrir sozinha ao iniciar/voltar à app (era o que causava o loop). Passa a haver um ícone de impressão digital no canto do teclado do PIN — só pede a biometria quando o tocas.']},
   {v:'v54',d:'27 jun',bul:['Novo: «Consumos» no Analytics — regista o consumo de cada fatura de Luz (kWh), Água e Gás (m³) e a app calcula o preço unitário (€/kWh, €/m³). Mostra se o tarifário subiu (preço a aumentar com consumo parecido) — útil para comparar propostas da concorrência.']},
   {v:'v53',d:'27 jun',bul:['Novo: «Evolução do património» na tab Poupanças — gráfico do património total no fim de cada ano, com variação face ao ano anterior e desde o início.']},
   {v:'v52',d:'27 jun',bul:['Novo: cartão «Orçamentos do mês» na Grelha — barras de progresso por categoria (gasto vs limite), ordenadas pelas que estão acima/perto do limite, com total do mês. Aparece quando defines limites em Definições → Orçamentos.']},
@@ -4355,26 +4360,26 @@ function showLock(){
   _pinEntry='';
   const d=document.createElement('div'); d.id='lock';
   d.style.cssText='position:fixed;inset:0;z-index:9999;background:var(--bg,#121613);display:flex;align-items:center;justify-content:center;padding:20px';
-  const hasBio=!!bioCfg();
   d.innerHTML=`<div id="lockBox" style="text-align:center;max-width:300px;width:100%">
     <div style="width:60px;height:60px;border-radius:16px;background:linear-gradient(135deg,#a7b89a,#5f7a6b);display:grid;place-items:center;color:#f5efe6;margin:0 auto 16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:32px;height:32px"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div>
     <div style="color:var(--mut);font-size:14px;margin-bottom:8px">Introduz o PIN</div>
     <div class="dots" id="lockDots"></div>
     <div id="lockMsg" style="color:#f87171;font-size:12px;height:15px;margin:4px 0 2px"></div>
     <div class="pad" id="lockPad"></div>
-    ${hasBio?`<button id="lockBio" style="margin-top:16px;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:none;border:1px solid var(--line);color:var(--mut);padding:11px;border-radius:12px;cursor:pointer;font-size:14px">${svg(I.finger)} Entrar com biometria</button>`:''}
   </div>`;
   document.body.appendChild(d);
   lockRenderPad(); pinUpdate();
   const pad=document.getElementById('lockPad');
-  pad.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.pinback)pinBack();else if(b.dataset.pin!=null)pinPress(b.dataset.pin);});
-  if(hasBio){ const bb=document.getElementById('lockBio'); if(bb)bb.addEventListener('click',()=>bioUnlock(false)); if(!document.hidden) setTimeout(()=>{ if(!_bioBusy) bioUnlock(true); },300); }
+  pad.addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;if(b.dataset.pinback)pinBack();else if(b.dataset.pinbio)bioUnlock(false);else if(b.dataset.pin!=null)pinPress(b.dataset.pin);});
+  // a biometria já NÃO dispara sozinha — só ao tocar no ícone do teclado (acaba com o loop ao minimizar/logout)
 }
 function lockRenderPad(){
   const pad=document.getElementById('lockPad'); if(!pad)return;
   const order=_shuffle([0,1,2,3,4,5,6,7,8,9]); // baralhado sempre (anti-espreitadela)
   let h=''; for(let k=0;k<9;k++)h+=`<button data-pin="${order[k]}">${order[k]}</button>`;
-  h+=`<button class="k-empty" tabindex="-1"></button><button data-pin="${order[9]}">${order[9]}</button><button class="k-back" data-pinback="1" aria-label="Apagar">⌫</button>`;
+  // canto inferior esquerdo: ícone de biometria (só toca → pede impressão digital) se ativa; senão vazio
+  const cornerBio=bioCfg()?`<button class="k-bio" data-pinbio="1" aria-label="Entrar com biometria" title="Entrar com biometria">${svg(I.finger)}</button>`:`<button class="k-empty" tabindex="-1"></button>`;
+  h+=`${cornerBio}<button data-pin="${order[9]}">${order[9]}</button><button class="k-back" data-pinback="1" aria-label="Apagar">⌫</button>`;
   pad.innerHTML=h;
 }
 function pinUpdate(){
@@ -4457,7 +4462,7 @@ if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
   }).catch(()=>{});
 }
 /* Ao voltar ao 1º plano: 1) aplica update pendente se bloqueado; 2) senão, auto-pede a biometria 1× (evita o loop de re-login). */
-document.addEventListener('visibilitychange',()=>{ if(document.hidden) return; if(maybeApplyUpdate()) return; if(document.getElementById('lock') && bioCfg() && !_bioBusy) setTimeout(()=>{ if(!_bioBusy && document.getElementById('lock')) bioUnlock(true); },300); });
+document.addEventListener('visibilitychange',()=>{ if(document.hidden) return; maybeApplyUpdate(); /* biometria só ao toque no ícone — não dispara ao voltar de minimizado */ });
 /* desvanece a splash depois da casa se desenhar (a app já está pronta por baixo) */
 (function(){var sp=document.getElementById('splash');if(!sp){document.documentElement.style.background='';return;}setTimeout(function(){sp.classList.add('done');setTimeout(function(){if(sp&&sp.parentNode)sp.parentNode.removeChild(sp);document.documentElement.style.background='';},650);},1250);})();
 </script>
