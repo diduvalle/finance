@@ -213,6 +213,7 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .orc-bar{height:7px;border-radius:4px;background:var(--card2);overflow:hidden;box-shadow:inset 0 0 0 1px var(--hair)}
 .orc-bar i{display:block;height:100%;background:var(--acc);border-radius:4px;min-width:2px}
 .orc-row.warn .orc-bar i{background:var(--warn)} .orc-row.over .orc-bar i{background:var(--out)}
+.consinp{width:84px;max-width:84px;text-align:right;padding:5px 7px;font-variant-numeric:tabular-nums}
 /* cartão "Resumo do mês" (narrativa da IA + alertas) */
 .resumocard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--info);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;box-shadow:var(--sh)}
 .resumo-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -808,7 +809,7 @@ function load(){
   // re-adivinha ícones das receitas (biblioteca melhorada: Comissões→euro, Bónus→estrela, SS→escudo, QRT→pasta)
   if(!state._iconRx2026){ state.categorias.filter(c=>c.tipo==='receita').forEach(c=>{ const g=guessIcon(c.nome); if(g)c.icon=g; }); state._iconRx2026=true; }
   if(!state._iconMig){ (state.categorias||[]).forEach(c=>{ if(!c.icon){ const g=guessIcon(c.nome); if(g)c.icon=g; } }); state._iconMig=true; } // ícones por nome (1×) — depois das migrações que criam categorias
-  state.recorrencias=state.recorrencias||[]; state.movimentos=state.movimentos||[]; state.poupancas=state.poupancas||{}; state.orcamentos=state.orcamentos||{};
+  state.recorrencias=state.recorrencias||[]; state.movimentos=state.movimentos||[]; state.poupancas=state.poupancas||{}; state.orcamentos=state.orcamentos||{}; state.consumos=state.consumos||{};
   if(!state.acerto||!state.acerto.length) state.acerto=clone(EMBED_ACERTO);
   state.forecast=state.forecast||{}; const _anos=[...new Set(state.movimentos.filter(m=>m.tipo==='receita').map(m=>+m.data.slice(0,4)))].sort();
   if(!state.forecast.baseAno) state.forecast.baseAno = _anos.length? String(_anos[_anos.length-2]||_anos[_anos.length-1]) : String(new Date().getFullYear());
@@ -2034,6 +2035,34 @@ function utilitiesCats(){
   }
   const seen=new Set(); return leaves.filter(c=>c&&!seen.has(c.id)&&seen.add(c.id));
 }
+/* ===== Consumos das utilities (kWh/m³): preço unitário p/ distinguir tarifário de consumo ===== */
+let _consSel='';
+function _consUnit(cat){ const nm=(cat.nome||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); if(/luz|eletric|edp|endesa/.test(nm))return 'kWh'; if(/agua/.test(nm))return 'm³'; if(/gas|gascan/.test(nm))return 'm³'; return ''; }
+function consumoCats(){ return utilitiesCats().filter(c=>_consUnit(c)); }
+function getConsumo(catId,ym){ const o=state.consumos&&state.consumos[catId]; return o?o[ym]:undefined; }
+function _up3(v){ return (v==null)?'·':v.toLocaleString('pt-PT',{minimumFractionDigits:3,maximumFractionDigits:3}); }
+function consumosCard(){
+  const cats=consumoCats(); if(!cats.length) return '';
+  const sel=(_consSel&&cats.some(c=>c.id===_consSel))?_consSel:cats[0].id;
+  const cat=cats.find(c=>c.id===sel), unit=_consUnit(cat);
+  const yms=[...new Set(state.movimentos.filter(m=>m.tipo==='despesa'&&anaCatIds(sel).has(m.categoriaId)&&m.valor>0).map(m=>m.data.slice(0,7)))].sort().slice(-12).reverse();
+  const rows=yms.map(ym=>{ const y=+ym.slice(0,4),mi=+ym.slice(5,7)-1; const eur=round2(anaSum(sel,y,mi)); const cons=getConsumo(sel,ym); const up=(cons>0)?round2(eur/cons):null; return {ym,y,mi,eur,cons,up}; });
+  const withUp=rows.filter(r=>r.up!=null); const latest=withUp[0], prevU=withUp[1];
+  const trend=(latest&&prevU&&prevU.up>0)?Math.round((latest.up/prevU.up-1)*100):null;
+  const segs=cats.map(c=>`<button data-conssel="${c.id}" class="${c.id===sel?'on-out':''}">${esc(c.nome)}</button>`).join('');
+  return `<div class="card" style="margin-bottom:14px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 class="dh" style="margin:0">${svg(I.trend)} Consumos · ${esc(cat.nome)} <span style="color:var(--mut);font-weight:600">(${unit})</span></h3><div class="seg">${segs}</div></div>
+    <p class="dsub" style="margin-top:6px">Regista o consumo de cada fatura (${unit}). A app calcula o <b>preço unitário (€/${unit})</b> — se subir com consumo parecido, foi o <b>tarifário</b>. Útil para comparar propostas da concorrência.</p>
+    ${latest?`<div class="kstrip">
+      <div class="kbox"><div class="l">Preço atual (€/${unit})</div><div class="v">${_up3(latest.up)}</div><div class="l">${MESES[latest.mi]} ${latest.y}</div></div>
+      ${trend!=null?`<div class="kbox"><div class="l">vs fatura anterior</div><div class="v ${trend>0?'neg':(trend<0?'pos':'')}">${trend>0?'▲':(trend<0?'▼':'=')} ${Math.abs(trend)}%</div><div class="l">${trend>0?'tarifário subiu':(trend<0?'tarifário desceu':'igual')}</div></div>`:''}
+    </div>`:`<div class="hint" style="border-left:3px solid var(--info);margin-top:4px">Ainda não registaste consumos. Preenche a coluna <b>${unit}</b> em baixo, a partir das tuas faturas, e a app começa a mostrar o preço unitário.</div>`}
+    <div class="gridwrap" style="margin-top:12px"><table class="sumtable">
+      <thead><tr><th>Mês</th><th class="num">€</th><th class="num">${unit}</th><th class="num">€/${unit}</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${MC[r.mi]} ${String(r.y).slice(2)}</td><td class="num">${fmtn(r.eur)}</td><td class="num"><input class="consinp" type="number" step="0.01" min="0" inputmode="decimal" data-consumo="${sel}|${r.ym}" value="${r.cons!=null?r.cons:''}" placeholder="—"></td><td class="num">${_up3(r.up)}</td></tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
 /* N valores mensais terminando em (year,mi), cronológico */
 function anaTrailing(catId,year,mi,n){const out=[];for(let k=n-1;k>=0;k--){let y=year,m=mi-k;while(m<0){m+=12;y--;}out.push(round2(anaSum(catId,y,m)));}return out;}
 function _spark(vals,w,h){
@@ -2229,6 +2258,7 @@ function vAnalytics(m){
   m.innerHTML=`
   ${resumoMesCard()}
   ${anaUtilitiesPanel()}
+  ${consumosCard()}
   ${glob.length?`<div class="card" style="margin-bottom:14px"><h3 class="dh">${svg(I.bell)} Alertas — todas as categorias</h3><p class="dsub" style="margin-top:-6px">Despesas que dispararam face a anos anteriores. Toca para analisar.</p>${glob.map(a=>`<div class="hint" data-anasel="${a.catId}" style="border-left:3px solid ${a.lvl==='high'?'var(--out)':'var(--warn)'};margin-bottom:8px;cursor:pointer"><b>${esc(a.cat)}</b> · ${a.txt}</div>`).join('')}</div>`:`<div class="hint" style="margin-bottom:14px;border-left:3px solid var(--in)">Sem alertas gerais — os consumos estão dentro do padrão dos anos anteriores ✓</div>`}
   <div class="card" style="margin-bottom:14px"><label>Analisar categoria em detalhe</label>
     <select id="anaCatSel" style="width:100%">${cats.map(c=>`<option value="${c.id}" ${c.id===anaCat?'selected':''}>${esc(catName(c.id))}</option>`).join('')}</select>
@@ -2265,6 +2295,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v54',d:'27 jun',bul:['Novo: «Consumos» no Analytics — regista o consumo de cada fatura de Luz (kWh), Água e Gás (m³) e a app calcula o preço unitário (€/kWh, €/m³). Mostra se o tarifário subiu (preço a aumentar com consumo parecido) — útil para comparar propostas da concorrência.']},
   {v:'v53',d:'27 jun',bul:['Novo: «Evolução do património» na tab Poupanças — gráfico do património total no fim de cada ano, com variação face ao ano anterior e desde o início.']},
   {v:'v52',d:'27 jun',bul:['Novo: cartão «Orçamentos do mês» na Grelha — barras de progresso por categoria (gasto vs limite), ordenadas pelas que estão acima/perto do limite, com total do mês. Aparece quando defines limites em Definições → Orçamentos.']},
   {v:'v51',d:'27 jun',bul:['Novo: «Tesouraria do Valete · próximos meses» na Previsão — projeta o saldo do Valete a partir de hoje (receita e despesa típicas dos últimos meses − poupança), com gráfico, toggle 6/12 meses e aviso se descer abaixo da margem de segurança.']},
@@ -2653,6 +2684,7 @@ document.addEventListener('click',e=>{
   if(d.superflag){ const c=cat(d.superflag); if(c){c.superfluo=!c.superfluo; save(); render();} return; }
   if(d.resumogen){ try{localStorage.removeItem(_resumoKey(d.resumogen));}catch(e){} _resumoTried.delete(d.resumogen); gerarResumo(d.resumogen,true); render(); return; }
   if(d.tesh){ _tesH=+d.tesh; render(); return; }
+  if(d.conssel){ _consSel=d.conssel; render(); return; }
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
   if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.poupancaMensal=Math.max(0,parseFloat(val('poupancaMensal'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
@@ -2759,6 +2791,7 @@ document.addEventListener('change',e=>{
   if(ds.poupval!=null){const[y,i]=ds.poupval.split('|');state.poupancas[y].contas[+i].valor=parseFloat(e.target.value)||0;save();render();}
   if(ds.contq!=null){const[y,i]=ds.contq.split('|');state.poupancas[y].contagem[+i].q=parseFloat(e.target.value)||0;state.poupancas[y].contagemData=Date.now();save();render();}
   if(ds.orc!=null){const v=parseFloat(e.target.value); if(v>0)state.orcamentos[ds.orc]=v; else delete state.orcamentos[ds.orc]; save();}
+  if(ds.consumo!=null){const [cid,ym]=ds.consumo.split('|'); const v=parseFloat(e.target.value); state.consumos[cid]=state.consumos[cid]||{}; if(v>0)state.consumos[cid][ym]=round2(v); else delete state.consumos[cid][ym]; save(); render(); return;}
   if(e.target.id==='bankAuto'){if(state.bank){state.bank.auto=e.target.checked;save();render();toast(e.target.checked?'Banco: automático ligado (1×/dia)':'Banco: automático desligado');}}
   if(e.target.id==='bankSince'){if(state.bank){state.bank.since=e.target.value||isoToday();save();}}
   if(e.target.id==='bankHour'){if(state.bank){state.bank.autoHour=parseInt((e.target.value||'20:00').split(':')[0])||0;save();}}
