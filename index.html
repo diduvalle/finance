@@ -2343,6 +2343,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v64',d:'27 jun',bul:['Cativo do Valete agora é AUTOMÁTICO do banco: quando o Open Banking sincroniza, a app lê o saldo contabilístico e o disponível e calcula o cativo sozinho (cativo = contabilístico − disponível). Já não é preciso meter à mão (o campo em Definições fica só como acerto manual).']},
   {v:'v63',d:'27 jun',bul:['Correção: o campo do «valor cativo» (Definições → Valete) não aceitava vírgula (ex.: 17,69) e o valor não ficava guardado — agora aceita vírgula ou ponto. Depois de guardado, aparece o chip 🔒 no header.']},
   {v:'v62',d:'27 jun',bul:['Novo: valor «cativo» do Valete no header (como no banco) — montantes descontados mas ainda não processados. Aparece um chip 🔒 ao lado do Valete; o tooltip mostra Contabilístico · Cativo · Disponível. Editas clicando no chip ou em Definições → Valete. Não mexe em nenhum cálculo (continua tudo a usar o contabilístico).']},
   {v:'v61',d:'27 jun',bul:['Poupanças: o gráfico de evolução deixa de ficar gigante (barras de altura fixa) e a página deixa de ter zonas mortas no modo Fresh.','Previsão: os gráficos (tesouraria e património) ganham eixo com valores (€) e linhas de grelha — deixam de ser só uma linha sem contexto.']},
@@ -2597,7 +2598,7 @@ function vDefs(m){
         <div><label>Dia de entrada do salário</label><input id="diaSalario" type="number" step="1" min="1" max="28" value="${+state.settings.diaSalario||23}" style="max-width:90px"></div>
       </div>
       <div style="margin-top:8px"><label>Poupança mensal ${hlp('Quanto desvias para a poupança no início de cada mês. Entra no cálculo do "Para mimos" — o que sobra para lazer depois do essencial e da poupança.')}</label><div style="display:flex;gap:6px;align-items:center"><input id="poupancaMensal" type="number" step="10" min="0" value="${+state.settings.poupancaMensal||0}" style="max-width:110px"><span>${moeda()}</span></div></div>
-      <div style="margin-top:8px"><label>Valor cativo do Valete ${hlp('Montantes já descontados mas ainda não processados no banco (autorizações). A app mostra um chip 🔒 no topo e o Disponível = contabilístico − cativo. Não mexe nos cálculos. Depois de o teres, também podes editar clicando no chip do header.')}</label><div style="display:flex;gap:6px;align-items:center"><input id="valeteCativo" type="text" inputmode="decimal" value="${valeteConta()&&parseFloat(valeteConta().cativo)>0?String(parseFloat(valeteConta().cativo)).replace('.',','):''}" placeholder="0,00" style="max-width:110px">${valeteConta()?'':'<span style="font-size:11px;color:var(--warn)">cria a conta «Valete» em Poupanças primeiro</span>'}<span>${moeda()}</span></div></div>
+      <div style="margin-top:8px"><label>Valor cativo do Valete ${hlp('Montantes já descontados mas ainda não processados no banco (autorizações). Vem AUTOMATICAMENTE do banco quando ligas o Open Banking (cativo = contabilístico − disponível). Este campo é só para acertar à mão se quiseres. A app mostra um chip 🔒 no topo; Disponível = contabilístico − cativo. Não mexe nos cálculos.')}</label><div style="display:flex;gap:6px;align-items:center"><input id="valeteCativo" type="text" inputmode="decimal" value="${valeteConta()&&parseFloat(valeteConta().cativo)>0?String(parseFloat(valeteConta().cativo)).replace('.',','):''}" placeholder="0,00" style="max-width:110px">${valeteConta()?'':'<span style="font-size:11px;color:var(--warn)">cria a conta «Valete» em Poupanças primeiro</span>'}<span>${moeda()}</span></div>${(state.bank&&state.bank.saldoBanco&&state.bank.saldoBanco.cativoAuto!=null)?`<p class="dsub" style="margin-top:6px">Último do banco: cativo <b>${fmt(state.bank.saldoBanco.cativoAuto)}</b> · disponível <b>${fmt(state.bank.saldoBanco.disponivel)}</b>.</p>`:(state.bank?`<p class="dsub" style="margin-top:6px">O teu banco ainda não devolveu um saldo «disponível» separado — quando devolver, o cativo aparece sozinho.</p>`:'')}</div>
       <div style="margin-top:8px"><label>Palavra-chave do salário no banco ${hlp('Texto que aparece no extrato do Novobanco quando entra o ordenado (ex.: nome da entidade patronal). Ao reconhecê-lo, a app lança o valor como Salário provisório, que depois substituis pelo recibo. "vencimento"/"ordenado"/"salário" já são reconhecidos automaticamente.')}</label><input id="salarioMatch" type="text" maxlength="40" placeholder="ex.: nome da empresa" value="${esc(state.settings.salarioMatch||'')}" style="max-width:260px"></div>
       <button class="btn sm" style="margin-top:12px" id="saveMargem">${svg(I.check)}Guardar</button>
     </div>
@@ -3979,10 +3980,20 @@ async function bankFetchSaldo(silent){
     const r=await bankFn('/balances?account_id='+encodeURIComponent(acc.uid));
     const bals=(r&&r.balances)||[];
     if(!bals.length)return null;
-    // prefere o saldo contabilístico (booked); senão disponível; senão o 1.º
-    const pick=bals.find(b=>/CLBD|PRCD|ITBD/i.test(b.balance_type||''))||bals.find(b=>/ITAV|CLAV|XPCD/i.test(b.balance_type||''))||bals[0];
-    const amt=parseFloat((pick.balance_amount||{}).amount); if(isNaN(amt))return null;
+    const amtOf=b=>{const a=parseFloat((b&&b.balance_amount||{}).amount);return isNaN(a)?null:a;};
+    // contabilístico (booked) e disponível (available) — separados; o cativo é a diferença
+    const booked=bals.find(b=>/CLBD|PRCD|ITBD/i.test(b.balance_type||''));
+    const avail=bals.find(b=>/ITAV|CLAV|FWAV/i.test(b.balance_type||''));
+    const pick=booked||avail||bals[0];
+    const amt=amtOf(pick); if(amt==null)return null;
     state.bank.saldoBanco={valor:round2(amt), currency:((pick.balance_amount||{}).currency)||'EUR', ts:Date.now(), uid:acc.uid, conta:acc.name, tipo:pick.balance_type||''};
+    // CATIVO automático = contabilístico − disponível (só quando o banco devolve ambos)
+    const bv=amtOf(booked), av=amtOf(avail);
+    if(bv!=null && av!=null){
+      const cat=Math.max(0,round2(bv-av));
+      state.bank.saldoBanco.disponivel=round2(av); state.bank.saldoBanco.cativoAuto=cat;
+      const vc=valeteConta(); if(vc) vc.cativo=cat||undefined; // preenche o chip 🔒 sozinho
+    }
     save(); return state.bank.saldoBanco;
   }catch(e){ if(!silent)toast('Não consegui ler o saldo do banco: '+(e.message||e)); return null; }
 }
