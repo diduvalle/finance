@@ -371,6 +371,9 @@ button.cicon:hover{transform:scale(1.08)}
 .freshg-left .qadd{display:flex;flex-direction:column;gap:10px;align-items:stretch}
 .freshg-left .qadd .fld{grid-column:auto;grid-row:auto}
 .freshg-left .qadd #qAdd{grid-column:auto;grid-row:auto;width:100%}
+.freshmw{display:flex;gap:18px;align-items:flex-start;margin-bottom:14px}
+.freshmw-col{flex:1;min-width:0;display:flex;flex-direction:column;gap:14px}
+.freshmw-col>*{margin:0!important}
 /* tamanho seguro p/ todos os ícones SVG (evita ícones gigantes em h2/cartões) */
 svg{width:16px;height:16px;flex:none}
 h2 svg{width:18px;height:18px;vertical-align:middle}
@@ -1180,6 +1183,7 @@ function render(){
   const _main=document.getElementById('main');
   if(window._lastTab!==tab){ _main.classList.remove('view-in'); void _main.offsetWidth; _main.classList.add('view-in'); window._lastTab=tab; window.scrollTo(0,0); }
   ({grelha:vGrelha,acerto:vAcerto,poup:vPoupancas,previsao:vPrevisao,analytics:vAnalytics,defs:vDefs}[tab])(_main);
+  if(tab==='previsao'||tab==='poup'||tab==='analytics'||tab==='acerto') applyFreshFlow(_main); // Fresh: 2 colunas (PC) nas páginas de análise
 }
 
 /* ================= GRELHA ================= */
@@ -2321,7 +2325,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
-  {v:'v59',d:'27 jun',bul:['Fresh (beta): a Grelha passa a 2 colunas no PC — Mimos + Lançamento rápido + Orçamentos numa coluna lateral e a tabela ao lado, aproveitando o ecrã largo. No telemóvel mantém-se empilhada como sempre.']},
+  {v:'v60',d:'27 jun',bul:['Fresh (beta): também a Previsão, Poupanças, Analytics e Acerto passam a usar 2 colunas no PC (os cartões mais pequenos lado a lado; tabelas e gráficos grandes ficam à largura toda). No telemóvel mantém-se tudo empilhado.']},
   {v:'v58',d:'27 jun',bul:['Novo: modo «Fresh» (beta) — em Definições há um botão para experimentar um novo visual/arrumação. Primeira página: Definições com menu lateral (no PC) em vez de scroll. É opcional, por dispositivo, e só muda o aspeto no computador — no telemóvel fica tudo igual.']},
   {v:'v57',d:'27 jun',bul:['Cartão «Mimos» redesenhado: movido para baixo das caixas de saldo, minimalista (Mimos · mês · valor + barra), cores invertidas (fundo cheio; vermelho quando passas). O detalhe «como é calculado» fica numa mini-seta.']},
   {v:'v56',d:'27 jun',bul:['Ícone da biometria melhorado — impressão digital mais nítida e reconhecível no teclado do PIN.']},
@@ -2412,6 +2416,23 @@ function applyFreshGrelha(m){
   left.forEach(e=>lc.appendChild(e)); right.forEach(e=>rc.appendChild(e));
   if(lc.children.length) wrap.appendChild(lc); wrap.appendChild(rc);
   kstrip.after(wrap);
+}
+/* arranjo Fresh genérico p/ páginas de análise (só Fresh+PC): corre os cartões sem tabela em 2 colunas (masonry), mantendo full-width o que precisa de largura (kstrip, .cols-2, títulos, tabelas .gridwrap) */
+function applyFreshFlow(m){
+  if(!freshDesktop()) return;
+  const kids=[...m.children].filter(e=>e.nodeType===1 && !e.classList.contains('foot-credit') && !e.classList.contains('freshmw'));
+  if(kids.length<3) return;
+  const isFull=el=> el.classList.contains('kstrip')||el.classList.contains('cols-2')||el.classList.contains('section-h')||el.classList.contains('freshfull')|| !!el.querySelector('.gridwrap');
+  const segs=[]; kids.forEach(el=>{ if(isFull(el)){segs.push({f:el});} else {const l=segs[segs.length-1]; if(l&&l.c)l.c.push(el); else segs.push({c:[el]});} });
+  if(!segs.some(s=>s.c&&s.c.length>=2)) return; // só vale a pena se houver pelo menos um par
+  segs.forEach(s=>{
+    if(s.f){ m.appendChild(s.f); return; }
+    if(s.c.length===1){ m.appendChild(s.c[0]); return; }
+    const wrap=document.createElement('div'); wrap.className='freshmw';
+    const c1=document.createElement('div'),c2=document.createElement('div'); c1.className=c2.className='freshmw-col';
+    wrap.appendChild(c1); wrap.appendChild(c2); m.appendChild(wrap);
+    s.c.forEach(el=>{ (c1.offsetHeight<=c2.offsetHeight?c1:c2).appendChild(el); });
+  });
 }
 function vDefs(m){
   const [a,b]=P();
