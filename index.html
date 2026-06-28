@@ -469,6 +469,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .bal.nb .bdot{background:var(--nb)} .bal.nb b{color:var(--nb)}
 .bal.cf .bdot{background:var(--cflex)} .bal.cf b{color:var(--cflex)}
 .bal.vb{color:var(--out);cursor:pointer} .bal.vb b{color:var(--out)} .bal.vb svg{width:13px;height:13px} .bal.vb .dshort{display:none}
+.bal.cativo{color:var(--warn);cursor:pointer} .bal.cativo b{color:var(--warn)} .bal.cativo .dshort{display:none}
 .bsep{width:1px;height:15px;background:var(--line);margin:0 11px;flex:none}
 /* a barra da IA parte para a 2ª linha (não cabe ao lado dos saldos) e cresce p/ encher a esquerda; os ícones ficam à direita da mesma linha — sem espaço morto */
 #aiBar{flex:1 1 320px;min-width:200px;display:flex;align-items:center}
@@ -506,7 +507,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 #aiPanel .aiq svg{width:13px;height:13px}
 .aidots{color:var(--mut)}
 @media(max-width:720px){.bal .vlbl{display:none} .bal .bdot{display:none} .balchip{padding:0 9px} .bsep{margin:0 5px}}
-@media(max-width:360px){.bal.vb{display:none}} /* ecrãs muito estreitos: esconde o Δ em vez de o cortar a meio (Valete+Coverflex inteiros) */
+@media(max-width:360px){.bal.vb,.bal.cativo{display:none}} /* ecrãs muito estreitos: esconde o Δ e o cativo (Valete+Coverflex inteiros) */
 .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:34px;width:34px;padding:0;align-items:center;justify-content:center}
 #lockNow{background:none;border:0;color:var(--mut);cursor:pointer;border-radius:9px;display:inline-flex}
 #lockNow:hover{color:var(--out);background:var(--card)}
@@ -534,6 +535,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .tabs .yearnav{margin-left:auto} /* ano colado ao fim da 2ª linha — sem espaço morto */
   #topright{order:9;display:none}
   .bal.vb svg{display:none} .bal.vb .dfull{display:none} .bal.vb .dshort{display:inline} /* Δ compacto no mobile */
+  .bal.cativo .dfull{display:none} .bal.cativo .dshort{display:inline} /* cativo compacto no mobile */
   .topbar .yearnav{height:32px}
   .topbar .yearnav{padding:2px}
   .topbar .yearnav button{width:22px;height:24px;font-size:14px}
@@ -909,6 +911,8 @@ function patrimonioDe(y){const p=state.poupancas[y];if(!p)return 0;const cofre=(
 function ultimoAnoPoup(){const ks=Object.keys(state.poupancas||{}).sort();return ks.length?ks[ks.length-1]:String(new Date().getFullYear());}
 function valeteAtual(){const p=state.poupancas[ultimoAnoPoup()];if(!p)return null;const v=(p.contas||[]).find(c=>(c.nome||'').trim().toLowerCase()==='valete');return v?(parseFloat(v.valor)||0):null;}
 function valeteConta(){const p=state.poupancas[ultimoAnoPoup()];if(!p)return null;return (p.contas||[]).find(c=>(c.nome||'').trim().toLowerCase()==='valete');}
+/* valor cativo do Valete: descontado mas ainda não processado (autorizações). Disponível = contabilístico − cativo. Não mexe nos cálculos (que usam o contabilístico). */
+function editCativo(){ const c=valeteConta(); if(!c){ toast('Não há conta "Valete" para associar o cativo'); return; } const cur=parseFloat(c.cativo)||0; const v=prompt('Valor CATIVO do Valete (€) — descontado mas ainda não processado no banco. Mete 0 para limpar:', cur?String(cur).replace('.',','):''); if(v===null)return; const n=Math.max(0,parseFloat(String(v).replace(/\s/g,'').replace(',','.'))||0); c.cativo=n||undefined; save(); render(); toast(n>0?'Cativo atualizado · disponível '+fmt((parseFloat(c.valor)||0)-n):'Cativo limpo'); }
 function coverflexConta(){const p=state.poupancas[ultimoAnoPoup()];if(!p)return null;return (p.contas||[]).find(c=>(c.nome||'').trim().toLowerCase()==='coverflex');}
 /* garante que existe conta Coverflex no ano corrente das poupanças (senão a receita/despesa Coverflex perde-se) */
 function ensureCoverflexConta(){const y=ultimoAnoPoup();let p=state.poupancas[y];if(!p){p={contas:[]};state.poupancas[y]=p;}if(!p.contas)p.contas=[];let c=p.contas.find(x=>(x.nome||'').trim().toLowerCase()==='coverflex');if(!c){c={nome:'Coverflex',valor:0};p.contas.push(c);}return c;}
@@ -1168,12 +1172,14 @@ function render(){
     +`<span class="tabsep"></span><div class="yearnav"><button data-year="-1" aria-label="Ano anterior">‹</button><span class="y">${ano}</span><button data-year="1" aria-label="Ano seguinte">›</button></div>`;
   document.getElementById('topright').innerHTML='';
   const _va=valeteAtual(); const _vf=valeteForecast(); const _alerta=_va!=null&&_vf.faltaDia;
+  const _vc0=valeteConta(); const _cativo=(_vc0&&parseFloat(_vc0.cativo))||0; const _disp=_va!=null?round2(_va-_cativo):null;
   const _cf=coverflexConta(); const _cfv=_cf?(parseFloat(_cf.valor)||0):null;
   const _vb=valeteVsBanco(); const _vbWarn=_vb&&_vb.abs>=0.01&&!_vb.stale;
   let _vChip='';
   if(_va!=null||_cfv!=null){
     _vChip=`<div class="chip balchip${_vbWarn?' vbwarn':''}" ${_vbWarn?'title="O Valete não bate certo com o banco — toca para acertar."':'title="Valete = saldo real da conta (novobanco) · Coverflex = saldo do cartão de benefícios"'}>`;
     if(_va!=null) _vChip+=`<span class="bal nb"><span class="bdot"></span><span class="vlbl">Valete</span><b>${fmt(_va)}</b></span>`;
+    if(_cativo>0) _vChip+=`<span class="bsep"></span><span class="bal cativo" id="vCativo" style="cursor:pointer" title="Contabilístico ${fmt(_va!=null?_va:0)} · Cativo ${fmt(_cativo)} · Disponível ${fmt(_disp!=null?_disp:0)} — clica para editar o cativo">🔒&nbsp;<b><span class="dfull">${fmt(_cativo)}</span><span class="dshort">${Math.round(_cativo)}</span></b></span>`;
     if(_va!=null&&_cfv!=null) _vChip+='<span class="bsep"></span>';
     if(_cfv!=null) _vChip+=`<span class="bal cf"><span class="bdot"></span><span class="vlbl">Coverflex</span><b>${fmt(_cfv)}</b></span>`;
     if(_vbWarn) _vChip+=`<span class="bsep"></span><span class="bal vb" id="vbWarn" style="cursor:pointer" title="O Valete (${fmt(_vb.valete)}) não bate certo com o banco (${fmt(_vb.banco)}). Diferença ${fmt(_vb.diff)}. Clica para acertar o Valete ao banco.">${svg(I.bank)}<b><span class="dfull">Δ&nbsp;${fmt(_vb.diff)}</span><span class="dshort">Δ&nbsp;${_vb.diff<0?'−':'+'}${Math.abs(Math.round(_vb.diff))}</span></b></span>`;
@@ -2337,6 +2343,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v62',d:'27 jun',bul:['Novo: valor «cativo» do Valete no header (como no banco) — montantes descontados mas ainda não processados. Aparece um chip 🔒 ao lado do Valete; o tooltip mostra Contabilístico · Cativo · Disponível. Editas clicando no chip ou em Definições → Valete. Não mexe em nenhum cálculo (continua tudo a usar o contabilístico).']},
   {v:'v61',d:'27 jun',bul:['Poupanças: o gráfico de evolução deixa de ficar gigante (barras de altura fixa) e a página deixa de ter zonas mortas no modo Fresh.','Previsão: os gráficos (tesouraria e património) ganham eixo com valores (€) e linhas de grelha — deixam de ser só uma linha sem contexto.']},
   {v:'v58',d:'27 jun',bul:['Novo: modo «Fresh» (beta) — em Definições há um botão para experimentar um novo visual/arrumação. Primeira página: Definições com menu lateral (no PC) em vez de scroll. É opcional, por dispositivo, e só muda o aspeto no computador — no telemóvel fica tudo igual.']},
   {v:'v57',d:'27 jun',bul:['Cartão «Mimos» redesenhado: movido para baixo das caixas de saldo, minimalista (Mimos · mês · valor + barra), cores invertidas (fundo cheio; vermelho quando passas). O detalhe «como é calculado» fica numa mini-seta.']},
@@ -2589,6 +2596,7 @@ function vDefs(m){
         <div><label>Dia de entrada do salário</label><input id="diaSalario" type="number" step="1" min="1" max="28" value="${+state.settings.diaSalario||23}" style="max-width:90px"></div>
       </div>
       <div style="margin-top:8px"><label>Poupança mensal ${hlp('Quanto desvias para a poupança no início de cada mês. Entra no cálculo do "Para mimos" — o que sobra para lazer depois do essencial e da poupança.')}</label><div style="display:flex;gap:6px;align-items:center"><input id="poupancaMensal" type="number" step="10" min="0" value="${+state.settings.poupancaMensal||0}" style="max-width:110px"><span>${moeda()}</span></div></div>
+      <div style="margin-top:8px"><label>Valor cativo do Valete ${hlp('Montantes já descontados mas ainda não processados no banco (autorizações). A app mostra um chip 🔒 no topo e o Disponível = contabilístico − cativo. Não mexe nos cálculos. Também podes editar clicando no chip do header.')}</label><div style="display:flex;gap:6px;align-items:center"><input id="valeteCativo" type="number" step="0.01" min="0" value="${valeteConta()&&parseFloat(valeteConta().cativo)>0?parseFloat(valeteConta().cativo):''}" placeholder="0,00" style="max-width:110px"><span>${moeda()}</span></div></div>
       <div style="margin-top:8px"><label>Palavra-chave do salário no banco ${hlp('Texto que aparece no extrato do Novobanco quando entra o ordenado (ex.: nome da entidade patronal). Ao reconhecê-lo, a app lança o valor como Salário provisório, que depois substituis pelo recibo. "vencimento"/"ordenado"/"salário" já são reconhecidos automaticamente.')}</label><input id="salarioMatch" type="text" maxlength="40" placeholder="ex.: nome da empresa" value="${esc(state.settings.salarioMatch||'')}" style="max-width:260px"></div>
       <button class="btn sm" style="margin-top:12px" id="saveMargem">${svg(I.check)}Guardar</button>
     </div>
@@ -2728,6 +2736,7 @@ document.addEventListener('click',e=>{
   const asel=e.target.closest('[data-anasel]'); if(asel){ anaCat=asel.dataset.anasel; tab='analytics'; render(); return; }
   const dco=e.target.closest('[data-defcatopen]'); if(dco){ const id=dco.dataset.defcatopen; defCatOpen.has(id)?defCatOpen.delete(id):defCatOpen.add(id); render(); return; }
   const sgo=e.target.closest('[data-go]'); if(sgo){ gotoMov(sgo.dataset.go); return; }
+  if(e.target.closest('#vCativo')){ editCativo(); return; }
   if(e.target.closest('#vbWarn')||e.target.closest('.balchip.vbwarn')){ acertarValeteAoBanco(); return; }
   const delHead=e.target.closest('.delcol[data-delcat]');
   if(delHead){ delCat(delHead.dataset.delcat); return; }
@@ -2788,7 +2797,7 @@ document.addEventListener('click',e=>{
   if(d.defsec){ defSec=d.defsec; render(); return; }
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
-  if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.poupancaMensal=Math.max(0,parseFloat(val('poupancaMensal'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); save(); render(); toast('Guardado'); return; }
+  if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.poupancaMensal=Math.max(0,parseFloat(val('poupancaMensal'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); const _vcc=valeteConta(); if(_vcc){ const cv=Math.max(0,parseFloat(val('valeteCativo'))||0); _vcc.cativo=cv||undefined; } save(); render(); toast('Guardado'); return; }
   if(d.aiprov){ setAiProvider(d.aiprov); _aiModels=[]; render(); return; }
   if(t.id==='aiKeySave'){ setAiKey((val('aiKey')||'').trim()); toast(aiKey()?'Chave guardada (só neste dispositivo)':'Chave removida'); render(); return; }
   if(t.id==='aiKeyDel'){ setAiKey(''); toast('Chave removida'); render(); return; }
