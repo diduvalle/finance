@@ -216,6 +216,14 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .orc-bar i{display:block;height:100%;background:var(--acc);border-radius:4px;min-width:2px}
 .orc-row.warn .orc-bar i{background:var(--warn)} .orc-row.over .orc-bar i{background:var(--out)}
 .consinp{width:84px;max-width:84px;text-align:right;padding:5px 7px;font-variant-numeric:tabular-nums}
+/* gráfico de evolução do património (barras HTML de altura fixa — não escala como SVG) */
+.pevol-bars{display:flex;gap:12px;align-items:stretch;height:200px;margin-top:14px}
+.pevol-bar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center}
+.pevol-val{font-size:12px;font-weight:700;color:var(--txt);margin-bottom:6px;white-space:nowrap}
+.pevol-track{flex:1;width:100%;display:flex;align-items:flex-end;justify-content:center}
+.pevol-fill{width:100%;max-width:96px;background:var(--acc);opacity:.5;border-radius:6px 6px 0 0;min-height:3px}
+.pevol-fill.cur{opacity:1}
+.pevol-yr{font-size:11px;color:var(--mut);margin-top:8px}
 /* cartão "Resumo do mês" (narrativa da IA + alertas) */
 .resumocard{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--info);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:14px;box-shadow:var(--sh)}
 .resumo-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
@@ -1661,11 +1669,7 @@ function patrimonioEvolucaoCard(){
   const dTotPct=first.v?Math.round((cur.v-first.v)/first.v*100):null, dTotAbs=round2(cur.v-first.v);
   const eur=v=>Math.round(v).toLocaleString('pt-PT')+' €';
   const maxV=Math.max(1,...pts.map(p=>p.v)), n=pts.length;
-  const W=640,H=180,padT=22,padB=26,padX=14, gap=(W-2*padX)/n, bw=Math.min(90,gap*0.58);
-  const bars=pts.map((p,i)=>{ const x=padX+gap*i+(gap-bw)/2, h=Math.max(2,(p.v/maxV)*(H-padB-padT)), y=H-padB-h, last=i===n-1;
-    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="4" fill="var(--acc)" opacity="${last?1:.5}"/>`+
-      `<text x="${(x+bw/2).toFixed(1)}" y="${(y-6).toFixed(1)}" text-anchor="middle" font-size="11" font-weight="700" fill="var(--txt)">${eur(p.v)}</text>`+
-      `<text x="${(x+bw/2).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="11" fill="var(--mut)">${p.y}</text>`; }).join('');
+  const bars=pts.map((p,i)=>{ const pct=Math.round(p.v/maxV*100); const last=i===n-1; return `<div class="pevol-bar"><div class="pevol-val">${eur(p.v)}</div><div class="pevol-track"><div class="pevol-fill${last?' cur':''}" style="height:${pct}%"></div></div><div class="pevol-yr">${p.y}</div></div>`; }).join('');
   return `<div class="card" style="margin-bottom:14px">
     <h2 style="border:0;padding:0;margin:0 0 4px;font-size:15px">${svg(I.trend)} Evolução do património</h2>
     <p class="dsub" style="margin:0 0 10px">Património total no fim de cada ano (contas + Cofre).</p>
@@ -1674,7 +1678,7 @@ function patrimonioEvolucaoCard(){
       <div class="kbox"><div class="l">vs ${prev.y}</div><div class="v ${dPrevAbs>=0?'pos':'neg'}">${dPrevAbs>=0?'▲':'▼'} ${fmt0(Math.abs(dPrevAbs))}${dPrevPct!=null?` · ${dPrevPct>=0?'+':''}${dPrevPct}%`:''}</div></div>
       <div class="kbox"><div class="l">Desde ${first.y}</div><div class="v ${dTotAbs>=0?'pos':'neg'}">${dTotAbs>=0?'+':''}${fmt0(dTotAbs)}${dTotPct!=null?` · ${dTotPct>=0?'+':''}${dTotPct}%`:''}</div></div>
     </div>
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:12px">${bars}</svg>
+    <div class="pevol-bars">${bars}</div>
   </div>`;
 }
 function vPoupancas(m){
@@ -1893,11 +1897,13 @@ function tesourariaCard(){
   const below=rows.find(r=>r.saldo<P.margem);
   const pts=[{m:'hoje',v:P.v0},...rows.map(r=>({m:MC[r.m-1],v:r.saldo}))];
   const vals=pts.map(p=>p.v); const maxV=Math.max(P.margem,...vals), minV=Math.min(0,P.margem,...vals);
-  const W=640,H=160,pad=6, span=(maxV-minV)||1;
-  const xs=i=>pad+i*((W-2*pad)/(pts.length-1)), ys=v=>H-pad-((v-minV)/span)*(H-2*pad);
+  const W=640,H=164,padL=46,padR=8,padT=10,padB=20, span=(maxV-minV)||1;
+  const xs=i=>padL+i*((W-padL-padR)/(pts.length-1)), ys=v=>H-padB-((v-minV)/span)*(H-padT-padB);
   const line=pts.map((p,i)=>`${xs(i).toFixed(1)},${ys(p.v).toFixed(1)}`).join(' ');
-  const area=`${xs(0).toFixed(1)},${(H-pad).toFixed(1)} ${line} ${xs(pts.length-1).toFixed(1)},${(H-pad).toFixed(1)}`;
+  const area=`${xs(0).toFixed(1)},${(H-padB).toFixed(1)} ${line} ${xs(pts.length-1).toFixed(1)},${(H-padB).toFixed(1)}`;
   const stroke=minRow.saldo<P.margem?'var(--out)':'var(--acc)';
+  const _kc=v=>Math.abs(v)>=1000?(Math.round(v/100)/10).toLocaleString('pt-PT')+'k':String(Math.round(v));
+  const tgrid=[maxV,(maxV+minV)/2,minV].map(v=>{const y=ys(v);return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--line)" stroke-width="1" opacity=".5"/><text x="${padL-6}" y="${(y+3).toFixed(0)}" text-anchor="end" font-size="9" fill="var(--mut)">${_kc(v)}</text>`;}).join('');
   const my=ys(P.margem).toFixed(1);
   const dots=pts.map((p,i)=>`<circle cx="${xs(i).toFixed(1)}" cy="${ys(p.v).toFixed(1)}" r="2.3" fill="${p.v<P.margem?'var(--out)':'var(--acc)'}"/>`).join('');
   const xlab=pts.map((p,i)=>(i%2===0||i===pts.length-1)?`<text x="${xs(i).toFixed(0)}" y="${H-1}" text-anchor="middle" font-size="8.5" fill="var(--mut)">${p.m}</text>`:'').join('');
@@ -1912,8 +1918,9 @@ function tesourariaCard(){
     </div>
     ${below?`<div class="hint" style="border-left:3px solid var(--out);margin-top:12px">⚠ Por volta de <b>${MESES[below.m-1]} ${below.y}</b> o Valete pode descer abaixo da margem (${fmt0(P.margem)}). Convém reforçar a folga ou aliviar a poupança/gasto nesse período.</div>`:(P.margem>0?`<div class="hint" style="border-left:3px solid var(--in);margin-top:12px">O Valete mantém-se acima da margem (${fmt0(P.margem)}) nos próximos ${_tesH} meses ✓</div>`:'')}
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:12px">
+      ${tgrid}
       <polygon points="${area}" fill="${stroke}" opacity=".08"/>
-      ${(P.margem>minV&&P.margem<maxV)?`<line x1="${pad}" y1="${my}" x2="${W-pad}" y2="${my}" stroke="var(--out)" stroke-width="1" stroke-dasharray="4 3" opacity=".7"/>`:''}
+      ${(P.margem>minV&&P.margem<maxV)?`<line x1="${padL}" y1="${my}" x2="${W-padR}" y2="${my}" stroke="var(--out)" stroke-width="1" stroke-dasharray="4 3" opacity=".7"/><text x="${(W-padR)}" y="${(+my-4).toFixed(0)}" text-anchor="end" font-size="9" fill="var(--out)">margem ${fmt0(P.margem)}</text>`:''}
       <polyline points="${line}" fill="none" stroke="${stroke}" stroke-width="2"/>
       ${dots}${xlab}
     </svg>
@@ -1945,13 +1952,16 @@ function vPrevisao(m){
   // comparação anos reais (últimos 5)
   const comp=anos.slice(-5).map(y=>({y,r:sumYearOf('receita',y),d:sumYearOf('despesa',y)}));
   const pct=(cur,prev)=>{ if(!prev)return ''; const v=(cur-prev)/Math.abs(prev)*100; const up=v>=0; return `<span style="color:${up?'var(--in)':'var(--out)'};font-size:12px">${up?'▲':'▼'} ${Math.abs(v).toFixed(0)}%</span>`; };
-  // gráfico de património (+ linha de meta)
+  // gráfico de património (eixo Y com valores + grelha + linha de meta)
   const pts=[{l:patrAno,v:patr0},...proj.map(p=>({l:String(p.ano),v:p.patr}))];
-  const maxV=Math.max(1,meta.valor||0,...pts.map(p=>p.v)); const W=620,H=150,pad=4;
-  const xs=i=>pad+i*((W-2*pad)/(pts.length-1)); const ys=v=>H-pad-(v/maxV)*(H-2*pad);
+  const maxV=Math.max(1,meta.valor||0,...pts.map(p=>p.v)); const W=620,H=164,padL=50,padR=12,padT=14,padB=10;
+  const xs=i=>padL+i*((W-padL-padR)/(pts.length-1)); const ys=v=>H-padB-(v/maxV)*(H-padT-padB);
   const line=pts.map((p,i)=>`${xs(i).toFixed(0)},${ys(p.v).toFixed(0)}`).join(' ');
-  const area=`${pad},${H-pad} ${line} ${(W-pad)},${H-pad}`;
+  const area=`${padL},${H-padB} ${line} ${(W-padR)},${H-padB}`;
   const metaY=meta.valor>0?ys(meta.valor):null;
+  const _kc=v=>v>=1000?(Math.round(v/100)/10).toLocaleString('pt-PT')+'k':String(Math.round(v));
+  const pgrid=[0,.5,1].map(fr=>{const v=maxV*fr,y=ys(v);return `<line x1="${padL}" y1="${y.toFixed(0)}" x2="${W-padR}" y2="${y.toFixed(0)}" stroke="var(--line)" stroke-width="1" opacity=".5"/><text x="${(padL-7).toFixed(0)}" y="${(y+3).toFixed(0)}" text-anchor="end" font-size="9.5" fill="var(--mut)">${_kc(v)} €</text>`;}).join('');
+  const pendLbl=`<text x="${(W-padR).toFixed(0)}" y="${Math.max(11,ys(pts[pts.length-1].v)-7).toFixed(0)}" text-anchor="end" font-size="11" font-weight="800" fill="var(--acc)">${fmt0(pts[pts.length-1].v)}</text>`;
   m.innerHTML=`
   <div class="kstrip">
     <div class="kbox"><div class="l">Património hoje (${patrAno})</div><div class="v pos">${fmt0(patr0)}</div></div>
@@ -1994,13 +2004,15 @@ function vPrevisao(m){
       <tbody>${comp.map((c,i)=>{const pr=i>0?comp[i-1]:null;return `<tr><td>${c.y}</td><td class="num pos">${fmt0(c.r)} ${pr?pct(c.r,pr.r):''}</td><td class="num neg">${fmt0(c.d)} ${pr?pct(c.d,pr.d):''}</td><td class="num ${c.r-c.d>=0?'pos':'neg'}">${fmt0(c.r-c.d)}</td></tr>`;}).join('')}</tbody></table>
     </div>
     <div class="card"><h2 style="border:0;padding:0;margin:0 0 10px;font-size:15px">${svg(I.report)} Património projetado</h2>
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:150px">
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto">
+        ${pgrid}
         <polygon points="${area}" fill="rgba(122,161,131,.15)"/>
         <polyline points="${line}" fill="none" stroke="var(--acc)" stroke-width="2"/>
-        ${metaY!=null?`<line x1="${pad}" y1="${metaY.toFixed(0)}" x2="${W-pad}" y2="${metaY.toFixed(0)}" stroke="var(--warn)" stroke-width="1" stroke-dasharray="4 3"/>`:''}
+        ${metaY!=null?`<line x1="${padL}" y1="${metaY.toFixed(0)}" x2="${W-padR}" y2="${metaY.toFixed(0)}" stroke="var(--warn)" stroke-width="1" stroke-dasharray="4 3"/><text x="${(W-padR).toFixed(0)}" y="${(metaY-4).toFixed(0)}" text-anchor="end" font-size="9" fill="var(--warn)">meta ${_kc(meta.valor)} €</text>`:''}
         ${pts.map((p,i)=>`<circle cx="${xs(i).toFixed(0)}" cy="${ys(p.v).toFixed(0)}" r="2.5" fill="var(--acc)"/>`).join('')}
+        ${pendLbl}
       </svg>
-      <div style="display:flex;justify-content:space-between;color:var(--mut);font-size:11px"><span>${pts[0].l}</span><span>${pts[pts.length-1].l}</span></div>
+      <div style="display:flex;justify-content:space-between;color:var(--mut);font-size:11px;padding-left:${padL}px"><span>${pts[0].l}</span><span>${pts[pts.length-1].l}</span></div>
     </div>
   </div>
 
@@ -2325,7 +2337,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
-  {v:'v60',d:'27 jun',bul:['Fresh (beta): também a Previsão, Poupanças, Analytics e Acerto passam a usar 2 colunas no PC (os cartões mais pequenos lado a lado; tabelas e gráficos grandes ficam à largura toda). No telemóvel mantém-se tudo empilhado.']},
+  {v:'v61',d:'27 jun',bul:['Poupanças: o gráfico de evolução deixa de ficar gigante (barras de altura fixa) e a página deixa de ter zonas mortas no modo Fresh.','Previsão: os gráficos (tesouraria e património) ganham eixo com valores (€) e linhas de grelha — deixam de ser só uma linha sem contexto.']},
   {v:'v58',d:'27 jun',bul:['Novo: modo «Fresh» (beta) — em Definições há um botão para experimentar um novo visual/arrumação. Primeira página: Definições com menu lateral (no PC) em vez de scroll. É opcional, por dispositivo, e só muda o aspeto no computador — no telemóvel fica tudo igual.']},
   {v:'v57',d:'27 jun',bul:['Cartão «Mimos» redesenhado: movido para baixo das caixas de saldo, minimalista (Mimos · mês · valor + barra), cores invertidas (fundo cheio; vermelho quando passas). O detalhe «como é calculado» fica numa mini-seta.']},
   {v:'v56',d:'27 jun',bul:['Ícone da biometria melhorado — impressão digital mais nítida e reconhecível no teclado do PIN.']},
@@ -2422,7 +2434,7 @@ function applyFreshFlow(m){
   if(!freshDesktop()) return;
   const kids=[...m.children].filter(e=>e.nodeType===1 && !e.classList.contains('foot-credit') && !e.classList.contains('freshmw'));
   if(kids.length<3) return;
-  const isFull=el=> el.classList.contains('kstrip')||el.classList.contains('cols-2')||el.classList.contains('section-h')||el.classList.contains('freshfull')|| !!el.querySelector('.gridwrap');
+  const isFull=el=> el.classList.contains('kstrip')||el.classList.contains('cols-2')||el.classList.contains('section-h')||el.classList.contains('gridwrap')||el.classList.contains('freshfull')|| !!el.querySelector('.gridwrap,table');
   const segs=[]; kids.forEach(el=>{ if(isFull(el)){segs.push({f:el});} else {const l=segs[segs.length-1]; if(l&&l.c)l.c.push(el); else segs.push({c:[el]});} });
   if(!segs.some(s=>s.c&&s.c.length>=2)) return; // só vale a pena se houver pelo menos um par
   segs.forEach(s=>{
