@@ -75,6 +75,8 @@ body{background:
 .yearnav .y{font-weight:800;font-size:15px;min-width:54px;text-align:center}
 .topbar .tabs .yearnav{background:none;border:0;padding:0;height:auto} /* ano dentro da barra dos menus: sem caixa própria */
 .tabsep{width:1px;align-self:stretch;background:var(--line);margin:0 3px;flex:none}
+#aiNav{display:none} /* só no mobile (linha 2 do header) — no desktop a IA é a barra #aiBar */
+#botnav{display:none} /* barra de navegação inferior — só no mobile */
 .btn{background:var(--card2);color:var(--txt);border:1px solid transparent;padding:9px 15px;border-radius:12px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:background .16s,color .16s,transform .1s,box-shadow .16s;box-shadow:var(--sh-sm)}
 .btn:hover{background:color-mix(in srgb,var(--card2) 82%,var(--acc));transform:translateY(-1px);box-shadow:var(--sh)}
 .btn:active{transform:translateY(0);box-shadow:var(--sh-sm)}
@@ -477,13 +479,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 #aiBar input::placeholder{color:var(--mut)}
 #aiBar input:focus{border-color:var(--acc);outline:none;background:var(--card2)}
 @media(max-width:720px){#aiBar{display:none}}
-/* ----- Chat flutuante (mobile) ----- */
-#aiFab{display:none}
-@media(max-width:720px){
-  #aiFab{display:inline-flex;align-items:center;justify-content:center;position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom));z-index:9000;width:54px;height:54px;border-radius:50%;border:0;background:var(--acc);color:#fff;box-shadow:var(--sh-lg);cursor:pointer}
-  #aiFab svg{width:24px;height:24px}
-  #aiFab:active{transform:scale(.93)}
-}
+/* ----- Folha de chat da IA (aberta pelo botão #aiNav no header, mobile) ----- */
 #aiSheet{display:none;position:fixed;inset:0;z-index:9001;background:rgba(0,0,0,.42);align-items:flex-end;justify-content:center}
 #aiSheet.on{display:flex}
 .aiSheet-card{width:100%;max-width:560px;background:var(--card);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:var(--sh-lg);max-height:82vh;display:flex;flex-direction:column;padding-bottom:calc(8px + env(safe-area-inset-bottom));animation:sheetUp .22s ease}
@@ -523,7 +519,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .iconbtn svg{width:16px;height:16px;display:block}
 .foot-credit{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
 @media(max-width:720px){
-  .main{padding:12px 10px 80px}
+  .main{padding:12px 10px calc(72px + env(safe-area-inset-bottom))} /* espaço p/ a #botnav fixa não tapar o conteúdo */
   /* header mobile em 2 LINHAS: (1) logo + saldos (entre logo e ícones) + ícones · (2) menus + ano à largura toda */
   .topbar-inner{gap:4px;padding:9px 10px}
   .spacer{display:none}
@@ -531,8 +527,13 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   /* limita a largura dos saldos para que os 5 ícones NUNCA quebrem de linha — header sempre 2 linhas em mobile. Os saldos cedem (clipam o Δ) quando o ecrã é estreito. 216 = logo+5 ícones+gaps+padding */
   #valeteHead{order:2;flex:0 1 auto;min-width:0;gap:4px;overflow:hidden;max-width:calc(100vw - 200px)}
   #searchBtn{order:3;margin-left:auto} #inboxTop{order:4} #refreshBtn{order:5} #bell{order:6} #lockNow{order:7}
-  .tabs{order:8;flex:1 1 100%;width:100%;min-width:0;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
-  .tabs .yearnav{margin-left:auto} /* ano colado ao fim da 2ª linha — sem espaço morto */
+  /* linha 2 do header: deixa de ser barra de menus → só IA (esq) + ano (dir); os menus vão para a #botnav (rodapé) */
+  .tabs{order:8;flex:1 1 100%;width:100%;min-width:0;flex-wrap:nowrap;overflow:visible;background:none;border:0;padding:0;gap:6px}
+  .tabs button[data-tab]{display:none} .tabsep{display:none}
+  .tabs .yearnav{margin-left:auto} /* ano à direita */
+  #aiNav{display:inline-flex;align-items:center;justify-content:center;color:var(--acc);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer}
+  #aiNav svg{width:18px;height:18px}
+  .topbar .tabs .yearnav{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:2px} /* devolve a caixa ao ano (a linha 2 já não é uma pílula) */
   #topright{order:9;display:none}
   .bal.vb svg{display:none} .bal.vb .dfull{display:none} .bal.vb .dshort{display:inline} /* Δ compacto no mobile */
   .topbar .yearnav{height:32px}
@@ -544,6 +545,12 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:28px;width:27px;flex:none}
   .topbar #refreshBtn svg,.topbar #bell svg,.topbar #lockNow svg,.topbar #searchBtn svg,.topbar #inboxTop svg{width:16px;height:16px}
   .topbar .chip{height:30px;padding:0 9px;font-size:11.5px;flex:0 1 auto;min-width:0}
+  /* barra de navegação inferior (só mobile) — fica fixa no fundo, ao alcance do polegar */
+  #botnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--bg2);border-top:1px solid var(--line);gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));justify-content:space-around;box-shadow:0 -4px 14px -10px rgba(0,0,0,.4)}
+  #botnav button{flex:1;min-width:0;background:none;border:0;color:var(--mut);display:inline-flex;align-items:center;justify-content:center;height:42px;border-radius:11px;cursor:pointer;transition:color .15s,background .15s}
+  #botnav button svg{width:23px;height:23px;flex:none}
+  #botnav button.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}
+  #botnav .tablabel{display:none}
   /* mobile: grelha 50/50 — Valor·Sai de / Mês·Categoria / Nota·Adicionar */
   .qadd{grid-template-columns:1fr 1fr;gap:9px}
   .qadd .fld-val{grid-column:1;grid-row:1}
@@ -631,13 +638,13 @@ html:has(#lock),html:has(#splash){overflow:hidden}
   </div>
   <div class="main" id="main"></div>
   <div class="pop" id="alertPanel" style="width:340px"></div>
+  <nav id="botnav" aria-label="Navegação"></nav>
 </div>
 <div class="pop" id="pop"></div>
 <div class="back" id="back"></div>
 <div class="toast" id="toast"></div>
 
-<!-- Chat flutuante (só mobile): botão no canto + folha que usa o mesmo motor da barra de IA do PC -->
-<button id="aiFab" title="Perguntar à IA" aria-label="Perguntar à IA"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4 4 1.7-4 1.7L12 14l-1.7-4-4-1.7 4-1.7z"/><path d="M18.5 13.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg></button>
+<!-- Folha de chat da IA (mobile): aberta pelo botão #aiNav na 2ª linha do header; usa o mesmo motor da barra de IA do PC -->
 <div id="aiSheet" aria-hidden="true">
   <div class="aiSheet-card">
     <div class="aiSheet-h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4 4 1.7-4 1.7L12 14l-1.7-4-4-1.7 4-1.7z"/></svg><b>Assistente CASA</b><button id="aiSheetClose" class="aiSheet-x" aria-label="Fechar">&times;</button></div>
@@ -1167,9 +1174,13 @@ function valeteSpark(F){
 /* ---------------- render root ---------------- */
 function render(){
   document.body.setAttribute('data-theme',state.settings.tema||'dark');
-  document.getElementById('tabs').innerHTML=[['grelha','Grelha',I.grid],['acerto','Dívida',I.scale],['poup','Poupanças',I.wallet],['previsao','Previsão',I.trend],['analytics','Analytics',I.report],['defs','Definições',I.gear]]
-    .map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('')
-    +`<span class="tabsep"></span><div class="yearnav"><button data-year="-1" aria-label="Ano anterior">‹</button><span class="y">${ano}</span><button data-year="1" aria-label="Ano seguinte">›</button></div>`;
+  const _tabDefs=[['grelha','Grelha',I.grid],['acerto','Dívida',I.scale],['poup','Poupanças',I.wallet],['previsao','Previsão',I.trend],['analytics','Analytics',I.report],['defs','Definições',I.gear]];
+  const _tabBtns=_tabDefs.map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('');
+  const _aiNav=`<button id="aiNav" title="Perguntar à IA" aria-label="Perguntar à IA"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4 4 1.7-4 1.7L12 14l-1.7-4-4-1.7 4-1.7z"/><path d="M18.5 13.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg></button>`;
+  const _yearNav=`<span class="tabsep"></span><div class="yearnav"><button data-year="-1" aria-label="Ano anterior">‹</button><span class="y">${ano}</span><button data-year="1" aria-label="Ano seguinte">›</button></div>`;
+  // #tabs = barra do topo (desktop) · #botnav = barra inferior (mobile) · ambos usam os mesmos botões data-tab (delegação global)
+  document.getElementById('tabs').innerHTML=_aiNav+_tabBtns+_yearNav;
+  const _botnav=document.getElementById('botnav'); if(_botnav)_botnav.innerHTML=_tabBtns;
   document.getElementById('topright').innerHTML='';
   const _va=valeteAtual(); const _vf=valeteForecast(); const _alerta=_va!=null&&_vf.faltaDia;
   const _vc0=valeteConta(); const _cativo=(_vc0&&parseFloat(_vc0.cativo))||0; const _disp=_va!=null?round2(_va-_cativo):null;
@@ -2750,7 +2761,7 @@ document.addEventListener('click',e=>{
   if(e.target.id==='aiSheet'){ aiSheetClose(); return; } // clique no fundo escuro fecha a folha
   if(!t) return;
   const d=t.dataset;
-  if(t.id==='aiFab'){ aiSheetOpen(); return; }
+  if(t.id==='aiNav'){ aiSheetOpen(); return; }
   if(t.id==='aiSheetClose'){ aiSheetClose(); return; }
   if(t.id==='aiSendM'){ aiAskM(); return; }
   if(d.tab){tab=d.tab;closePop();render();return;}
