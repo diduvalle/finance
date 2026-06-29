@@ -469,7 +469,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .bal.nb .bdot{background:var(--nb)} .bal.nb b{color:var(--nb)}
 .bal.cf .bdot{background:var(--cflex)} .bal.cf b{color:var(--cflex)}
 .bal.vb{color:var(--out);cursor:pointer} .bal.vb b{color:var(--out)} .bal.vb svg{width:13px;height:13px} .bal.vb .dshort{display:none}
-.bal.cativo{color:var(--cativo);cursor:pointer} .bal.cativo b{color:var(--cativo)} .bal.cativo .dshort{display:none} .bal.cativo svg{width:13px;height:13px}
+.bal.cativo{color:var(--cativo);cursor:pointer} .bal.cativo b{color:var(--cativo)} .bal.cativo .bdot{background:var(--cativo)}
 .bsep{width:1px;height:15px;background:var(--line);margin:0 11px;flex:none}
 /* a barra da IA parte para a 2ª linha (não cabe ao lado dos saldos) e cresce p/ encher a esquerda; os ícones ficam à direita da mesma linha — sem espaço morto */
 #aiBar{flex:1 1 320px;min-width:200px;display:flex;align-items:center}
@@ -535,7 +535,6 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .tabs .yearnav{margin-left:auto} /* ano colado ao fim da 2ª linha — sem espaço morto */
   #topright{order:9;display:none}
   .bal.vb svg{display:none} .bal.vb .dfull{display:none} .bal.vb .dshort{display:inline} /* Δ compacto no mobile */
-  .bal.cativo .dfull{display:none} .bal.cativo .dshort{display:inline} /* cativo compacto no mobile */
   .topbar .yearnav{height:32px}
   .topbar .yearnav{padding:2px}
   .topbar .yearnav button{width:22px;height:24px;font-size:14px}
@@ -1180,7 +1179,7 @@ function render(){
   if(_va!=null||_cfv!=null){
     _vChip=`<div class="chip balchip${_vbWarn?' vbwarn':''}" ${_vbWarn?'title="O Valete não bate certo com o banco — toca para acertar."':'title="Valete = saldo real da conta (novobanco) · Coverflex = saldo do cartão de benefícios"'}>`;
     if(_va!=null) _vChip+=`<span class="bal nb"><span class="bdot"></span><span class="vlbl">Valete</span><b>${fmt(_va)}</b></span>`;
-    if(_cativo>0) _vChip+=`<span class="bsep"></span><span class="bal cativo" id="vCativo" style="cursor:pointer" title="Contabilístico ${fmt(_va!=null?_va:0)} · Cativo ${fmt(_cativo)} · Disponível ${fmt(_disp!=null?_disp:0)} — clica para editar o cativo">${svg(I.lock)}<b><span class="dfull">${fmt(_cativo)}</span><span class="dshort">${Math.round(_cativo)}</span></b></span>`;
+    if(_cativo>0) _vChip+=`<span class="bsep"></span><span class="bal cativo" id="vCativo" style="cursor:pointer" title="Cativo (não disponível) · Contabilístico ${fmt(_va!=null?_va:0)} · Cativo ${fmt(_cativo)} · Disponível ${fmt(_disp!=null?_disp:0)} — clica para editar">${_cativo>0?'<span class="bdot"></span>':''}<b>${fmt(_cativo)}</b></span>`;
     if(_va!=null&&_cfv!=null) _vChip+='<span class="bsep"></span>';
     if(_cfv!=null) _vChip+=`<span class="bal cf"><span class="bdot"></span><span class="vlbl">Coverflex</span><b>${fmt(_cfv)}</b></span>`;
     if(_vbWarn) _vChip+=`<span class="bsep"></span><span class="bal vb" id="vbWarn" style="cursor:pointer" title="O Valete (${fmt(_vb.valete)}) não bate certo com o banco (${fmt(_vb.banco)}). Diferença ${fmt(_vb.diff)}. Clica para acertar o Valete ao banco.">${svg(I.bank)}<b><span class="dfull">Δ&nbsp;${fmt(_vb.diff)}</span><span class="dshort">Δ&nbsp;${_vb.diff<0?'−':'+'}${Math.abs(Math.round(_vb.diff))}</span></b></span>`;
@@ -2344,6 +2343,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v67',d:'28 jun',bul:['O cativo no header passa a mostrar o valor COMPLETO também em mobile (já não arredonda). Tirei o cadeado (que ocupava o espaço que obrigava a arredondar) — a cor roxa já identifica o cativo, com um pontinho como o Valete/Coverflex.']},
   {v:'v66',d:'28 jun',bul:['Header dos saldos mais limpo: sem os títulos (Valete/Coverflex) — só os valores, identificados pela cor. O cativo passou a roxo.']},
   {v:'v65',d:'28 jun',bul:['O cadeado do cativo no header passa a ser um ícone monocromático (SVG, na cor do chip) em vez do emoji 🔒.']},
   {v:'v64',d:'27 jun',bul:['Cativo do Valete agora é AUTOMÁTICO do banco: quando o Open Banking sincroniza, a app lê o saldo contabilístico e o disponível e calcula o cativo sozinho (cativo = contabilístico − disponível). Já não é preciso meter à mão (o campo em Definições fica só como acerto manual).']},
