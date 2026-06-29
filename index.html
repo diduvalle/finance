@@ -527,13 +527,8 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   /* limita a largura dos saldos para que os 5 ícones NUNCA quebrem de linha — header sempre 2 linhas em mobile. Os saldos cedem (clipam o Δ) quando o ecrã é estreito. 216 = logo+5 ícones+gaps+padding */
   #valeteHead{order:2;flex:0 1 auto;min-width:0;gap:4px;overflow:hidden;max-width:calc(100vw - 200px)}
   #searchBtn{order:3;margin-left:auto} #inboxTop{order:4} #refreshBtn{order:5} #bell{order:6} #lockNow{order:7}
-  /* linha 2 do header: deixa de ser barra de menus → só IA (esq) + ano (dir); os menus vão para a #botnav (rodapé) */
-  .tabs{order:8;flex:1 1 100%;width:100%;min-width:0;flex-wrap:nowrap;overflow:visible;background:none;border:0;padding:0;gap:6px}
-  .tabs button[data-tab]{display:none} .tabsep{display:none}
-  .tabs .yearnav{margin-left:auto} /* ano à direita */
-  #aiNav{display:inline-flex;align-items:center;justify-content:center;color:var(--acc);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:7px 12px;cursor:pointer}
-  #aiNav svg{width:18px;height:18px}
-  .topbar .tabs .yearnav{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:2px} /* devolve a caixa ao ano (a linha 2 já não é uma pílula) */
+  /* header passa a 1 LINHA: menus + IA + ano vão todos para a #botnav (rodapé) */
+  .topbar .tabs{display:none}
   #topright{order:9;display:none}
   .bal.vb svg{display:none} .bal.vb .dfull{display:none} .bal.vb .dshort{display:inline} /* Δ compacto no mobile */
   .topbar .yearnav{height:32px}
@@ -545,12 +540,17 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
   .topbar #refreshBtn,.topbar #bell,.topbar #lockNow,.topbar #searchBtn,.topbar #inboxTop{height:28px;width:27px;flex:none}
   .topbar #refreshBtn svg,.topbar #bell svg,.topbar #lockNow svg,.topbar #searchBtn svg,.topbar #inboxTop svg{width:16px;height:16px}
   .topbar .chip{height:30px;padding:0 9px;font-size:11.5px;flex:0 1 auto;min-width:0}
-  /* barra de navegação inferior (só mobile) — fica fixa no fundo, ao alcance do polegar */
-  #botnav{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--bg2);border-top:1px solid var(--line);gap:2px;padding:6px 6px calc(6px + env(safe-area-inset-bottom));justify-content:space-around;box-shadow:0 -4px 14px -10px rgba(0,0,0,.4)}
-  #botnav button{flex:1;min-width:0;background:none;border:0;color:var(--mut);display:inline-flex;align-items:center;justify-content:center;height:42px;border-radius:11px;cursor:pointer;transition:color .15s,background .15s}
-  #botnav button svg{width:23px;height:23px;flex:none}
+  /* barra inferior (só mobile) — 1 LINHA: 6 menus + IA (ícones iguais) + ano; ao alcance do polegar */
+  #botnav{display:flex;align-items:center;position:fixed;left:0;right:0;bottom:0;z-index:40;background:var(--bg2);border-top:1px solid var(--line);gap:1px;padding:5px 5px calc(5px + env(safe-area-inset-bottom));box-shadow:0 -4px 14px -10px rgba(0,0,0,.4)}
+  #botnav button{flex:1;min-width:0;background:none;border:0;color:var(--mut);display:inline-flex;align-items:center;justify-content:center;height:40px;border-radius:10px;cursor:pointer;transition:color .15s,background .15s}
+  #botnav button svg{width:21px;height:21px;flex:none}
   #botnav button.on{color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}
+  #botnav #aiNav{color:var(--acc)} /* botão IA destacado a verde */
   #botnav .tablabel{display:none}
+  #botnav .tabsep{display:block;align-self:center;height:22px;margin:0 4px} /* divisória antes do ano */
+  #botnav .yearnav{flex:none;background:none;border:0;padding:0;gap:0;height:auto}
+  #botnav .yearnav button{flex:none;width:22px;height:34px;font-size:16px}
+  #botnav .yearnav .y{min-width:38px;font-size:12.5px;font-weight:800;color:var(--txt);text-align:center}
   /* mobile: grelha 50/50 — Valor·Sai de / Mês·Categoria / Nota·Adicionar */
   .qadd{grid-template-columns:1fr 1fr;gap:9px}
   .qadd .fld-val{grid-column:1;grid-row:1}
@@ -1178,9 +1178,9 @@ function render(){
   const _tabBtns=_tabDefs.map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('');
   const _aiNav=`<button id="aiNav" title="Perguntar à IA" aria-label="Perguntar à IA"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4 4 1.7-4 1.7L12 14l-1.7-4-4-1.7 4-1.7z"/><path d="M18.5 13.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg></button>`;
   const _yearNav=`<span class="tabsep"></span><div class="yearnav"><button data-year="-1" aria-label="Ano anterior">‹</button><span class="y">${ano}</span><button data-year="1" aria-label="Ano seguinte">›</button></div>`;
-  // #tabs = barra do topo (desktop) · #botnav = barra inferior (mobile) · ambos usam os mesmos botões data-tab (delegação global)
-  document.getElementById('tabs').innerHTML=_aiNav+_tabBtns+_yearNav;
-  const _botnav=document.getElementById('botnav'); if(_botnav)_botnav.innerHTML=_tabBtns;
+  // #tabs = barra do topo (desktop): menus + ano · #botnav = barra inferior (mobile): menus + IA + ano (header fica 1 linha)
+  document.getElementById('tabs').innerHTML=_tabBtns+_yearNav;
+  const _botnav=document.getElementById('botnav'); if(_botnav)_botnav.innerHTML=_tabBtns+_aiNav+_yearNav;
   document.getElementById('topright').innerHTML='';
   const _va=valeteAtual(); const _vf=valeteForecast(); const _alerta=_va!=null&&_vf.faltaDia;
   const _vc0=valeteConta(); const _cativo=(_vc0&&parseFloat(_vc0.cativo))||0; const _disp=_va!=null?round2(_va-_cativo):null;
