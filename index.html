@@ -427,6 +427,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .pop .ph{padding:12px 14px;border-bottom:1px solid var(--line);font-weight:700;font-size:13.5px;display:flex;align-items:center;gap:8px}
 .phlock{display:inline-flex;align-items:center;color:var(--mut)} .phlock svg{width:12px;height:12px}
 .hintico{flex:none;display:inline-flex;align-items:center;color:var(--warn)} .hintico svg{width:16px;height:16px}
+.eico{display:inline-flex;align-items:center;vertical-align:-.14em} .eico svg{width:1.05em;height:1.05em} /* ícone inline que acompanha o tamanho do texto (substitui emojis) */
 .pop .ph .dot{width:9px;height:9px;border-radius:50%}
 .pop .pb{padding:12px 14px}
 .pop .padd{display:flex;gap:7px;margin-bottom:10px}
@@ -697,6 +698,13 @@ const I={
   finger:'<path d="M2 12C2 6.5 6.5 2 12 2a10 10 0 0 1 8 4"/><path d="M5 19.5C5.5 18 6 15 6 12c0-.7.12-1.37.34-2"/><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02"/><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4"/><path d="M8.65 22c.21-.66.45-1.32.57-2"/><path d="M14 13.12c0 2.38 0 6.38-1 8.88"/><path d="M2 16h.01"/><path d="M21.8 16c.2-2 .13-5.35 0-6"/><path d="M9 6.8a6 6 0 0 1 9 5.2c0 .47 0 1.17-.02 2"/>',
   lock:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
   unlock:'<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/>',
+  warn:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+  info:'<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+  mail:'<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
+  receipt:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/>',
+  bulb:'<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
+  leaf:'<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/>',
   cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',
   bank:'<path d="M3 10l9-6 9 6M3 10h18M3 21h18M6 10v8M10 10v8M14 10v8M18 10v8"/>',
   logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
@@ -1005,7 +1013,7 @@ function renderAlertPanel(){
   if(deb.length){
     body+=sec('Próximos débitos · '+MESES[new Date().getMonth()]);
     const quando=x=>x.dia===today?'<span style="color:var(--out)">hoje</span>':(x.dia===today+1?'<span style="color:var(--warn)">amanhã</span>':'dia '+x.dia);
-    body+=deb.slice(0,8).map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12.5px"><span><span class="dot" style="background:${cat(x.catId)?cat(x.catId).cor:'#888'}"></span>${esc(x.nome)} <span style="color:var(--mut)">· ${quando(x)}${x.agendado?' · <span style="color:var(--warn)">⏳ agendado</span>':''}</span></span><span style="color:var(--mut)">${x.agendado?'':'~'}${fmt(x.valor)}</span></div>`).join('');
+    body+=deb.slice(0,8).map(x=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12.5px"><span><span class="dot" style="background:${cat(x.catId)?cat(x.catId).cor:'#888'}"></span>${esc(x.nome)} <span style="color:var(--mut)">· ${quando(x)}${x.agendado?` · <span style="color:var(--warn)"><span class="eico">${svg(I.clock)}</span> agendado</span>`:''}</span></span><span style="color:var(--mut)">${x.agendado?'':'~'}${fmt(x.valor)}</span></div>`).join('');
     body+=`<div style="display:flex;justify-content:space-between;padding-top:4px;font-weight:700;font-size:12.5px;border-top:1px solid var(--line);margin-top:2px"><span>Falta sair (fixas)</span><span class="neg">${fmt(round2(deb.reduce((a,x)=>a+x.valor,0)))}</span></div>`;
   }
   const F=valeteForecast();
@@ -1015,7 +1023,7 @@ function renderAlertPanel(){
     body+=`<div style="font-size:11px;color:var(--mut)">Estimativas do mês: despesa ~${fmt(F.estMensal)} (já ${fmt(F.gastoMes)}) · receita líq. ~${fmt(F.estReceita)} (já ${fmt(F.recebidoMes)})</div>`;
     body+=valeteSpark(F);
     body+=`<div style="font-size:12px;margin-top:2px">Saldo mais baixo previsto: <b class="${F.minSaldo<F.margem?'neg':'pos'}">${fmt(F.minSaldo)}</b>${F.minDia?` (~dia ${F.minDia})`:''}</div>`;
-    body+=F.faltaDia?`<div class="hint" style="margin-top:6px;color:var(--out)"><b>⚠ Por volta do dia ${F.faltaDia} o saldo desce abaixo da ${F.margem>0?'margem ('+fmt(F.margem)+')':'linha 0'} — faltam ~${fmt(F.faltaValor)}.</b></div>`:`<div class="hint" style="margin-top:6px;color:var(--in)">O saldo aguenta o mês${F.margem>0?' acima da margem ('+fmt(F.margem)+')':''} ✓</div>`;
+    body+=F.faltaDia?`<div class="hint" style="margin-top:6px;color:var(--out)"><b><span class="eico">${svg(I.warn)}</span> Por volta do dia ${F.faltaDia} o saldo desce abaixo da ${F.margem>0?'margem ('+fmt(F.margem)+')':'linha 0'} — faltam ~${fmt(F.faltaValor)}.</b></div>`:`<div class="hint" style="margin-top:6px;color:var(--in)">O saldo aguenta o mês${F.margem>0?' acima da margem ('+fmt(F.margem)+')':''} ✓</div>`;
   }
   if(A.acima.length){ body+=sec('Acima do habitual'); body+=A.acima.map(it=>_alRow(it,`<div style="display:flex;align-items:center;gap:8px;font-weight:700"><span class="dot" style="background:${it.cor}"></span>${esc(it.nome)}<span style="margin-left:auto;color:var(--out)">+${it.pct}%</span></div><div style="font-size:12px;color:var(--mut);margin-top:2px">${fmt(it.cur)} · normal ${fmt(it.med)}. Poupança <b style="color:var(--in)">${fmt(it.exc)}/mês</b> (~${fmt0(it.exc*12)}/ano)</div>`)).join('');
     body+=`<div style="padding-top:8px;font-weight:700;display:flex;justify-content:space-between">Poupança potencial<span class="pos">${fmt(A.total)}/mês</span></div>`; }
@@ -1023,7 +1031,7 @@ function renderAlertPanel(){
   if(A.ana&&A.ana.length){ body+=sec('Consumos vs anos anteriores'); body+=A.ana.map(it=>_alRow(it,`<div class="hint" style="border-left:3px solid ${it.lvl==='high'?'var(--out)':'var(--warn)'};margin:0;font-size:12px"><b>${esc(it.cat)}</b> · ${it.txt}</div>`)).join(''); }
   if(A.out.length){ body+=sec('Gastos pontuais grandes'); body+=A.out.map(it=>_alRow(it,`<div style="display:flex;align-items:center;gap:8px"><b>${fmt(it.valor)}</b><span style="color:var(--mut);font-size:12px">${esc(it.nome)} · ${it.data.slice(8,10)}/${it.data.slice(5,7)}</span></div><div style="font-size:11.5px;color:var(--mut)">vs típico ${fmt(it.med)} — confirma?</div>`)).join(''); }
   if(A.superf.cats.length){ body+=sec('Supérfluos'); body+=`<div style="font-size:12.5px;color:var(--mut)">Gastaste <b style="color:var(--txt)">${fmt(A.superf.mes)}</b> este mês (<b>${fmt0(A.superf.ano)}</b> no ano) em ${A.superf.cats.join(', ')}.</div>`; }
-  if(!body) body=`<div class="pempty">Sem alertas — está tudo dentro do normal 🎉</div>${A.superf.cats.length?'':'<div class="hint" style="margin-top:10px">Dica: marca categorias <b>supérfluas</b> nas Definições para acompanhar gastos discricionários aqui.</div>'}`;
+  if(!body) body=`<div class="pempty">Sem alertas — está tudo dentro do normal</div>${A.superf.cats.length?'':'<div class="hint" style="margin-top:10px">Dica: marca categorias <b>supérfluas</b> nas Definições para acompanhar gastos discricionários aqui.</div>'}`;
   p.innerHTML=`<div class="ph">${svg(I.bell)} Alertas & poupança ${A.ref?`· ${MESES[+mm-1]} ${yy}`:''}${hlp('Marca ✓ para arquivar um alerta (volta a aparecer se a situação piorar). O histórico fica no Analytics → Arquivo de alertas. Heurística sobre o teu histórico (mediana de 12 meses) — estimativa para te orientar.')}</div>
   <div class="pb" style="max-height:60vh;overflow:auto">${_panelAlerts.length?`<button class="btn sm" data-alertreadall="1" style="margin-bottom:8px;width:100%;justify-content:center">${svg(I.check)}Marcar tudo como lido (${_panelAlerts.length})</button>`:''}${body}</div>`;
 }
@@ -1241,7 +1249,7 @@ function vGrelha(m){
         const kids=childrenOf(c.id), v=cellSum(c.id,i), exp=kids.length&&expandedCols.has(c.id);
         let bc=''; if(gridTipo==='despesa'&&v>0){const lim=+state.orcamentos[c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}
         const pend=v&&cellHasPend(c.id,i,true);
-        let h=`<div class="gm-cat${v?'':' z'}${bc}" data-cell="${c.id}|${i}">${catIconHtml(c,24)}<span class="gm-cnm">${esc(c.nome)}</span>${kids.length?`<button class="gm-tog" data-toggle="${c.id}" title="${exp?'Fechar':'Abrir'} sub-categorias">${exp?'▾':'▸'}&nbsp;${kids.length}</button>`:''}<span class="gm-cv">${v?fmtn(v):'—'}${pend?' ⏳':''}</span></div>`;
+        let h=`<div class="gm-cat${v?'':' z'}${bc}" data-cell="${c.id}|${i}">${catIconHtml(c,24)}<span class="gm-cnm">${esc(c.nome)}</span>${kids.length?`<button class="gm-tog" data-toggle="${c.id}" title="${exp?'Fechar':'Abrir'} sub-categorias">${exp?'▾':'▸'}&nbsp;${kids.length}</button>`:''}<span class="gm-cv">${v?fmtn(v):'—'}${pend?` <span class="eico">${svg(I.clock)}</span>`:''}</span></div>`;
         if(exp)kids.forEach(k=>{const kv=directSum(k.id,i);h+=`<div class="gm-cat sub${kv?'':' z'}" data-cell="${k.id}|${i}">${catIconHtml(k,18)}<span class="gm-cnm">${esc(k.nome)}</span><span class="gm-cv">${kv?fmtn(kv):'—'}</span></div>`;});
         return h;
       }).join('')+'</div>';
@@ -1311,7 +1319,7 @@ function vGrelha(m){
         <th class="tot">Total</th></tr></thead>
       <tbody>
         ${MESES.map((nm,i)=>`<tr class="${i===mi?'now':''}"><th>${MC[i]}</th>
-          ${cols.map(col=>{const v=colVal(col,i);let bc='';if(gridTipo==='despesa'&&col.top&&v>0){const lim=+state.orcamentos[col.c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}const pend=v&&cellHasPend(col.c.id,i,col.top);if(pend)bc+=' pend';return `<td class="cell ${v?'':'z'} ${col.top?'':'subcell'}${bc}" data-cell="${col.c.id}|${i}"${pend?' title="Inclui débito agendado (ainda não cobrado)"':''}>${v?fmtn(v):'·'}${pend?' ⏳':''}</td>`;}).join('')}
+          ${cols.map(col=>{const v=colVal(col,i);let bc='';if(gridTipo==='despesa'&&col.top&&v>0){const lim=+state.orcamentos[col.c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}const pend=v&&cellHasPend(col.c.id,i,col.top);if(pend)bc+=' pend';return `<td class="cell ${v?'':'z'} ${col.top?'':'subcell'}${bc}" data-cell="${col.c.id}|${i}"${pend?' title="Inclui débito agendado (ainda não cobrado)"':''}>${v?fmtn(v):'·'}${pend?` <span class="eico">${svg(I.clock)}</span>`:''}</td>`;}).join('')}
           <td></td>
           <td class="tot">${fmtn(rowTot(i))}</td></tr>`).join('')}
       </tbody>
@@ -1349,7 +1357,7 @@ function openCellPop(catId,mi,anchor){
       <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'− valor (desconto)':'+ valor'}" autofocus>${c.tipo==='despesa'?`<button class="btn" id="pAddCash" title="Pagar em dinheiro (Cofre)">${svg(I.cash)}</button>`:''}<button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
       <input id="pNota" type="text" maxlength="80" placeholder="nota (opcional)" style="width:100%;margin-top:6px">
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
-      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?' 💵':''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)">⏳ agendado (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<button class="x" data-editmov="${mo.id}" title="Editar valor/nota" style="margin-right:2px">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
+      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)"><span class="eico">${svg(I.clock)}</span> agendado (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<button class="x" data-editmov="${mo.id}" title="Editar valor/nota" style="margin-right:2px">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
     </div>`;
   pop.classList.add('on');
   // position near anchor
@@ -1594,7 +1602,7 @@ function openAcertoDetail(ym){
   <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Pago por ela</span><span>${fmt(row.pago)}</span></div>
   <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Saldo do mês</span><b class="${row.saldo>0?'neg':(row.saldo<0?'pos':'')}">${fmt(row.saldo)}</b></div>`;
   if(!row.fwd && movs.length && Math.abs(meio-row.deve)>=5){
-    body+=`<div class="hint" style="border-left:3px solid var(--warn);margin-top:10px">⚠️ Diferença relevante: a ½ dos movimentos na grelha (<b>${fmt(meio)}</b>) é menor que o valor do Excel (<b>${fmt(row.deve)}</b>). A folha de acerto incluía mais despesas partilhadas neste mês (ex.: condomínio/seguros) que não estão lançadas na grelha. O histórico usa o valor do Excel.</div>`;
+    body+=`<div class="hint" style="border-left:3px solid var(--warn);margin-top:10px"><span class="eico">${svg(I.warn)}</span> Diferença relevante: a ½ dos movimentos na grelha (<b>${fmt(meio)}</b>) é menor que o valor do Excel (<b>${fmt(row.deve)}</b>). A folha de acerto incluía mais despesas partilhadas neste mês (ex.: condomínio/seguros) que não estão lançadas na grelha. O histórico usa o valor do Excel.</div>`;
   } else if(!row.fwd && movs.length && Math.abs(meio-row.deve)>=0.5){
     body+=`<p class="dsub" style="margin-top:8px">Pequena diferença (${fmt(meio)} vs Excel ${fmt(row.deve)}): a folha de acerto do Excel incluía um item menor a mais (ex.: NB) que não está nas 4 categorias partilhadas. O histórico usa o valor do Excel.</p>`;
   }
@@ -1630,7 +1638,7 @@ function metasHtml(){
       <div class="meta-nm"><span class="dot" style="background:${cor}"></span>${esc(g.nome||'Objetivo')}</div>
       <span class="meta-pct">${pct}%</span>
     </div>
-    <div class="meta-falta">${falta<=0?`<span class="pos">Objetivo atingido 🎉</span>`:`Faltam ${fmt0(falta)}`}</div>
+    <div class="meta-falta">${falta<=0?`<span class="pos"><span class="eico">${svg(I.check)}</span> Objetivo atingido</span>`:`Faltam ${fmt0(falta)}`}</div>
     <div class="savebar"><i style="width:${pct}%;background:${cor}"></i></div>
     <div class="meta-bottom"><span class="meta-big">${fmt0(guard)}</span><span class="meta-de">de ${fmt0(alvo)}</span></div>
     <div class="meta-actions"><button class="btn sm" data-metaadd="${g.id}">${svg(I.plus)}Reforçar</button><div class="spacer" style="flex:1"></div><button class="iconbtn" data-metaedit="${g.id}" title="Editar">${svg(I.edit)}</button><button class="iconbtn" data-metadel="${g.id}" title="Eliminar">${svg(I.trash)}</button></div>
@@ -1736,13 +1744,13 @@ function vPoupancas(m){
       <tfoot><tr><td>Património total</td><td class="num">${fmtn(total)}&nbsp;${moeda()}</td><td></td></tr></tfoot>
     </table>
   </div>
-  ${hasDisc?`<div class="hint" style="margin-top:10px;border-left:3px solid var(--warn)">Gastaste <b>${fmt(saidas)}</b> em dinheiro (💵) desde a última contagem. O <b>Esperado</b> mostra quanto deverá estar no Cofre. Quando recontares, acerta as quantidades na "Contagem do Cofre" (ou carrega em <b>recontei</b>) para limpar o aviso.</div>`:''}
+  ${hasDisc?`<div class="hint" style="margin-top:10px;border-left:3px solid var(--warn)">Gastaste <b>${fmt(saidas)}</b> em dinheiro desde a última contagem. O <b>Esperado</b> mostra quanto deverá estar no Cofre. Quando recontares, acerta as quantidades na "Contagem do Cofre" (ou carrega em <b>recontei</b>) para limpar o aviso.</div>`:''}
   <button class="btn sm" data-poupadd="${ano}" style="margin-top:12px">${svg(I.plus)}Adicionar conta</button>
 
   ${metasHtml()}
 
   <div class="section-h" style="display:flex;align-items:center;gap:8px;cursor:pointer" data-poupcont="1">
-    <span class="exptog">${poupCont?'▾':'▸'}</span> <span style="flex:1">Contagem do Cofre</span>${nMoedas?`<span class="pill" title="Total de moedas contadas. Depósitos no banco com mais de 99 moedas pagam taxa." style="background:${nMoedas>99?'rgba(223,140,125,.16)':'var(--card2)'};color:${nMoedas>99?'var(--out)':'var(--mut)'};border:1px solid ${nMoedas>99?'var(--out)':'var(--line)'};font-weight:700">${nMoedas>99?'⚠ ':''}${nMoedas} moeda${nMoedas===1?'':'s'}</span>`:''}
+    <span class="exptog">${poupCont?'▾':'▸'}</span> <span style="flex:1">Contagem do Cofre</span>${nMoedas?`<span class="pill" title="Total de moedas contadas. Depósitos no banco com mais de 99 moedas pagam taxa." style="background:${nMoedas>99?'rgba(223,140,125,.16)':'var(--card2)'};color:${nMoedas>99?'var(--out)':'var(--mut)'};border:1px solid ${nMoedas>99?'var(--out)':'var(--line)'};font-weight:700">${nMoedas>99?`<span class="eico">${svg(I.warn)}</span> `:''}${nMoedas} moeda${nMoedas===1?'':'s'}</span>`:''}
   </div>
   ${poupCont?`<div class="gridwrap" style="max-width:420px">
     <table class="sumtable">
@@ -1753,7 +1761,7 @@ function vPoupancas(m){
           <td class="num">${fmtn((+r.d)*(parseFloat(r.q)||0))}</td></tr>`).join(''):`<tr><td colspan="3" style="text-align:center;color:var(--mut);padding:14px">Sem contagem em ${ano}.</td></tr>`}
       </tbody>
       <tfoot>
-        <tr${nMoedas>99?' style="color:var(--out)"':''} title="Depósitos no banco com mais de 99 moedas pagam taxa."><td>Moedas (nº)${nMoedas>99?' · &gt; 99, taxa do banco ⚠':''}</td><td class="num"><b>${nMoedas}</b></td><td class="num">${fmtn(moedas)}&nbsp;${moeda()}</td></tr>
+        <tr${nMoedas>99?' style="color:var(--out)"':''} title="Depósitos no banco com mais de 99 moedas pagam taxa."><td>Moedas (nº)${nMoedas>99?` · &gt; 99, taxa do banco <span class="eico">${svg(I.warn)}</span>`:''}</td><td class="num"><b>${nMoedas}</b></td><td class="num">${fmtn(moedas)}&nbsp;${moeda()}</td></tr>
         <tr><td>Total Cofre · contado</td><td></td><td class="num">${fmtn(cofre)}&nbsp;${moeda()}</td></tr>
         ${hasDisc?`<tr style="color:var(--warn)"><td>${svg(I.cash)} Esperado · após ${fmt(saidas)} em dinheiro</td><td></td><td class="num">${fmtn(esperado)}&nbsp;${moeda()}</td></tr>`:''}
       </tfoot>
@@ -1937,7 +1945,7 @@ function tesourariaCard(){
       <div class="kbox"><div class="l">Daqui a ${_tesH} meses</div><div class="v ${last.saldo>=0?'pos':'neg'}">${fmt0(last.saldo)}</div></div>
       <div class="kbox"><div class="l">Menor saldo previsto</div><div class="v ${minRow.saldo<P.margem?'neg':(minRow.saldo<0?'neg':'')}">${fmt0(minRow.saldo)}</div><div class="l">${MESES[minRow.m-1]} ${minRow.y}</div></div>
     </div>
-    ${below?`<div class="hint" style="border-left:3px solid var(--out);margin-top:12px">⚠ Por volta de <b>${MESES[below.m-1]} ${below.y}</b> o Valete pode descer abaixo da margem (${fmt0(P.margem)}). Convém reforçar a folga ou aliviar a poupança/gasto nesse período.</div>`:(P.margem>0?`<div class="hint" style="border-left:3px solid var(--in);margin-top:12px">O Valete mantém-se acima da margem (${fmt0(P.margem)}) nos próximos ${_tesH} meses ✓</div>`:'')}
+    ${below?`<div class="hint" style="border-left:3px solid var(--out);margin-top:12px"><span class="eico">${svg(I.warn)}</span> Por volta de <b>${MESES[below.m-1]} ${below.y}</b> o Valete pode descer abaixo da margem (${fmt0(P.margem)}). Convém reforçar a folga ou aliviar a poupança/gasto nesse período.</div>`:(P.margem>0?`<div class="hint" style="border-left:3px solid var(--in);margin-top:12px">O Valete mantém-se acima da margem (${fmt0(P.margem)}) nos próximos ${_tesH} meses ✓</div>`:'')}
     <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;margin-top:12px">
       ${tgrid}
       <polygon points="${area}" fill="${stroke}" opacity=".08"/>
@@ -1967,8 +1975,8 @@ function vPrevisao(m){
   // meta
   const meta=f.meta||{valor:0,ano:''}; let metaInfo='', metaPct=0;
   if(meta.valor>0){ metaPct=Math.min(100,patr0/meta.valor*100); const hit=proj.find(p=>p.patr>=meta.valor);
-    if(patr0>=meta.valor) metaInfo=`<span class="pos">Já atingiste a meta de ${fmt0(meta.valor)} 🎉</span>`;
-    else if(hit) metaInfo=`Atinges <b>${fmt0(meta.valor)}</b> em <b>${hit.ano}</b>${meta.ano?(hit.ano<=+meta.ano?` <span class="pos">(dentro do prazo ${meta.ano} ✓)</span>`:` <span class="neg">(depois de ${meta.ano} ⚠)</span>`):''}`;
+    if(patr0>=meta.valor) metaInfo=`<span class="pos"><span class="eico">${svg(I.check)}</span> Já atingiste a meta de ${fmt0(meta.valor)}</span>`;
+    else if(hit) metaInfo=`Atinges <b>${fmt0(meta.valor)}</b> em <b>${hit.ano}</b>${meta.ano?(hit.ano<=+meta.ano?` <span class="pos">(dentro do prazo ${meta.ano} ✓)</span>`:` <span class="neg">(depois de ${meta.ano} <span class="eico">${svg(I.warn)}</span>)</span>`):''}`;
     else metaInfo=`<span class="neg">Não atinges ${fmt0(meta.valor)} em ${f.horizonte} anos</span> (faltam ${fmt0(meta.valor-patrFim)}). Aumenta a poupança ou o prazo.`; }
   // comparação anos reais (últimos 5)
   const comp=anos.slice(-5).map(y=>({y,r:sumYearOf('receita',y),d:sumYearOf('despesa',y)}));
@@ -2206,7 +2214,7 @@ function anaUtilitiesPanel(){
     const val=round2(anaSum(c.id,cur,refMi)), prevM=prevOf(c), yoy=round2(anaSum(c.id,cur-1,refMi)), tr=anaTrailing(c.id,cur,refMi,12);
     const hot=hotSet.has(c.id);
     return `<tr${hot?' style="background:rgba(223,140,125,.10)"':''}>
-      <td style="white-space:nowrap">${catIconHtml(c,20)} <span style="vertical-align:middle">${esc(c.nome)}</span>${hot?' <span title="Fora do padrão — vê os avisos acima" style="color:var(--out)">⚠</span>':''}</td>
+      <td style="white-space:nowrap">${catIconHtml(c,20)} <span style="vertical-align:middle">${esc(c.nome)}</span>${hot?` <span title="Fora do padrão — vê os avisos acima" style="color:var(--out)"><span class="eico">${svg(I.warn)}</span></span>`:''}</td>
       <td class="num">${val>0?fmtn(val):'·'}</td><td class="num">${dchip(val,prevM)}</td>
       <td class="num utilhide">${yoy>0?fmtn(yoy):'·'}</td><td class="num">${dchip(val,yoy)}</td>
       <td class="utilhide" style="text-align:right">${_spark(tr,92,26)}</td></tr>`;
@@ -2218,8 +2226,8 @@ function anaUtilitiesPanel(){
   const nav=`<span class="utilnav"><button data-utilnav="${idx>0?yms[idx-1]:''}"${idx<=0?' disabled':''} aria-label="Mês anterior">‹</button><b>${MESES[refMi]} ${cur}</b><button data-utilnav="${idx<yms.length-1?yms[idx+1]:''}"${idx>=yms.length-1?' disabled':''} aria-label="Mês seguinte">›</button></span>`;
   return `<div class="card ana-util" style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 class="dh" style="margin:0">${svg(I.bell)} Utilities · vigilância</h3>${nav}</div>
-    <p class="dsub" style="margin-top:6px">Luz, água, gás e telecom: valor do mês, variação vs mês anterior e vs mês homólogo (ano passado), e tendência de 12 meses. Usa ‹ › para navegar nos meses. Marca ⚠ quando sobe de forma desproporcionada (acima do homólogo e da média).</p>
-    ${insights.length?`<div class="hint" style="border-left:3px solid var(--out);margin-bottom:10px">${insights.map(a=>`<div style="display:flex;gap:8px;align-items:flex-start;margin:3px 0"><div style="flex:1">${a.lvl==='low'?'ℹ️':'⚠'} ${a.txt}</div><button class="alert-x" data-utilread="${esc(a.key)}" data-utilv="${a.v||0}" data-utiltxt="${esc(encodeURIComponent((a.txt||'').replace(/<[^>]+>/g,'')))}" title="Marcar como lido">✓</button></div>`).join('')}</div>`:`<div class="hint" style="border-left:3px solid var(--in);margin-bottom:10px">Utilities dentro do padrão em ${MESES[refMi]} ${cur} ✓</div>`}
+    <p class="dsub" style="margin-top:6px">Luz, água, gás e telecom: valor do mês, variação vs mês anterior e vs mês homólogo (ano passado), e tendência de 12 meses. Usa ‹ › para navegar nos meses. Marca <span class="eico">${svg(I.warn)}</span> quando sobe de forma desproporcionada (acima do homólogo e da média).</p>
+    ${insights.length?`<div class="hint" style="border-left:3px solid var(--out);margin-bottom:10px">${insights.map(a=>`<div style="display:flex;gap:8px;align-items:flex-start;margin:3px 0"><div style="flex:1">${a.lvl==='low'?`<span class="eico">${svg(I.info)}</span>`:`<span class="eico">${svg(I.warn)}</span>`} ${a.txt}</div><button class="alert-x" data-utilread="${esc(a.key)}" data-utilv="${a.v||0}" data-utiltxt="${esc(encodeURIComponent((a.txt||'').replace(/<[^>]+>/g,'')))}" title="Marcar como lido">✓</button></div>`).join('')}</div>`:`<div class="hint" style="border-left:3px solid var(--in);margin-bottom:10px">Utilities dentro do padrão em ${MESES[refMi]} ${cur} ✓</div>`}
     <div class="gridwrap"><table class="sumtable">
       <thead><tr><th>Rubrica</th><th class="num">${MC[refMi]} ${cur}</th><th class="num">Δ mês</th><th class="num utilhide">${MC[refMi]} ${cur-1}</th><th class="num">Δ homólogo</th><th class="utilhide" style="text-align:right">12 meses</th></tr></thead>
       <tbody>${body}</tbody>
@@ -2288,7 +2296,7 @@ function resumoMesCard(){
   if(f.dHom!=null)chips.push(`<span class="resumo-chip ${f.dHom>0?'up':'down'}">${f.dHom>=0?'▲':'▼'} ${Math.abs(f.dHom)}% homólogo</span>`);
   chips.push(`<span class="resumo-chip ${f.saldo>=0?'down':'up'}">Saldo ${fmt(f.saldo)}</span>`);
   if(f.tops[0])chips.push(`<span class="resumo-chip">Maior: ${esc(f.tops[0].nome)} ${fmt(f.tops[0].val)}</span>`);
-  f.alertas.slice(0,2).forEach(a=>chips.push(`<span class="resumo-chip alert">⚠ ${esc(a.nome)} +${a.pct}%</span>`));
+  f.alertas.slice(0,2).forEach(a=>chips.push(`<span class="resumo-chip alert"><span class="eico">${svg(I.warn)}</span> ${esc(a.nome)} +${a.pct}%</span>`));
   const btn=busy?`<span class="resumo-regen">${svg(I.repeat)} a escrever…</span>`:`<button class="resumo-regen" data-resumogen="${ym}" title="${cached?'Regenerar com a IA':'Gerar com a IA'}">${svg(I.repeat)} ${cached?'regenerar':'IA'}</button>`;
   return `<div class="resumocard">
     <div class="resumo-h"><div class="resumo-ttl">${svg(I.report)} Resumo de ${MESES[f.m-1]} ${f.y}</div>${btn}</div>
@@ -2358,6 +2366,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v71',d:'30 jun',bul:['Adeus emojis coloridos: todos os ícones da interface (avisos, «agendado», dinheiro, banco/email/recibo na Caixa de entrada, dicas, metas atingidas, cadeado aberto, etc.) passam a ícones SVG monocromáticos a condizer com o resto da app. Mais limpo e moderno.']},
   {v:'v70',d:'29 jun',bul:['Cadeados monocromáticos: os meses bloqueados deixam de mostrar o emoji 🔒 e passam a um ícone de cadeado a condizer com o resto da app (cinza) — na lista de meses e no cabeçalho do editor de célula.']},
   {v:'v69',d:'29 jun',bul:['Navegação repensada no telemóvel: o menu passou para uma barra fixa no fundo (ao alcance do polegar), numa só linha com os 6 menus + o botão da IA (✦) + a navegação de ano (‹ 2026 ›). O header volta a ter uma única linha (logótipo, saldos e atalhos) e o botão flutuante da IA desapareceu. No PC mantém-se tudo no topo como antes.']},
   {v:'v68',d:'29 jun',bul:['Saldos do header mais finos (sem negrito) — ganham espaço e o Coverflex deixa de cortar no telemóvel.']},
@@ -2480,7 +2489,7 @@ function vDefs(m){
   const [a,b]=P();
   const dh=(ic,t,sub)=>`<h3 class="dh">${svg(ic)} ${t}${sub?hlp(sub):''}</h3>`;
   m.innerHTML=`
-  <div class="freshbar"><div>🌿 <b>Fresh</b> — novo visual & arrumação <span style="color:var(--mut)">(beta · só no computador; o telemóvel fica igual)</span></div><button class="btn sm ${freshOn()?'primary':''}" id="freshToggle">${freshOn()?svg(I.check)+'Ativo':'Experimentar'}</button></div>
+  <div class="freshbar"><div><span class="eico">${svg(I.leaf)}</span> <b>Fresh</b> — novo visual & arrumação <span style="color:var(--mut)">(beta · só no computador; o telemóvel fica igual)</span></div><button class="btn sm ${freshOn()?'primary':''}" id="freshToggle">${freshOn()?svg(I.check)+'Ativo':'Experimentar'}</button></div>
   <div class="defs-wrap">
   <details class="defgroup" data-dg="pessoas" ${defGroupsOpen.has('pessoas')?'open':''}><summary>${svg(I.scale)} Pessoas & aparência</summary>
   <div class="defs-grid">
@@ -2518,7 +2527,7 @@ function vDefs(m){
       ${state.bank?`
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:10px">
           <span class="pill" style="background:rgba(122,161,131,.16);color:var(--acc)">● Ligado · ${esc(state.bank.aspsp||'banco')}</span>
-          ${(()=>{const dl=bankDaysLeft();if(dl==null)return '';const warn=dl<=14;const txt=dl<0?'consentimento EXPIRADO — religa':(dl<=14?`expira em ${dl} dia(s) — religa`:`consentimento até ${String(state.bank.validUntil).slice(0,10)}`);return `<span class="pill" style="background:${warn?'rgba(245,158,11,.18)':'var(--card2)'};color:${warn?'var(--warn)':'var(--mut)'}">${warn?'⚠️ ':''}${txt}</span>`;})()}
+          ${(()=>{const dl=bankDaysLeft();if(dl==null)return '';const warn=dl<=14;const txt=dl<0?'consentimento EXPIRADO — religa':(dl<=14?`expira em ${dl} dia(s) — religa`:`consentimento até ${String(state.bank.validUntil).slice(0,10)}`);return `<span class="pill" style="background:${warn?'rgba(245,158,11,.18)':'var(--card2)'};color:${warn?'var(--warn)':'var(--mut)'}">${warn?`<span class="eico">${svg(I.warn)}</span> `:''}${txt}</span>`;})()}
           ${state.bank.lastImport?`<span class="pill" style="background:var(--card2);color:var(--mut)">última importação ${new Date(state.bank.lastImport).toLocaleDateString('pt-PT')}</span>`:''}
         </div>
         <div style="font-size:13px;color:var(--mut);margin-bottom:10px">${(state.bank.accounts||[]).map(a=>'• '+esc(a.name)).join('<br>')||'sem contas'}</div>
@@ -2558,7 +2567,7 @@ function vDefs(m){
           <input value="${esc(p.label||'')}" data-pvlabel="${p.id}" placeholder="etiqueta" style="flex:1 1 90px;min-width:80px" title="Etiqueta">
           <input value="${esc(p.from||'')}" data-pvfrom="${p.id}" placeholder="remetente" style="flex:1 1 110px;min-width:90px" title="Remetente (email/domínio)">
           <select data-pvcat="${p.id}" title="Categoria">${p.catId?'':'<option value="" selected>— categoria —</option>'}${catOptions('despesa',p.catId)}</select>
-          <select data-pvsrc="${p.id}" title="Fonte"><option value="pdf" ${p.source!=='body'?'selected':''}>📎 PDF</option><option value="body" ${p.source==='body'?'selected':''}>✉ corpo</option></select>
+          <select data-pvsrc="${p.id}" title="Fonte"><option value="pdf" ${p.source!=='body'?'selected':''}>PDF</option><option value="body" ${p.source==='body'?'selected':''}>corpo</option></select>
           <span style="color:var(--mut);font-size:11px">${p.n||0} imp.${p.last?' · '+fmt(p.last.total):''}</span>
           <button class="iconbtn" data-pvtest="${p.id}" title="Procurar e ler o último email deste remetente (validar)">${svg(I.scan)}</button>
           <button class="btn sm ${p.auto?'primary':''}" data-pvauto="${p.id}" title="${p.auto?'Auto-lançar ativo (clica para desligar)':'Ativar auto-lançar na grelha'}">${p.auto?'Auto ✓':'Auto'}</button>
@@ -2619,7 +2628,7 @@ function vDefs(m){
         <div><label>Dia de entrada do salário</label><input id="diaSalario" type="number" step="1" min="1" max="28" value="${+state.settings.diaSalario||23}" style="max-width:90px"></div>
       </div>
       <div style="margin-top:8px"><label>Poupança mensal ${hlp('Quanto desvias para a poupança no início de cada mês. Entra no cálculo do "Para mimos" — o que sobra para lazer depois do essencial e da poupança.')}</label><div style="display:flex;gap:6px;align-items:center"><input id="poupancaMensal" type="number" step="10" min="0" value="${+state.settings.poupancaMensal||0}" style="max-width:110px"><span>${moeda()}</span></div></div>
-      <div style="margin-top:8px"><label>Valor cativo do Valete ${hlp('Montantes já descontados mas ainda não processados no banco (autorizações). Vem AUTOMATICAMENTE do banco quando ligas o Open Banking (cativo = contabilístico − disponível). Este campo é só para acertar à mão se quiseres. A app mostra um chip 🔒 no topo; Disponível = contabilístico − cativo. Não mexe nos cálculos.')}</label><div style="display:flex;gap:6px;align-items:center"><input id="valeteCativo" type="text" inputmode="decimal" value="${valeteConta()&&parseFloat(valeteConta().cativo)>0?String(parseFloat(valeteConta().cativo)).replace('.',','):''}" placeholder="0,00" style="max-width:110px">${valeteConta()?'':'<span style="font-size:11px;color:var(--warn)">cria a conta «Valete» em Poupanças primeiro</span>'}<span>${moeda()}</span></div>${(state.bank&&state.bank.saldoBanco&&state.bank.saldoBanco.cativoAuto!=null)?`<p class="dsub" style="margin-top:6px">Último do banco: cativo <b>${fmt(state.bank.saldoBanco.cativoAuto)}</b> · disponível <b>${fmt(state.bank.saldoBanco.disponivel)}</b>.</p>`:(state.bank?`<p class="dsub" style="margin-top:6px">O teu banco ainda não devolveu um saldo «disponível» separado — quando devolver, o cativo aparece sozinho.</p>`:'')}</div>
+      <div style="margin-top:8px"><label>Valor cativo do Valete ${hlp('Montantes já descontados mas ainda não processados no banco (autorizações). Vem AUTOMATICAMENTE do banco quando ligas o Open Banking (cativo = contabilístico − disponível). Este campo é só para acertar à mão se quiseres. A app mostra um chip no topo; Disponível = contabilístico − cativo. Não mexe nos cálculos.')}</label><div style="display:flex;gap:6px;align-items:center"><input id="valeteCativo" type="text" inputmode="decimal" value="${valeteConta()&&parseFloat(valeteConta().cativo)>0?String(parseFloat(valeteConta().cativo)).replace('.',','):''}" placeholder="0,00" style="max-width:110px">${valeteConta()?'':'<span style="font-size:11px;color:var(--warn)">cria a conta «Valete» em Poupanças primeiro</span>'}<span>${moeda()}</span></div>${(state.bank&&state.bank.saldoBanco&&state.bank.saldoBanco.cativoAuto!=null)?`<p class="dsub" style="margin-top:6px">Último do banco: cativo <b>${fmt(state.bank.saldoBanco.cativoAuto)}</b> · disponível <b>${fmt(state.bank.saldoBanco.disponivel)}</b>.</p>`:(state.bank?`<p class="dsub" style="margin-top:6px">O teu banco ainda não devolveu um saldo «disponível» separado — quando devolver, o cativo aparece sozinho.</p>`:'')}</div>
       <div style="margin-top:8px"><label>Palavra-chave do salário no banco ${hlp('Texto que aparece no extrato do Novobanco quando entra o ordenado (ex.: nome da entidade patronal). Ao reconhecê-lo, a app lança o valor como Salário provisório, que depois substituis pelo recibo. "vencimento"/"ordenado"/"salário" já são reconhecidos automaticamente.')}</label><input id="salarioMatch" type="text" maxlength="40" placeholder="ex.: nome da empresa" value="${esc(state.settings.salarioMatch||'')}" style="max-width:260px"></div>
       <button class="btn sm" style="margin-top:12px" id="saveMargem">${svg(I.check)}Guardar</button>
     </div>
@@ -3030,7 +3039,7 @@ function lembreteBoot(force){
     const d=new Date(),today=d.getDate();
     const quando=x=>x.dia===today?'hoje':(x.dia===today+1?'amanhã':'dia '+x.dia);
     const txt=due.map(x=>`${x.nome} ~${fmt(x.valor)} (${quando(x)})`).join(' · ');
-    toast('💡 Débitos a chegar: '+txt);
+    toast('Débitos a chegar: '+txt);
     if(state.settings.notif && 'Notification' in window && Notification.permission==='granted'){
       try{ new Notification('CASA · débitos a chegar',{body:due.map(x=>`${x.nome} ~${fmt(x.valor)} ${quando(x)}`).join('\n')}); }catch(e){}
     }
@@ -3066,7 +3075,7 @@ function searchRender(){
   res.innerHTML=`<div style="font-size:12px;color:var(--mut);margin-bottom:6px">${hits.length} resultado(s)${hits.length>=80?' (mostro os 80 mais recentes)':''} · saldo ${fmt(round2(total))}</div>`+
     hits.map(m=>{const neg=m.tipo==='despesa'||m.valor<0;return `<div class="srow" data-go="${m.id}" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer">
       <span style="width:74px;font-size:11.5px;color:var(--mut)">${m.data.slice(8,10)}/${m.data.slice(5,7)}/${m.data.slice(0,4)}</span>
-      <span style="flex:1;font-size:13px">${esc(catName(m.categoriaId))}${m.nota?` <span style="color:var(--mut);font-size:11.5px">· ${esc(m.nota)}</span>`:''}${m.cash?' 💵':''}</span>
+      <span style="flex:1;font-size:13px">${esc(catName(m.categoriaId))}${m.nota?` <span style="color:var(--mut);font-size:11.5px">· ${esc(m.nota)}</span>`:''}${m.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span>
       <span style="font-weight:700;color:${neg?'var(--out)':'var(--in)'}">${neg?'−':'+'}${fmt(Math.abs(m.valor))}</span></div>`;}).join('');
 }
 function gotoMov(id){const m=state.movimentos.find(x=>x.id===id);if(!m)return;ano=+m.data.slice(0,4);gridTipo=m.tipo;tab='grelha';closeBack();render();toast(catName(m.categoriaId)+' · '+m.data);}
@@ -3386,7 +3395,7 @@ function openInbox(){
     const isFeed = it.source==='bank'||it.source==='mail'||it.source==='csv';
     const label = isFeed ? (it.desc||it.acct||(it.source==='mail'?'fatura (email)':(it.source==='csv'?'extrato':'movimento'))) : (it.catId?catName(it.catId):(it.nif?('NIF '+it.nif):'desconhecido'));
     const ym = (it.mi!=null?it.mi:new Date().getMonth());
-    const badge = it.source==='bank' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🏦 ${tipo==='receita'?'crédito':'débito'}${it.pend?' · pendente':''}</span> ` : (it.source==='mail' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">📧 fatura</span> ` : (it.source==='csv' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px">🧾 extrato</span> ` : ''));
+    const badge = it.source==='bank' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px"><span class="eico">${svg(I.bank)}</span> ${tipo==='receita'?'crédito':'débito'}${it.pend?' · pendente':''}</span> ` : (it.source==='mail' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px"><span class="eico">${svg(I.mail)}</span> fatura</span> ` : (it.source==='csv' ? `<span class="pill" style="background:var(--card2);color:var(--mut);font-size:10.5px"><span class="eico">${svg(I.receipt)}</span> extrato</span> ` : ''));
     return `<div style="border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px">
         <div style="min-width:0"><b style="font-size:15px;color:${tipo==='receita'?'var(--acc)':'inherit'}">${tipo==='receita'?'+':''}${fmt(it.total)}</b>${it.prov?` <span class="pill" style="background:var(--card2);color:var(--warn);font-size:10.5px" title="Entra como provisório; será substituído quando importares o recibo">≈ provisório</span>`:''} <span style="color:var(--mut);font-size:12px">· ${badge}${esc(label)}${it.acct&&it.source==='bank'?' · '+esc(it.acct):''}${it.year?(' · '+(it.mi!=null?MESES[it.mi].slice(0,3)+'/':'' )+it.year):''}</span></div>
@@ -3396,14 +3405,14 @@ function openInbox(){
         <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria (${tipo==='receita'?'receita':'despesa'})</label><select id="ibcat_${it.id}">${it.catId?'':'<option value="" selected>— escolher —</option>'}${catOptions(tipo,it.catId)}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Mês</label><select id="ibmes_${it.id}">${MESES.map((x,k)=>`<option value="${k}" ${k===ym?'selected':''}>${x.slice(0,3)}</option>`).join('')}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Ano</label><input id="ibano_${it.id}" type="number" step="1" value="${it.year||ano}" style="width:64px"></div>
-        ${tipo==='despesa'?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut);height:38px" title="Pago em dinheiro (sai do Cofre, não do Valete)"><input type="checkbox" id="ibcash_${it.id}">💵</label>`:''}
+        ${tipo==='despesa'?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut);height:38px" title="Pago em dinheiro (sai do Cofre, não do Valete)"><input type="checkbox" id="ibcash_${it.id}"><span class="eico">${svg(I.cash)}</span></label>`:''}
         <button class="btn primary sm" data-ibadd="${it.id}" style="height:38px">${svg(I.check)}Adicionar</button>
       </div>
     </div>`;
   };
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.inbox)} Caixa de entrada <button class="close" data-close="1">&times;</button></h2>
   <div class="body">
-    <div class="hint" style="border-left:3px solid var(--acc)">Movimentos do <b>banco</b> (🏦), faturas do <b>email</b> (📧) e leituras por <b>QR</b>. Confirma a <b>categoria</b> e <b>Adicionar</b> — só aí entram na grelha (a data real é mantida). Marca <b>💵</b> se foi em dinheiro. Usa <b>Descartar</b> (ou <b>Descartar todas</b>) para o que não queres lançar.</div>
+    <div class="hint" style="border-left:3px solid var(--acc)">Movimentos do <b>banco</b> (<span class="eico">${svg(I.bank)}</span>), faturas do <b>email</b> (<span class="eico">${svg(I.mail)}</span>) e leituras por <b>QR</b>. Confirma a <b>categoria</b> e <b>Adicionar</b> — só aí entram na grelha (a data real é mantida). Marca <span class="eico">${svg(I.cash)}</span> se foi em dinheiro. Usa <b>Descartar</b> (ou <b>Descartar todas</b>) para o que não queres lançar.</div>
     ${items.length?items.map(row).join(''):'<div class="pempty" style="padding:24px">Caixa de entrada vazia. Usa <b>Foto da fatura</b> para capturar pelo QR.</div>'}
   </div>
   <div class="foot">${items.length?`<button class="btn sm primary" data-ibaddall="1">${svg(I.check)}Adicionar todas</button><button class="btn sm danger" data-ibclear="1">Descartar todas</button>`:''}<div class="spacer"></div><button class="btn" data-close="1">Fechar</button></div></div>`;
@@ -3632,7 +3641,7 @@ function openFaturasBatch(items){
   const erros=items.filter(x=>x.erro);
   const row=(l)=>`<tr style="${l.inc?'':'opacity:.5'}">
     <td style="padding:4px 6px"><input type="checkbox" data-fbchk="${l.i}" ${l.inc?'checked':''}></td>
-    <td style="padding:4px 6px;font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(l.nome)}">${esc(l.nome)}${l.dia!=null?`<div style="font-size:10px;color:var(--acc)">débito dia ${l.dia}</div>`:''}${l.dup?`<div style="font-size:10px;color:var(--warn)">⚠ já existe</div>`:''}</td>
+    <td style="padding:4px 6px;font-size:12px;max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(l.nome)}">${esc(l.nome)}${l.dia!=null?`<div style="font-size:10px;color:var(--acc)">débito dia ${l.dia}</div>`:''}${l.dup?`<div style="font-size:10px;color:var(--warn)"><span class="eico">${svg(I.warn)}</span> já existe</div>`:''}</td>
     <td style="padding:4px 6px"><input type="number" step="0.01" data-fbval="${l.i}" value="${l.total!=null?l.total.toFixed(2):''}" style="width:84px"></td>
     <td style="padding:4px 6px"><select data-fbcat="${l.i}">${catOptions('despesa',l.catId)}</select></td>
     <td style="padding:4px 6px"><select data-fbmes="${l.i}">${MESES.map((x,k)=>`<option value="${k}" ${k===l.mi?'selected':''}>${x.slice(0,3)}</option>`).join('')}</select></td>
@@ -4013,7 +4022,7 @@ async function bankFetchSaldo(silent){
     if(bv!=null && av!=null){
       const cat=Math.max(0,round2(bv-av));
       state.bank.saldoBanco.disponivel=round2(av); state.bank.saldoBanco.cativoAuto=cat;
-      const vc=valeteConta(); if(vc) vc.cativo=cat||undefined; // preenche o chip 🔒 sozinho
+      const vc=valeteConta(); if(vc) vc.cativo=cat||undefined; // preenche o chip do cativo sozinho
     }
     save(); return state.bank.saldoBanco;
   }catch(e){ if(!silent)toast('Não consegui ler o saldo do banco: '+(e.message||e)); return null; }
@@ -4050,7 +4059,7 @@ function bankDaysLeft(){ const v=state.bank&&state.bank.validUntil; if(!v)return
 function bankConsentCheck(){
   if(!state.bank)return; const dl=bankDaysLeft(); if(dl==null||dl>7)return;
   if(sessionStorage.getItem('bankWarned'))return; sessionStorage.setItem('bankWarned','1');
-  toast(dl<0?'⚠️ Consentimento do banco expirou — religa em Definições → Banco':'⚠️ Consentimento do banco expira em '+dl+' dia(s) — religa em Definições → Banco');
+  toast(dl<0?'Consentimento do banco expirou — religa em Definições → Banco':'Consentimento do banco expira em '+dl+' dia(s) — religa em Definições → Banco');
 }
 function bankDisconnect(){
   if(!confirm('Desligar o banco?\nOs movimentos já adicionados à grelha mantêm-se. Os itens do banco ainda por classificar na Caixa de entrada são removidos.'))return;
@@ -4222,10 +4231,10 @@ async function mailTestProvider(id){
 }
 function mailTestResultModal(p,r){
   let body;
-  if(!r.found){ body=`<div class="pempty" style="padding:18px">Não encontrei emails de <b>${esc(p.from)}</b> nos últimos 12 meses${p.source!=='body'?' com PDF anexo':''}.<br>Confirma o remetente${p.source!=='body'?' ou muda a fonte para ✉ corpo':''}.</div>`; }
+  if(!r.found){ body=`<div class="pempty" style="padding:18px">Não encontrei emails de <b>${esc(p.from)}</b> nos últimos 12 meses${p.source!=='body'?' com PDF anexo':''}.<br>Confirma o remetente${p.source!=='body'?' ou muda a fonte para corpo':''}.</div>`; }
   else { const pf=r.pf;
     body=`<div class="hint" style="border-left:3px solid var(--acc)">Último email encontrado (lido via <b>${r.via}</b>):<br><span style="color:var(--mut)">${esc(r.subject||'(sem assunto)')}</span></div>
-    ${(pf&&pf.total!=null)?`<div style="font-size:15px;margin-top:12px">Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''} → ${p.catId?esc(catName(p.catId)):(pf.catId?esc(catName(pf.catId)):'(sem categoria — escolhe na lista)')}</div><p class="dsub" style="margin-top:8px">Parece bem? Então este fornecedor está pronto — liga o <b>Auto</b> na lista.</p>`:`<div style="margin-top:12px;color:var(--warn)">Encontrei o email mas não detetei o valor.${p.source!=='body'?' Experimenta mudar a fonte para ✉ corpo do email.':' Verifica se o valor aparece no texto.'}</div>`}`;
+    ${(pf&&pf.total!=null)?`<div style="font-size:15px;margin-top:12px">Detetado: <b>${fmt(pf.total)}</b>${pf.dia?' · dia '+pf.dia:''}${pf.mi!=null?' · '+MESES[pf.mi].slice(0,3):''}${pf.year?'/'+pf.year:''} → ${p.catId?esc(catName(p.catId)):(pf.catId?esc(catName(pf.catId)):'(sem categoria — escolhe na lista)')}</div><p class="dsub" style="margin-top:8px">Parece bem? Então este fornecedor está pronto — liga o <b>Auto</b> na lista.</p>`:`<div style="margin-top:12px;color:var(--warn)">Encontrei o email mas não detetei o valor.${p.source!=='body'?' Experimenta mudar a fonte para corpo do email.':' Verifica se o valor aparece no texto.'}</div>`}`;
   }
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scan)} Testar ${esc(p.label||p.from)} <button class="close" data-close="1">&times;</button></h2>
   <div class="body">${body}</div>
