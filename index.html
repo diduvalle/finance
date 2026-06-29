@@ -28,7 +28,7 @@
   --bg:#121613; --bg2:#181d19; --card:#1e241f; --card2:#27302a; --line:#333d36; --line2:#43504a;
   --txt:#ecefe8; --mut:#9aa79e; --acc:#7aa183; --accd:#5f7a6b;
   --in:#8cba98; --out:#df8c7d; --warn:#d9a85c; --info:#87a9c0;
-  --nb:#1bb6a6; --cflex:#fb8168; /* verde novobanco · coral Coverflex (marcas) */
+  --nb:#1bb6a6; --cflex:#fb8168; --cativo:#a78bfa; /* verde novobanco · coral Coverflex · roxo cativo */
   --acc-10:rgba(122,161,131,.10); --acc-12:rgba(122,161,131,.12); --acc-15:rgba(122,161,131,.15); --acc-16:rgba(122,161,131,.16);
   --r:20px; --r-sm:13px; --r-lg:26px;
   --maxw:1320px;
@@ -41,7 +41,7 @@
   --bg:#f3f1ea; --bg2:#ece8df; --card:#fbf9f4; --card2:#f1ede4; --line:#ddd7c9; --line2:#cabfac;
   --txt:#26302a; --mut:#6d7a70; --acc:#5f7a6b; --accd:#4d6657;
   --in:#5f8a6c; --out:#c06f5e; --warn:#b3893f; --info:#5e84a0;
-  --nb:#0a8d80; --cflex:#d9624a; /* verde novobanco · coral Coverflex (marcas) */
+  --nb:#0a8d80; --cflex:#d9624a; --cativo:#7e5bd0; /* verde novobanco · coral Coverflex · roxo cativo */
   --acc-10:rgba(95,122,107,.10); --acc-12:rgba(95,122,107,.13); --acc-15:rgba(95,122,107,.16); --acc-16:rgba(95,122,107,.17);
   --sh-sm:0 1px 2px rgba(60,70,50,.06);
   --sh:0 1px 2px rgba(60,70,50,.05),0 14px 30px -16px rgba(60,70,50,.14);
@@ -464,12 +464,12 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .balchip{gap:0;padding:0 13px}
 .bal{display:inline-flex;align-items:center;gap:5px;font-weight:600}
 .bal .bdot{width:8px;height:8px;border-radius:50%;flex:none}
-.bal .vlbl{color:var(--mut)}
+.bal .vlbl{display:none} /* só o valor, com a cor — sem o título (o Diogo reconhece pela cor) */
 .bal b{font-weight:800}
 .bal.nb .bdot{background:var(--nb)} .bal.nb b{color:var(--nb)}
 .bal.cf .bdot{background:var(--cflex)} .bal.cf b{color:var(--cflex)}
 .bal.vb{color:var(--out);cursor:pointer} .bal.vb b{color:var(--out)} .bal.vb svg{width:13px;height:13px} .bal.vb .dshort{display:none}
-.bal.cativo{color:var(--warn);cursor:pointer} .bal.cativo b{color:var(--warn)} .bal.cativo .dshort{display:none} .bal.cativo svg{width:13px;height:13px}
+.bal.cativo{color:var(--cativo);cursor:pointer} .bal.cativo b{color:var(--cativo)} .bal.cativo .dshort{display:none} .bal.cativo svg{width:13px;height:13px}
 .bsep{width:1px;height:15px;background:var(--line);margin:0 11px;flex:none}
 /* a barra da IA parte para a 2ª linha (não cabe ao lado dos saldos) e cresce p/ encher a esquerda; os ícones ficam à direita da mesma linha — sem espaço morto */
 #aiBar{flex:1 1 320px;min-width:200px;display:flex;align-items:center}
@@ -2344,6 +2344,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v66',d:'28 jun',bul:['Header dos saldos mais limpo: sem os títulos (Valete/Coverflex) — só os valores, identificados pela cor. O cativo passou a roxo.']},
   {v:'v65',d:'28 jun',bul:['O cadeado do cativo no header passa a ser um ícone monocromático (SVG, na cor do chip) em vez do emoji 🔒.']},
   {v:'v64',d:'27 jun',bul:['Cativo do Valete agora é AUTOMÁTICO do banco: quando o Open Banking sincroniza, a app lê o saldo contabilístico e o disponível e calcula o cativo sozinho (cativo = contabilístico − disponível). Já não é preciso meter à mão (o campo em Definições fica só como acerto manual).']},
   {v:'v63',d:'27 jun',bul:['Correção: o campo do «valor cativo» (Definições → Valete) não aceitava vírgula (ex.: 17,69) e o valor não ficava guardado — agora aceita vírgula ou ponto. Depois de guardado, aparece o chip 🔒 no header.']},
