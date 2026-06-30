@@ -456,6 +456,8 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .pe .peaq.aq-da{color:var(--out);border-color:var(--out);background:color-mix(in srgb,var(--out) 13%,transparent)}
 .pe .peaq.aq-dv{color:var(--in);border-color:var(--in);background:color-mix(in srgb,var(--in) 13%,transparent)}
 .pe .peaq:hover{background:var(--card)}
+.pe .peag{color:var(--mut)} .pe .peag svg{width:14px;height:14px;display:block}
+.pe .peag.on{color:var(--warn)}
 .pe-ed{gap:6px}
 .pe-ed input{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-size:12.5px;color:var(--txt);min-width:0}
 .pe-ed .pe-ed-val{width:84px;flex:none;font-variant-numeric:tabular-nums}
@@ -507,7 +509,9 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .bal b{font-weight:400} /* sem bold nos números — peso normal, ganha espaço (Coverflex não corta no mobile) */
 .bal.nb .bdot{background:var(--nb)} .bal.nb b{color:var(--nb)}
 .bal.cf .bdot{background:var(--cflex)} .bal.cf b{color:var(--cflex)}
-.bal.vb{color:var(--out);cursor:pointer} .bal.vb b{color:var(--out)} .bal.vb svg{width:13px;height:13px} .bal.vb .dshort{display:none}
+.bal.vb{color:var(--out);cursor:pointer} .bal.vb b{color:var(--out)} .bal.vb .bdot{background:currentColor} .bal.vb .dshort{display:none}
+.bal.vb.expl{color:var(--mut);cursor:default} .bal.vb.expl b{color:var(--mut)} /* diferença explicada por agendados — informativo, não é erro */
+.chip.warn.expl{border-color:var(--line);color:var(--mut);cursor:default}
 .bal.cativo{color:var(--cativo);cursor:pointer} .bal.cativo b{color:var(--cativo)} .bal.cativo .bdot{background:var(--cativo)}
 .bsep{width:1px;height:15px;background:var(--line);margin:0 11px;flex:none}
 /* a barra da IA parte para a 2ª linha (não cabe ao lado dos saldos) e cresce p/ encher a esquerda; os ícones ficam à direita da mesma linha — sem espaço morto */
@@ -619,7 +623,7 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 }
 @media(max-width:380px){
   .sumtable th,.sumtable td{padding:6px 4px;font-size:11px}
-  .bal.vb{display:none} .balchip.vbwarn{border-color:var(--out);cursor:pointer} /* ecrãs minúsculos: sem segmento Δ (cabe sempre); chip âmbar + clicável p/ acertar */
+  .bal.vb{display:none} .balchip.vbwarn{border-color:var(--out);cursor:pointer} .balchip.vbwarn.expl{border-color:var(--line);cursor:default} /* ecrãs minúsculos: sem segmento Δ (cabe sempre); chip âmbar + clicável p/ acertar — neutro se explicado por agendados */
 }
 @media(max-width:330px){ .sumtable .barscell,.sumtable .barhd{display:none} } /* só em ecrãs minúsculos é que as barras saem */
 /* ----- Splash de arranque: a casa emerge do fundo sálvia (igual ao ícone) ----- */
@@ -982,12 +986,28 @@ function aplicaValete(mv){if(mv.cash)return;const c=contaDeMov(mv);if(!c)return;
 function saidasDinheiro(){const base=(state.poupancas[ultimoAnoPoup()]||{}).contagemData||0;return round2(state.movimentos.filter(m=>m.tipo==='despesa'&&m.cash&&m.ts&&m.ts>base).reduce((a,m)=>a+m.valor,0));}
 function reverteValete(mv){if(!mv||!mv.vAdj)return;const p=state.poupancas[ultimoAnoPoup()];if(!p)return;const c=(p.contas||[]).find(x=>(x.nome||'').trim().toLowerCase()===(mv.vAdjConta||'valete'));if(c)c.valor=round2((parseFloat(c.valor)||0)-mv.vAdj);}
 /* DÉBITOS AGENDADOS (pendentes): faturas com débito futuro não abatem no Valete até chegar o dia.
-   Ao abrir a app, os que já venceram (data<=hoje) tornam-se definitivos e abatem agora. */
+   m.cobraEm = data REAL de cobrança (quando difere do mês de competência em m.data — ex.: fatura de Junho debitada só em Julho).
+   Sem m.cobraEm, usa-se m.data (comportamento de sempre). Ao abrir a app, os que já venceram tornam-se definitivos e abatem agora. */
 function liquidarPendentes(){
   const hoje=isoToday(); let n=0,total=0;
-  (state.movimentos||[]).forEach(m=>{ if(m.pendente && m.data<=hoje){ delete m.pendente; aplicaValete(m); n++; total=round2(total+Math.abs(m.valor)); } });
+  (state.movimentos||[]).forEach(m=>{ if(m.pendente && (m.cobraEm||m.data)<=hoje){ delete m.pendente; delete m.cobraEm; aplicaValete(m); n++; total=round2(total+Math.abs(m.valor)); } });
   if(n){ save(); if(isUnlocked()) toast(n+' débito(s) cobrado(s) hoje — Valete atualizado ('+fmt(total)+')'); }
   return n;
+}
+/* soma dos movimentos ainda agendados (não cobrados) — usada para perceber se uma diferença vs banco é só isto */
+function vbPendenteSum(){return round2((state.movimentos||[]).filter(m=>m.pendente).reduce((s,m)=>s+Math.abs(m.valor),0));}
+function vbIsExplained(vb){ if(!vb)return false; const sum=vbPendenteSum(); return sum>0.005 && Math.abs(vb.abs-sum)<0.05; }
+/* marca/desmarca manualmente um movimento como agendado (ainda não cobrado), com a data real de cobrança */
+function marcarAgendado(id,cobraEm){
+  const mv=state.movimentos.find(x=>x.id===id); if(!mv)return;
+  if(!mv.pendente){ reverteValete(mv); delete mv.vAdj; delete mv.vAdjConta; } // já tinha sido aplicado: reverte antes de pendurar
+  mv.pendente=true; mv.cobraEm=cobraEm;
+  save();
+}
+function desmarcarAgendado(id){
+  const mv=state.movimentos.find(x=>x.id===id); if(!mv)return;
+  delete mv.pendente; delete mv.cobraEm; aplicaValete(mv);
+  save();
 }
 /* HISTÓRICO CONGELADO: só se pode lançar/editar do mês atual para a frente */
 let editHist=false; // desbloqueio temporário do histórico (volta a bloquear ao recarregar)
@@ -1231,18 +1251,18 @@ function render(){
   const _va=valeteAtual(); const _vf=valeteForecast(); const _alerta=_va!=null&&_vf.faltaDia;
   const _vc0=valeteConta(); const _cativo=(_vc0&&parseFloat(_vc0.cativo))||0; const _disp=_va!=null?round2(_va-_cativo):null;
   const _cf=coverflexConta(); const _cfv=_cf?(parseFloat(_cf.valor)||0):null;
-  const _vb=valeteVsBanco(); const _vbWarn=_vb&&_vb.abs>=0.01&&!_vb.stale;
+  const _vb=valeteVsBanco(); const _vbWarn=_vb&&_vb.abs>=0.01&&!_vb.stale; const _vbExplained=_vbWarn&&vbIsExplained(_vb);
   let _vChip='';
   if(_va!=null||_cfv!=null){
-    _vChip=`<div class="chip balchip${_vbWarn?' vbwarn':''}" ${_vbWarn?'title="O Valete não bate certo com o banco — toca para acertar."':'title="Valete = saldo real da conta (novobanco) · Coverflex = saldo do cartão de benefícios"'}>`;
+    _vChip=`<div class="chip balchip${_vbWarn?' vbwarn':''}${_vbExplained?' expl':''}" ${_vbWarn?(_vbExplained?`title="Diferença explicada por ${fmt(vbPendenteSum())} agendado(s) — ainda não cobrado(s) pelo banco."`:'title="O Valete não bate certo com o banco — toca para acertar."'):'title="Valete = saldo real da conta (novobanco) · Coverflex = saldo do cartão de benefícios"'}>`;
     if(_va!=null) _vChip+=`<span class="bal nb"><span class="bdot"></span><span class="vlbl">Valete</span><b>${fmt(_va)}</b></span>`;
     if(_cativo>0) _vChip+=`<span class="bsep"></span><span class="bal cativo" id="vCativo" style="cursor:pointer" title="Cativo (não disponível) · Contabilístico ${fmt(_va!=null?_va:0)} · Cativo ${fmt(_cativo)} · Disponível ${fmt(_disp!=null?_disp:0)} — clica para editar">${_cativo>0?'<span class="bdot"></span>':''}<b>${fmt(_cativo)}</b></span>`;
     if(_va!=null&&_cfv!=null) _vChip+='<span class="bsep"></span>';
     if(_cfv!=null) _vChip+=`<span class="bal cf"><span class="bdot"></span><span class="vlbl">Coverflex</span><b>${fmt(_cfv)}</b></span>`;
-    if(_vbWarn) _vChip+=`<span class="bsep"></span><span class="bal vb" id="vbWarn" style="cursor:pointer" title="O Valete (${fmt(_vb.valete)}) não bate certo com o banco (${fmt(_vb.banco)}). Diferença ${fmt(_vb.diff)}. Clica para acertar o Valete ao banco.">${svg(I.bank)}<b><span class="dfull">Δ&nbsp;${fmt(_vb.diff)}</span><span class="dshort">Δ&nbsp;${_vb.diff<0?'−':'+'}${Math.abs(Math.round(_vb.diff))}</span></b></span>`;
+    if(_vbWarn) _vChip+=`<span class="bsep"></span><span class="bal vb${_vbExplained?' expl':''}" id="vbWarn" style="cursor:${_vbExplained?'default':'pointer'}" title="${_vbExplained?`Diferença explicada por ${fmt(vbPendenteSum())} agendado(s) — ainda não cobrado(s) pelo banco.`:`O Valete (${fmt(_vb.valete)}) não bate certo com o banco (${fmt(_vb.banco)}). Diferença ${fmt(_vb.diff)}. Clica para acertar o Valete ao banco.`}"><span class="bdot"></span><b><span class="dfull">Δ&nbsp;${fmt(_vb.diff)}</span><span class="dshort">Δ&nbsp;${_vb.diff<0?'−':'+'}${Math.abs(Math.round(_vb.diff))}</span></b></span>`;
     _vChip+='</div>';
   } else if(_vbWarn){
-    _vChip += `<div class="chip warn" id="vbWarn" style="cursor:pointer" title="O Valete não bate certo com o banco. Diferença ${fmt(_vb.diff)}. Clica para acertar.">${svg(I.bank)}<b>Δ&nbsp;${fmt(_vb.diff)}</b></div>`;
+    _vChip += `<div class="chip warn${_vbExplained?' expl':''}" id="vbWarn" style="cursor:${_vbExplained?'default':'pointer'}" title="${_vbExplained?`Diferença explicada por ${fmt(vbPendenteSum())} agendado(s) — ainda não cobrado(s) pelo banco.`:`O Valete não bate certo com o banco. Diferença ${fmt(_vb.diff)}. Clica para acertar.`}"><span class="bdot" style="background:currentColor"></span><b>Δ&nbsp;${fmt(_vb.diff)}</b></div>`;
   }
   if(_alerta){ _vChip += `<div class="chip warn" title="Estimativa: por volta do dia ${_vf.faltaDia} o saldo desce abaixo da margem (faltam ~${fmt(_vf.faltaValor)}). Detalhe no sino.">${svg(I.bell)}<b>−${fmt(_vf.faltaValor)}</b></div>`; }
   document.getElementById('valeteHead').innerHTML = _vChip;
@@ -1393,7 +1413,7 @@ function openCellPop(catId,mi,anchor){
       <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'− valor (desconto)':'+ valor'}" autofocus>${c.tipo==='despesa'?`<button class="btn" id="pAddCash" title="Pagar em dinheiro (Cofre)">${svg(I.cash)}</button>`:''}<button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
       <input id="pNota" type="text" maxlength="80" placeholder="nota (opcional)" style="width:100%;margin-top:6px">
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
-      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)"><span class="eico">${svg(I.clock)}</span> agendado (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<span class="pe-acts">${acIds.has(mo.categoriaId)?`<button class="x peaq ${aqInfo(mo.aq).c}" data-aqcycle="${mo.id}" title="Quota de quem deve este valor na Dívida — clica para alternar 50/50 · 100% dela · 0% (tua)">${aqInfo(mo.aq).t}</button>`:''}<button class="x" data-editmov="${mo.id}" title="Editar valor/nota">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button></span>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
+      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)"><span class="eico">${svg(I.clock)}</span> agendado${mo.cobraEm?' até '+mo.cobraEm.split('-').reverse().join('/'):''} (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<span class="pe-acts">${acIds.has(mo.categoriaId)?`<button class="x peaq ${aqInfo(mo.aq).c}" data-aqcycle="${mo.id}" title="Quota de quem deve este valor na Dívida — clica para alternar 50/50 · 100% dela · 0% (tua)">${aqInfo(mo.aq).t}</button>`:''}${mo.cash?'':`<button class="x peag${mo.pendente?' on':''}" data-agopen="${mo.id}" title="${mo.pendente?'Agendado'+(mo.cobraEm?' até '+mo.cobraEm.split('-').reverse().join('/'):'')+' — ainda não saiu da conta. Clica para alterar.':'Marcar como ainda não cobrado (agendado) — fica esbatido e só desconta do Valete quando chegar a data'}">${svg(I.clock)}</button>`}<button class="x" data-editmov="${mo.id}" title="Editar valor/nota">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button></span>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
     </div>`;
   pop.classList.add('on');
   // position near anchor
@@ -2418,6 +2438,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v79',d:'30 jun',bul:['Correção importante: faturas com data de competência (ex.: Junho) mas débito real mais tarde (ex.: início de Julho) já não descontam do Valete antes de tempo — ficam <b>agendadas</b> (esbatidas, ícone de relógio) até chegar a data real, contam no mês certo. Selo de relógio no popover de cada movimento para marcar/editar isto manualmente (ex.: a fatura da NOS). A app passa a detetar a data real de cobrança nas faturas por email/PDF (\"débito a partir de…\", \"será debitado em…\") em vez de assumir que já saiu. Quando a diferença para o saldo do banco é só isto, o selo Δ no topo fica neutro (mesmo ponto dos outros saldos, só muda de cor) em vez de pedir para \"acertar ao banco\" — o que poderia estragar a conta.']},
   {v:'v78',d:'30 jun',bul:['Header mobile: corrigido o caso em que os saldos mais largos empurravam um ícone (o sair) para uma 2ª linha. Agora o header fica SEMPRE numa só linha — os saldos é que cedem (encolhem/cortam o Δ à direita) para os ícones caberem.']},
   {v:'v77',d:'30 jun',bul:['Dívida · quota por movimento: cada lançamento de uma conta partilhada pode agora ser 50/50 (defeito), <b>100% dela</b> ou <b>0% (tua)</b> — clica no selo no popover da célula. Serve para o seguro de vida daqui para a frente: lanças as duas apólices em separado (a dela 100%, a tua 0%) e a Dívida conta certo, sem mais o erro do 50/50.']},
   {v:'v76',d:'30 jun',bul:['Dívida · novo acerto «Correção seguro de vida»: a Prévoir são duas apólices (a dela é maior) e foram sempre dividas 50/50 por engano. Acerto da diferença desde out/2022 (47,05 € — 35 meses exatos do Excel + 9 estimados), que ela deve a 100%. Os acertos pontuais passam a suportar quota ≠ 50% e cada um mostra os seus próprios juros de mora.']},
@@ -2828,7 +2849,7 @@ document.addEventListener('click',e=>{
   const dco=e.target.closest('[data-defcatopen]'); if(dco){ const id=dco.dataset.defcatopen; defCatOpen.has(id)?defCatOpen.delete(id):defCatOpen.add(id); render(); return; }
   const sgo=e.target.closest('[data-go]'); if(sgo){ gotoMov(sgo.dataset.go); return; }
   if(e.target.closest('#vCativo')){ editCativo(); return; }
-  if(e.target.closest('#vbWarn')||e.target.closest('.balchip.vbwarn')){ acertarValeteAoBanco(); return; }
+  if(e.target.closest('#vbWarn')||e.target.closest('.balchip.vbwarn')){ const vb=valeteVsBanco(); if(vb&&vbIsExplained(vb)){ toast('Diferença explicada por '+fmt(vbPendenteSum())+' agendado(s) — nada a acertar.'); return; } acertarValeteAoBanco(); return; }
   const delHead=e.target.closest('.delcol[data-delcat]');
   if(delHead){ delCat(delHead.dataset.delcat); return; }
   const cellTd=e.target.closest('[data-cell]');
@@ -2854,6 +2875,7 @@ document.addEventListener('click',e=>{
   if(d.delmov){const mv=state.movimentos.find(x=>x.id===d.delmov);if(mv&&isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado — não pode ser apagado');return;}if(mv&&!confirm('Apagar este movimento?\n'+catName(mv.categoriaId)+' · '+fmt(Math.abs(mv.valor))+' · '+mv.data))return;reverteValete(mv);state.movimentos=state.movimentos.filter(x=>x.id!==d.delmov);save();const pc=popCell;render();if(pc){const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`);if(an)openCellPop(pc.catId,pc.mi,an);}return;}
   if(d.editmov){ popEditId=d.editmov; reopenPop(); return; }
   if(d.aqcycle){ const mv=state.movimentos.find(x=>x.id===d.aqcycle); if(mv){ if(isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado');return;} const cur=mv.aq!=null?mv.aq:50; const next=cur===50?100:(cur===100?0:50); if(next===50)delete mv.aq; else mv.aq=next; save(); render(); reopenPop(); toast('Quota na Dívida: '+(next===100?'100% dela':next===0?'0% (só Diogo)':'50/50')); } return; }
+  if(d.agopen){ openAgendadoModal(d.agopen); return; }
   if(d.editsave){ saveEditMov(d.editsave); return; }
   if(d.editcancel){ popEditId=null; reopenPop(); return; }
   if(d.delcat){delCat(d.delcat);return;}
@@ -3090,6 +3112,27 @@ function moverCelula(srcCat,srcMi,tgtCat,tgtMi){
     save(); closeBack(); closePop(); render();
     toast(n+(n>1?' movimentos movidos':' movimento movido')+' → '+catName(tgtCat)+' · '+MESES[tgtMi]);
   };
+}
+/* janela "agendado" — marca/edita manualmente a data real de cobrança de um movimento (mês de competência fica intacto) */
+function openAgendadoModal(id){
+  const mv=state.movimentos.find(x=>x.id===id); if(!mv)return;
+  if(isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado — desbloqueia o histórico');return;}
+  const def=mv.cobraEm||mv.data;
+  document.getElementById('back').innerHTML=`<div class="modal" style="max-width:400px"><h2>${svg(I.clock)} Agendado · ainda não cobrado <button class="close" data-close="1">&times;</button></h2>
+    <div class="body">
+      <p class="dsub" style="margin:0">${esc(catName(mv.categoriaId))} · <b>${fmt(Math.abs(mv.valor))}</b> · conta no mês de ${MESES[+mv.data.slice(5,7)-1]} ${mv.data.slice(0,4)}</p>
+      <div><label>Data real de cobrança (quando sai mesmo da conta)</label><input id="agDate" type="date" value="${def}" min="${mv.data}"></div>
+      <p class="dsub" style="margin-top:2px">Fica esbatido na grelha e só desconta do Valete quando chegar esta data — o mês de competência não muda.</p>
+    </div>
+    <div class="foot">${mv.pendente?`<button class="btn" id="agClear">${svg(I.check)}Já foi cobrado</button>`:''}<div class="spacer"></div><button class="btn" data-close="1">Cancelar</button><button class="btn primary" id="agSave">${svg(I.clock)}${mv.pendente?'Atualizar':'Marcar agendado'}</button></div></div>`;
+  openBack();
+  document.getElementById('agSave').onclick=()=>{
+    const d=val('agDate'); if(!d){toast('Escolhe uma data');return;}
+    marcarAgendado(id,d); closeBack(); render(); reopenPop();
+    toast('Marcado como agendado até '+d.split('-').reverse().join('/'));
+  };
+  const clearBtn=document.getElementById('agClear');
+  if(clearBtn)clearBtn.onclick=()=>{ desmarcarAgendado(id); closeBack(); render(); reopenPop(); toast('Marcado como já cobrado'); };
 }
 /* manter o estado aberto/fechado das secções de Definições entre renders (toggle não faz bubble => capture) */
 document.addEventListener('toggle',e=>{ const d=e.target; if(d&&d.classList&&d.classList.contains('defgroup')&&d.dataset&&d.dataset.dg){ if(d.open)defGroupsOpen.add(d.dataset.dg); else defGroupsOpen.delete(d.dataset.dg); } },true);
@@ -3447,7 +3490,7 @@ function parseDataPT(str){
 }
 /* data em que sai da conta (débito direto) — prioritária; cada fornecedor escreve à sua maneira */
 function dataDebito(text){
-  const A=[/debitad[oa][^.]{0,70}?a\s*partir\s*d[eo]\s*(?:o\s*dia)?:?\s*/i,/d[ée]bito\s*(?:directo|direto)?\s*a\s*partir\s*d[eo]\s*(?:o\s*)?(?:dia)?:?\s*/i,/cobran[çc]a\s*em:?\s*/i,/(?:deve\s*ser\s*paga|a\s*pagar)\s*at[ée]\s*/i,/data\s*limite\s*(?:de\s*)?pagamento:?\s*/i];
+  const A=[/debitad[oa][^.]{0,70}?a\s*partir\s*d[eo]\s*(?:o\s*dia)?:?\s*/i,/d[ée]bito\s*(?:directo|direto)?\s*a\s*partir\s*d[eo]\s*(?:o\s*)?(?:dia)?:?\s*/i,/cobran[çc]a\s*em:?\s*/i,/(?:deve\s*ser\s*paga|a\s*pagar)\s*at[ée]\s*/i,/data\s*limite\s*(?:de\s*)?pagamento:?\s*/i,/ser[áa]\s*(?:debitad[oa]|cobrad[oa])\s*(?:em|no\s*dia)?:?\s*/i,/encargo\s*previsto\s*(?:para)?:?\s*/i];
   for(const re of A){const m=re.exec(text);if(m){const start=m.index+m[0].length;const d=parseDataPT(text.slice(start,start+30));if(d)return d;}}
   return null;
 }
@@ -3466,13 +3509,15 @@ function parseFatura(text){
   const deb=dataDebito(text);
   if(deb){mi=deb[0];year=deb[1];dia=deb[2];}
   if(mi==null){const idx=text.search(/data\s*(?:de|da)?\s*(?:emiss|fatura)/i);const d=idx>=0?parseDataPT(text.slice(idx,idx+45)):parseDataPT(text);if(d){mi=d[0];year=d[1];if(dia==null)dia=d[2];}}
+  // data REAL de cobrança (independente do mês de competência acima) — quando a fatura é deste mês mas só é debitada mais tarde
+  const debReal=deb?`${deb[1]}-${String(deb[0]+1).padStart(2,'0')}-${String(deb[2]).padStart(2,'0')}`:null;
   // categoria pelo fornecedor (regra que dispara é a "assinatura" segura: não depende do nome do cliente)
   let catId=null,forn=null;
   for(const [re,nome] of FATURA_CATS){if(re.test(text)){const c=findCatByName(nome);if(c){catId=c.id;forn=nome;break;}}}
   // categoria aprendida (override): se já corrigiste antes a categoria deste tipo de fornecedor
   const learned=forn?(state.faturaMap||{})[forn]:null;
   if(learned&&cat(learned))catId=learned;
-  return {total,cand,mi,year,dia,catId,forn,sig:forn,text};
+  return {total,cand,mi,year,dia,catId,forn,sig:forn,text,debReal};
 }
 async function processFatura(file){
   if(!file)return; toast('A ler a fatura…');
@@ -3545,8 +3590,10 @@ function _commitInbox(it,catId,mi,year,cash,silent){
   if(cash){mv.cash=true;mv.ts=Date.now();}
   if(it.prov&&tipo==='receita')mv.provisorio=true; // Fase 1: aguarda o recibo para distribuir/descontar
   // banco pendente (não cobrado) ou email/CSV/QR-recorrente com débito futuro => agendado
-  const futuro = (isBank ? it.pend : ((isMail||recorrente) && !cash && dataStr>isoToday())) && !isPastMonth(year,mi);
-  if(futuro)mv.pendente=true;
+  // it.debReal: data real de cobrança lida na fatura (ex.: "débito a partir de") — pode ser mais tarde que o mês escolhido para a competência
+  const debReal=(it.debReal&&it.debReal>isoToday())?it.debReal:null;
+  const futuro = (isBank ? it.pend : (debReal!=null || ((isMail||recorrente) && !cash && dataStr>isoToday()))) && !isPastMonth(year,mi);
+  if(futuro){ mv.pendente=true; if(!isBank) mv.cobraEm=debReal||dataStr; }
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
   if(it.nif)state.nifMap[it.nif]=catId; // aprende NIF -> categoria
   if(isMail && it.from){ // aprende remetente -> categoria (cria/atualiza o fornecedor)
@@ -3668,11 +3715,11 @@ async function processFotoFatura(file){
     openFaturaReview(p);
   }catch(e){ toast('Falha a ler a foto: '+(e.message||e.name||'erro')); }
 }
-let _faturaDia=null,_faturaSig='',_faturaCatSug=null;
+let _faturaDia=null,_faturaSig='',_faturaCatSug=null,_faturaDebReal=null;
 function openFaturaReview(p){
   const year=p.year!=null?p.year:ano, mi=p.mi!=null?p.mi:new Date().getMonth();
   _faturaDia=(p.dia!=null&&p.dia>=1&&p.dia<=31)?p.dia:null;
-  _faturaSig=p.sig||''; _faturaCatSug=p.catId||null;
+  _faturaSig=p.sig||''; _faturaCatSug=p.catId||null; _faturaDebReal=p.debReal||null;
   const debTxt=(p.dia!=null&&p.mi!=null)?`${String(p.dia).padStart(2,'0')} ${MESES[p.mi]} ${p.year}`:null;
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(p._foto?I.camera:I.scan)} Fatura ${p._foto?'(foto)':'importada'} <button class="close" data-close="1">&times;</button></h2>
   <div class="body">
@@ -3707,14 +3754,16 @@ function gravarFatura(){
   if(rec)mv.recId=rec.id;
   if(_faturaDia!=null&&rec&&rec.dia!==_faturaDia)rec.dia=Math.min(_faturaDia,28);
   // débito FUTURO => fica AGENDADO (pendente): não abate no Valete real até chegar o dia
-  const futuro = dataStr>isoToday() && !isPastMonth(year,mi);
-  if(futuro){ mv.pendente=true; }
+  // _faturaDebReal: data real de cobrança lida na fatura — cobre o caso de mudares o mês p/ um anterior (competência) ao do débito
+  const debReal=(_faturaDebReal&&_faturaDebReal>isoToday())?_faturaDebReal:null;
+  const futuro = (dataStr>isoToday()||debReal!=null) && !isPastMonth(year,mi);
+  if(futuro){ mv.pendente=true; mv.cobraEm=debReal||dataStr; }
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
   // aprender fornecedor->categoria se corrigiste a sugestão
   let aprendi=false; if(_faturaSig&&catId!==_faturaCatSug){state.faturaMap[_faturaSig]=catId;aprendi=true;}
   ano=year; save(); closeBack(); render();
-  toast((futuro?'Fatura agendada p/ '+dataStr.slice(8,10)+'/'+dataStr.slice(5,7)+': ':'Fatura gravada: ')+fmt(Math.abs(v))+' · '+catName(catId)+(aprendi?' · aprendi a categoria':''));
-  _faturaDia=null;_faturaSig='';_faturaCatSug=null;
+  toast((futuro?'Fatura agendada p/ '+(mv.cobraEm||dataStr).slice(8,10)+'/'+(mv.cobraEm||dataStr).slice(5,7)+': ':'Fatura gravada: ')+fmt(Math.abs(v))+' · '+catName(catId)+(aprendi?' · aprendi a categoria':''));
+  _faturaDia=null;_faturaSig='';_faturaCatSug=null;_faturaDebReal=null;
 }
 
 /* ===== IMPORTAR VÁRIAS FATURAS (lote) ===== */
@@ -3732,7 +3781,7 @@ async function processFaturasBatch(files){
 }
 function openFaturasBatch(items){
   const ok=items.filter(x=>x.p);
-  _fatBatch=ok.map((x,i)=>{const p=x.p;const mi=p.mi!=null?p.mi:new Date().getMonth();const year=p.year!=null?p.year:ano;const dup=(p.catId&&p.total!=null)?isDupMov('despesa',p.catId,p.total,`${year}-${String(mi+1).padStart(2,'0')}`):null;return {nome:x.nome,total:p.total,catId:p.catId,catSug:p.catId,sig:p.sig,mi,year,dia:p.dia,forn:p.forn,dup:!!dup,inc:!dup,i};});
+  _fatBatch=ok.map((x,i)=>{const p=x.p;const mi=p.mi!=null?p.mi:new Date().getMonth();const year=p.year!=null?p.year:ano;const dup=(p.catId&&p.total!=null)?isDupMov('despesa',p.catId,p.total,`${year}-${String(mi+1).padStart(2,'0')}`):null;return {nome:x.nome,total:p.total,catId:p.catId,catSug:p.catId,sig:p.sig,mi,year,dia:p.dia,debReal:p.debReal,forn:p.forn,dup:!!dup,inc:!dup,i};});
   const erros=items.filter(x=>x.erro);
   const row=(l)=>`<tr style="${l.inc?'':'opacity:.5'}">
     <td style="padding:4px 6px"><input type="checkbox" data-fbchk="${l.i}" ${l.inc?'checked':''}></td>
@@ -3772,8 +3821,9 @@ function gravarFaturasBatch(){
     const rec=(state.recorrencias||[]).find(r=>r.categoriaId===l.catId&&r.ativo!==false);
     if(rec)mv.recId=rec.id;
     if(l.dia!=null&&rec&&rec.dia!==l.dia)rec.dia=Math.min(l.dia,28);
-    const futuro=dataStr>isoToday() && !isPastMonth(l.year,l.mi);
-    if(futuro){mv.pendente=true;agendadas++;}
+    const debReal=(l.debReal&&l.debReal>isoToday())?l.debReal:null;
+    const futuro=(dataStr>isoToday()||debReal!=null) && !isPastMonth(l.year,l.mi);
+    if(futuro){mv.pendente=true;mv.cobraEm=debReal||dataStr;agendadas++;}
     state.movimentos.push(mv); if(!futuro && !isPastMonth(l.year,l.mi))aplicaValete(mv);
     if(l.sig&&l.catId!==l.catSug){state.faturaMap[l.sig]=l.catId;}
     n++;
@@ -4256,14 +4306,15 @@ async function mailImport(silent){
       const ed=new Date(+msg.internalDate||Date.now());
       const year=pf.year!=null?pf.year:ed.getFullYear();
       const mi=pf.mi!=null?pf.mi:ed.getMonth();
-      const it={id:nid('ib'),source:'mail',tipo:'despesa',total:pf.total,desc:(prov&&prov.label)||pf.forn||fromName||hdr('subject')||'fatura',year,mi,dia:pf.dia||null,catId:(prov&&prov.catId)||pf.catId,from:fromDom||fromHdr,fromName,providerId:prov?prov.id:null,mailId:mref.id,ts:Date.now()};
+      const it={id:nid('ib'),source:'mail',tipo:'despesa',total:pf.total,desc:(prov&&prov.label)||pf.forn||fromName||hdr('subject')||'fatura',year,mi,dia:pf.dia||null,debReal:pf.debReal||null,catId:(prov&&prov.catId)||pf.catId,from:fromDom||fromHdr,fromName,providerId:prov?prov.id:null,mailId:mref.id,ts:Date.now()};
       // fornecedor com Auto ligado e categoria => lança direto na grelha (salta a revisão)
       if(prov&&prov.auto&&it.catId&&!isFrozenMi(year,mi)){
         const dia=(it.dia&&it.dia>=1&&it.dia<=28)?it.dia:15;
         const ym=`${year}-${String(mi+1).padStart(2,'0')}`; const dataStr=`${ym}-${String(dia).padStart(2,'0')}`;
         if(isDupMov('despesa',it.catId,it.total,ym)){dup++;continue;}
         const mv={id:nid('m'),data:dataStr,tipo:'despesa',categoriaId:it.catId,valor:valorComSinal(it.catId,'despesa',it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:it.desc};
-        const futuro=dataStr>isoToday()&&!isPastMonth(year,mi); if(futuro)mv.pendente=true;
+        const debReal=(it.debReal&&it.debReal>isoToday())?it.debReal:null;
+        const futuro=(dataStr>isoToday()||debReal!=null)&&!isPastMonth(year,mi); if(futuro){mv.pendente=true;mv.cobraEm=debReal||dataStr;}
         state.movimentos.push(mv); if(!futuro&&!isPastMonth(year,mi))aplicaValete(mv);
         prov.n=(prov.n||0)+1; prov.last={total:it.total,ym}; auto++;
       } else { state.inbox.push(it); added++; }
