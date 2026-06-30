@@ -557,12 +557,12 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .foot-credit{text-align:center;color:var(--mut);font-size:11.5px;padding:20px}
 @media(max-width:720px){
   .main{padding:12px 10px calc(72px + env(safe-area-inset-bottom))} /* espaço p/ a #botnav fixa não tapar o conteúdo */
-  /* header mobile em 2 LINHAS: (1) logo + saldos (entre logo e ícones) + ícones · (2) menus + ano à largura toda */
-  .topbar-inner{gap:4px;padding:9px 10px}
+  /* header mobile numa LINHA só: logo + saldos + ícones. Os menus/IA/ano estão na #botnav (rodapé). */
+  .topbar-inner{gap:4px;padding:9px 10px;flex-wrap:nowrap} /* nowrap: os ícones NUNCA quebram de linha */
   .spacer{display:none}
   .brand{order:1;flex:none}
-  /* limita a largura dos saldos para que os 5 ícones NUNCA quebrem de linha — header sempre 2 linhas em mobile. Os saldos cedem (clipam o Δ) quando o ecrã é estreito. 216 = logo+5 ícones+gaps+padding */
-  #valeteHead{order:2;flex:0 1 auto;min-width:0;gap:4px;overflow:hidden;max-width:calc(100vw - 200px)}
+  /* os saldos cedem primeiro (encolhem e clipam o Δ à direita) para os 5 ícones caberem sempre na mesma linha */
+  #valeteHead{order:2;flex:0 1 auto;min-width:0;gap:4px;overflow:hidden}
   #searchBtn{order:3;margin-left:auto} #inboxTop{order:4} #refreshBtn{order:5} #bell{order:6} #lockNow{order:7}
   /* header passa a 1 LINHA: menus + IA + ano vão todos para a #botnav (rodapé) */
   .topbar .tabs{display:none}
@@ -2418,6 +2418,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v78',d:'30 jun',bul:['Header mobile: corrigido o caso em que os saldos mais largos empurravam um ícone (o sair) para uma 2ª linha. Agora o header fica SEMPRE numa só linha — os saldos é que cedem (encolhem/cortam o Δ à direita) para os ícones caberem.']},
   {v:'v77',d:'30 jun',bul:['Dívida · quota por movimento: cada lançamento de uma conta partilhada pode agora ser 50/50 (defeito), <b>100% dela</b> ou <b>0% (tua)</b> — clica no selo no popover da célula. Serve para o seguro de vida daqui para a frente: lanças as duas apólices em separado (a dela 100%, a tua 0%) e a Dívida conta certo, sem mais o erro do 50/50.']},
   {v:'v76',d:'30 jun',bul:['Dívida · novo acerto «Correção seguro de vida»: a Prévoir são duas apólices (a dela é maior) e foram sempre dividas 50/50 por engano. Acerto da diferença desde out/2022 (47,05 € — 35 meses exatos do Excel + 9 estimados), que ela deve a 100%. Os acertos pontuais passam a suportar quota ≠ 50% e cada um mostra os seus próprios juros de mora.']},
   {v:'v75',d:'30 jun',bul:['Arrasto de células: a confirmação passa a ser uma janela dentro da app (em vez do aviso do navegador) — mais bonita, com o valor, o nº de movimentos e o «de → para» (categoria · mês).']},
