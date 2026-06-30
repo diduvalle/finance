@@ -421,6 +421,12 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .utilheat th:first-child,.utilheat td.hname{text-align:left;white-space:nowrap;position:sticky;left:0;background:var(--card);min-width:118px;z-index:1}
 .utilheat td.hname span{vertical-align:middle}
 .utilheat .sel{outline:2px solid var(--acc);outline-offset:-2px}
+.utilheat td.hnum,.utilheat th.hnum{text-align:right;font-weight:700;min-width:66px;padding-right:10px}
+/* mini-semáforo dos consumos (look do lab Lovable): farol vertical, lâmpada acesa = estado do mês */
+.sem{display:inline-flex;flex-direction:column;align-items:center;gap:2px;width:13px;padding:3px 0;border-radius:5px;background:color-mix(in srgb,var(--txt) 7%,transparent);box-shadow:inset 0 0 0 1px var(--line);vertical-align:middle}
+.sem i{width:6px;height:6px;border-radius:50%;opacity:.16}
+.sem i.on{opacity:1}
+.sem .lr{background:var(--sem-max)} .sem .la{background:var(--sem-warn)} .sem .lg{background:var(--sem-ok)}
 .section-h{font-size:13px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:18px 4px 8px}
 /* Popover */
 .pop{position:fixed;z-index:80;background:var(--card);border:1px solid var(--line2);border-radius:16px;box-shadow:var(--sh-lg);width:290px;display:none}
@@ -2179,17 +2185,20 @@ function anaSeasonalAlerts(refY,refMi){
 }
 /* heatmap do ano: rubrica × 12 meses, cor = desvio face ao normal sazonal do mês */
 function anaUtilHeatmap(refY,refMi,cats){
-  const heatCol=r=>{ if(r==null)return 'transparent'; if(r>=1.5)return 'color-mix(in srgb, var(--sem-max) 40%, transparent)'; if(r>=1.2)return 'color-mix(in srgb, var(--sem-hi) 30%, transparent)'; if(r>=1.08)return 'color-mix(in srgb, var(--sem-warn) 30%, transparent)'; if(r<=0.8)return 'color-mix(in srgb, var(--sem-ok) 28%, transparent)'; return 'var(--card2)'; };
-  const head=`<tr><th></th>${MC.map((mc,i)=>`<th class="${i===refMi?'sel':''}">${mc}</th>`).join('')}</tr>`;
+  // mini-semáforo por célula: verde = normal/abaixo · âmbar = ligeiro acima (≥+8%) · vermelho = acima (≥+20%)
+  const semIco=r=>{ if(r==null)return ''; const s=r>=1.2?'r':(r>=1.08?'a':'g'); return `<span class="sem"><i class="lr${s==='r'?' on':''}"></i><i class="la${s==='a'?' on':''}"></i><i class="lg${s==='g'?' on':''}"></i></span>`; };
+  const head=`<tr><th></th>${MC.map((mc,i)=>`<th class="${i===refMi?'sel':''}">${mc}</th>`).join('')}<th class="hnum">Total</th></tr>`;
   const rows=cats.map(c=>{
+    let tot=0;
     const tds=MC.map((mc,i)=>{
       const v=round2(anaSum(c.id,refY,i)), base=anaSeasonalBaseline(c.id,i,refY), r=(v>0&&base>0)?v/base:null;
+      if(v>0)tot+=v;
       const t=v>0?`${c.nome} ${MESES[i]} ${refY}: ${fmt(v)}${base>0?` · normal ~${fmt(base)} (${r>=1?'+':''}${Math.round((r-1)*100)}%)`:''}`:`${c.nome} ${MESES[i]}: sem dados`;
-      return `<td class="${i===refMi?'sel':''}" style="background:${v>0?heatCol(r):'transparent'}" title="${esc(t)}">${v>0?fmtn(v):''}</td>`;
+      return `<td class="${i===refMi?'sel':''}" title="${esc(t)}">${semIco(r)}</td>`;
     }).join('');
-    return `<tr><td class="hname">${catIconHtml(c,16)} <span>${esc(c.nome)}</span></td>${tds}</tr>`;
+    return `<tr><td class="hname">${catIconHtml(c,16)} <span>${esc(c.nome)}</span></td>${tds}<td class="hnum">${tot>0?fmtn(round2(tot)):'·'}</td></tr>`;
   }).join('');
-  return `<div style="margin-top:14px"><div class="dsub" style="margin-bottom:6px">Mapa do ano <b>${refY}</b> — cor = desvio face ao normal do mês (verde abaixo · âmbar/vermelho acima). Toca numa célula para o detalhe.</div>
+  return `<div style="margin-top:14px"><div class="dsub" style="margin-bottom:6px">Mapa do ano <b>${refY}</b> — semáforo do desvio face ao normal do mês: <b style="color:var(--sem-ok)">verde</b> normal/abaixo · <b style="color:var(--sem-warn)">âmbar</b> ligeiro acima · <b style="color:var(--sem-max)">vermelho</b> acima. Passa o rato (ou toca) para o valor.</div>
     <div class="gridwrap"><table class="utilheat"><thead>${head}</thead><tbody>${rows}</tbody></table></div></div>`;
 }
 /* painel de vigilância das Utilities: navegável por mês (default = mês atual); valor, Δ vs mês anterior, valor+Δ homólogo, sparkline 12m + avisos sazonais + heatmap */
@@ -2368,6 +2377,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v73',d:'30 jun',bul:['Consumos · mapa do ano com SEMÁFOROS: cada mês passa a mostrar um mini-farol (verde = normal/abaixo · âmbar = ligeiro acima · vermelho = acima) em vez do número com fundo pintado — leitura imediata, como no conceito do lab de design. Nova coluna <b>Total</b> (do ano) à direita; o valor de cada mês fica no tooltip.']},
   {v:'v72',d:'30 jun',bul:['Consumos · semáforo afinado: o mapa do ano e as setas (▲▼) passam a usar as cores exatas da paleta «sálvia» do Lovable (verde = abaixo · âmbar = ligeiro acima · terracota/vermelho = bem acima). O mapa de cores passa também a respeitar o tema claro (antes usava sempre as cores do escuro).']},
   {v:'v71',d:'30 jun',bul:['Adeus emojis coloridos: todos os ícones da interface (avisos, «agendado», dinheiro, banco/email/recibo na Caixa de entrada, dicas, metas atingidas, cadeado aberto, etc.) passam a ícones SVG monocromáticos a condizer com o resto da app. Mais limpo e moderno.']},
   {v:'v70',d:'29 jun',bul:['Cadeados monocromáticos: os meses bloqueados deixam de mostrar o emoji 🔒 e passam a um ícone de cadeado a condizer com o resto da app (cinza) — na lista de meses e no cabeçalho do editor de célula.']},
