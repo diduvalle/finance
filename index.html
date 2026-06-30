@@ -3490,7 +3490,7 @@ function parseDataPT(str){
 }
 /* data em que sai da conta (débito direto) — prioritária; cada fornecedor escreve à sua maneira */
 function dataDebito(text){
-  const A=[/debitad[oa][^.]{0,70}?a\s*partir\s*d[eo]\s*(?:o\s*dia)?:?\s*/i,/d[ée]bito\s*(?:directo|direto)?\s*a\s*partir\s*d[eo]\s*(?:o\s*)?(?:dia)?:?\s*/i,/cobran[çc]a\s*em:?\s*/i,/(?:deve\s*ser\s*paga|a\s*pagar)\s*at[ée]\s*/i,/data\s*limite\s*(?:de\s*)?pagamento:?\s*/i,/ser[áa]\s*(?:debitad[oa]|cobrad[oa])\s*(?:em|no\s*dia)?:?\s*/i,/encargo\s*previsto\s*(?:para)?:?\s*/i];
+  const A=[/debitad[oa][^.]{0,70}?a\s*partir\s*d[eo]\s*(?:o\s*dia)?:?\s*/i,/d[ée]bito\s*(?:directo|direto)?\s*a\s*partir\s*d[eo]\s*(?:o\s*)?(?:dia)?:?\s*/i,/cobran[çc]a\s*em:?\s*/i,/(?:deve\s*ser\s*paga|a\s*pagar)\s*at[ée]\s*/i,/data\s*limite\s*(?:de\s*)?pagamento:?\s*/i,/ser[áa]\s*(?:debitad[oa]|cobrad[oa])\s*(?:em|no\s*dia)?:?\s*/i,/encargo\s*previsto\s*(?:para)?:?\s*/i,/data\s*(?:de\s*)?d[ée]bito(?:\s*direto)?:?\s*/i,/data\s*(?:prevista\s*)?(?:de\s*)?cobran[çc]a:?\s*/i];
   for(const re of A){const m=re.exec(text);if(m){const start=m.index+m[0].length;const d=parseDataPT(text.slice(start,start+30));if(d)return d;}}
   return null;
 }
