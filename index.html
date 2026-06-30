@@ -465,6 +465,20 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .modal .body{padding:18px 20px;display:grid;gap:13px}
 .modal .foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center}
 .f2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:11px}
+/* janela de confirmação do arrasto de células (mover movimentos) */
+.mv-modal{max-width:460px}
+.mv-amt{font-size:27px;font-weight:800;letter-spacing:-.5px;text-align:center;font-variant-numeric:tabular-nums}
+.mv-amt .mv-cnt{display:block;font-size:12px;font-weight:600;color:var(--mut);letter-spacing:0;margin-top:3px}
+.mv-route{display:flex;align-items:stretch;gap:9px}
+.mv-end{flex:1;min-width:0;background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:11px 12px;text-align:center}
+.mv-end .mv-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.5px;color:var(--mut);font-weight:700}
+.mv-end .mv-val{font-weight:700;margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mv-end .mv-mes{font-size:12.5px;color:var(--mut);margin-top:1px}
+.mv-end.to{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc)}
+.mv-arrow{display:flex;align-items:center;color:var(--acc);flex:none}
+.mv-arrow svg{width:22px;height:22px}
+.mv-warn{display:flex;align-items:center;gap:7px;justify-content:center;color:var(--warn);font-size:12.5px}
+.mv-warn svg{width:15px;height:15px;flex:none}
 .f2>div{min-width:0}
 .close{margin-left:auto;background:none;border:0;color:var(--mut);cursor:pointer;font-size:22px}
 .card{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;box-shadow:var(--sh)}
@@ -717,6 +731,7 @@ const I={
   receipt:'<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1Z"/><path d="M8 7h8"/><path d="M8 11h8"/><path d="M8 15h5"/>',
   bulb:'<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
   leaf:'<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/>',
+  arrowr:'<path d="M5 12h14M13 6l6 6-6 6"/>',
   cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',
   bank:'<path d="M3 10l9-6 9 6M3 10h18M3 21h18M6 10v8M10 10v8M14 10v8M18 10v8"/>',
   logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
@@ -2381,6 +2396,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v75',d:'30 jun',bul:['Arrasto de células: a confirmação passa a ser uma janela dentro da app (em vez do aviso do navegador) — mais bonita, com o valor, o nº de movimentos e o «de → para» (categoria · mês).']},
   {v:'v74',d:'30 jun',bul:['Grelha (vista tabela, no PC): arrasta uma célula para outra para MOVER os seus movimentos para outro mês e/ou categoria — ideal para acertos, como uma mensalidade que caiu no mês errado (ex.: NOS de Julho que pertence a Junho). Pede sempre confirmação (mostra quantos movimentos e o total) e respeita os meses bloqueados.']},
   {v:'v73',d:'30 jun',bul:['Consumos · mapa do ano com SEMÁFOROS: cada mês passa a mostrar um mini-farol (verde = normal/abaixo · âmbar = ligeiro acima · vermelho = acima) em vez do número com fundo pintado — leitura imediata, como no conceito do lab de design. Nova coluna <b>Total</b> (do ano) à direita; o valor de cada mês fica no tooltip.']},
   {v:'v72',d:'30 jun',bul:['Consumos · semáforo afinado: o mapa do ano e as setas (▲▼) passam a usar as cores exatas da paleta «sálvia» do Lovable (verde = abaixo · âmbar = ligeiro acima · terracota/vermelho = bem acima). O mapa de cores passa também a respeitar o tema claro (antes usava sempre as cores do escuro).']},
@@ -3029,14 +3045,25 @@ function moverCelula(srcCat,srcMi,tgtCat,tgtMi){
   const movs=cellMovs(srcCat,srcMi);
   if(!movs.length){ toast('Nada para mover aqui (arrasta a sub-categoria)'); return; }
   const total=movs.reduce((a,m)=>a+Math.abs(m.valor),0);
-  const sameCat=srcCat===tgtCat;
-  const msg='Mover '+movs.length+' movimento'+(movs.length>1?'s':'')+' ('+fmt(round2(total))+')\n\n'
-    +'de:  '+catName(srcCat)+' · '+MESES[srcMi]+'\npara: '+catName(tgtCat)+' · '+MESES[tgtMi]
-    +(sameCat?'':'\n\nAtenção: muda também de categoria.');
-  if(!confirm(msg)) return;
-  const dim=new Date(ano,tgtMi+1,0).getDate();
-  movs.forEach(m=>{ const day=Math.min(+m.data.slice(8,10)||1,dim); m.data=ano+'-'+String(tgtMi+1).padStart(2,'0')+'-'+String(day).padStart(2,'0'); m.categoriaId=tgtCat; });
-  save(); closePop(); render(); toast(movs.length+(movs.length>1?' movimentos movidos':' movimento movido')+' → '+catName(tgtCat)+' · '+MESES[tgtMi]);
+  const sameCat=srcCat===tgtCat, n=movs.length;
+  document.getElementById('back').innerHTML=`<div class="modal mv-modal"><h2>${svg(I.move)} Mover ${n>1?'movimentos':'movimento'} <button class="close" data-close="1">&times;</button></h2>
+    <div class="body">
+      <div class="mv-amt">${fmt(round2(total))}<span class="mv-cnt">${n>1?n+' movimentos':'1 movimento'}</span></div>
+      <div class="mv-route">
+        <div class="mv-end"><div class="mv-lbl">De</div><div class="mv-val">${esc(catName(srcCat))}</div><div class="mv-mes">${MESES[srcMi]} ${ano}</div></div>
+        <div class="mv-arrow">${svg(I.arrowr)}</div>
+        <div class="mv-end to"><div class="mv-lbl">Para</div><div class="mv-val">${esc(catName(tgtCat))}</div><div class="mv-mes">${MESES[tgtMi]} ${ano}</div></div>
+      </div>
+      ${sameCat?'':`<div class="mv-warn"><span class="eico">${svg(I.warn)}</span> Muda também de categoria.</div>`}
+    </div>
+    <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Cancelar</button><button class="btn primary" id="mvConfirm">${svg(I.check)}Mover</button></div></div>`;
+  openBack();
+  document.getElementById('mvConfirm').onclick=()=>{
+    const dim=new Date(ano,tgtMi+1,0).getDate();
+    movs.forEach(m=>{ const day=Math.min(+m.data.slice(8,10)||1,dim); m.data=ano+'-'+String(tgtMi+1).padStart(2,'0')+'-'+String(day).padStart(2,'0'); m.categoriaId=tgtCat; });
+    save(); closeBack(); closePop(); render();
+    toast(n+(n>1?' movimentos movidos':' movimento movido')+' → '+catName(tgtCat)+' · '+MESES[tgtMi]);
+  };
 }
 /* manter o estado aberto/fechado das secções de Definições entre renders (toggle não faz bubble => capture) */
 document.addEventListener('toggle',e=>{ const d=e.target; if(d&&d.classList&&d.classList.contains('defgroup')&&d.dataset&&d.dataset.dg){ if(d.open)defGroupsOpen.add(d.dataset.dg); else defGroupsOpen.delete(d.dataset.dg); } },true);
