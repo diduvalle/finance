@@ -2438,6 +2438,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v80',d:'30 jun',bul:['Leitura de faturas muito mais fiável (testado com faturas reais da NOS): (1) <b>mês certo automaticamente</b> — passa a ler o "Período de faturação" da fatura (ex.: "Junho de 2026") em vez de adivinhar pela data de débito; (2) <b>valor certo</b> mesmo em faturas com tabelas — quando há vários números entre o rótulo "Total" e o valor real (datas, linhas de detalhe), escolhe o que mais se repete no documento (o total costuma aparecer 2-3x); (3) passa a reconhecer valores em formato internacional ("€40.92", ponto decimal), comuns em emails. Resultado: uma fatura de Junho debitada só em Julho fica lançada no mês certo, com o valor certo, e agendada até à data certa — sem precisares de corrigir nada à mão.']},
   {v:'v79',d:'30 jun',bul:['Correção importante: faturas com data de competência (ex.: Junho) mas débito real mais tarde (ex.: início de Julho) já não descontam do Valete antes de tempo — ficam <b>agendadas</b> (esbatidas, ícone de relógio) até chegar a data real, contam no mês certo. Selo de relógio no popover de cada movimento para marcar/editar isto manualmente (ex.: a fatura da NOS). A app passa a detetar a data real de cobrança nas faturas por email/PDF (\"débito a partir de…\", \"será debitado em…\") em vez de assumir que já saiu. Quando a diferença para o saldo do banco é só isto, o selo Δ no topo fica neutro (mesmo ponto dos outros saldos, só muda de cor) em vez de pedir para \"acertar ao banco\" — o que poderia estragar a conta.']},
   {v:'v78',d:'30 jun',bul:['Header mobile: corrigido o caso em que os saldos mais largos empurravam um ícone (o sair) para uma 2ª linha. Agora o header fica SEMPRE numa só linha — os saldos é que cedem (encolhem/cortam o Δ à direita) para os ícones caberem.']},
   {v:'v77',d:'30 jun',bul:['Dívida · quota por movimento: cada lançamento de uma conta partilhada pode agora ser 50/50 (defeito), <b>100% dela</b> ou <b>0% (tua)</b> — clica no selo no popover da célula. Serve para o seguro de vida daqui para a frente: lanças as duas apólices em separado (a dela 100%, a tua 0%) e a Dívida conta certo, sem mais o erro do 50/50.']},
@@ -3461,15 +3462,38 @@ const FATURA_CATS=[
 ];
 function findCatByName(nome){const n=nome.trim().toLowerCase();return state.categorias.find(c=>c.tipo==='despesa'&&(c.nome||'').trim().toLowerCase()===n)||state.categorias.find(c=>c.tipo==='despesa'&&(c.nome||'').trim().toLowerCase().includes(n))||null;}
 function parseValorPT(s){s=String(s).replace(/\s/g,'');if(/,\d{2}$/.test(s))s=s.replace(/\./g,'').replace(',','.');else s=s.replace(/,/g,'');const v=parseFloat(s);return isNaN(v)?null:v;}
+/* todos os valores monetários candidatos num texto, com a posição — aceita vírgula decimal (PT, sempre)
+   e ponto decimal (formatos internacionais, ex.: "€40.92"), este último só quando colado a um símbolo €
+   para não confundir com datas tipo "04.07.2026". */
+function _scanAmounts(text){
+  const out=[]; let m;
+  const rePT=/\d{1,3}(?:[.\s]\d{3})*,\d{2}\b/g;
+  while((m=rePT.exec(text))){const v=parseValorPT(m[0]);if(v!=null&&v>0)out.push({v:round2(v),i:m.index});}
+  const reEN=/€\s?(\d{1,3}(?:,\d{3})*\.\d{2})\b/g;
+  while((m=reEN.exec(text))){const v=parseFloat(m[1].replace(/,/g,''));if(!isNaN(v)&&v>0)out.push({v:round2(v),i:m.index});}
+  return out.sort((a,b)=>a.i-b.i);
+}
 /* valor junto a um rótulo (ex.: "Total a pagar"): procura DEPOIS e também ANTES do rótulo,
    porque há faturas (ex.: Endesa) que escrevem "42,52 € TOTAL A DEBITAR" e depois sub-linhas (LUZ 35,65 €).
-   Escolhe o valor mais próximo do rótulo; o "antes" só conta se tiver € entre o valor e o rótulo. */
+   Por defeito usa o valor mais PRÓXIMO do rótulo (comportamento de sempre). Exceção: quando há um ANO (4
+   dígitos) entre o rótulo e esse valor — sinal de que passámos por uma data-limite no meio (faturas com
+   tabela, ex.: "Total a pagar até 04 jul 2026 ... 7,65 ... 40,92 ... 40,92") — nesse caso o valor mais
+   próximo costuma ser de uma linha de detalhe, não o total; escolhe antes o que mais se REPETE na janela,
+   já que o total genuíno costuma aparecer 2-3x (resumo + rodapé) e os de detalhe só uma vez. */
 function _amountNear(text,re){
   const m=re.exec(text);if(!m)return null;
   const idx=m.index,endi=idx+m[0].length;
-  const aRe=/\d{1,3}(?:[.\s]\d{3})*,\d{2}/g;
-  const after=text.slice(endi,endi+90); aRe.lastIndex=0; const af=aRe.exec(after);
-  const afterVal=af?{v:parseValorPT(af[0]),d:af.index}:null;
+  const after=text.slice(endi,endi+260);
+  const afterCands=_scanAmounts(after);
+  let afterVal=null;
+  if(afterCands.length){
+    const hasDateBefore=/\d{4}/.test(after.slice(0,afterCands[0].i));
+    if(hasDateBefore){
+      const freq={}; afterCands.forEach(c=>freq[c.v]=(freq[c.v]||0)+1);
+      const best=afterCands.slice().sort((a,b)=>{const fa=freq[a.v],fb=freq[b.v];if(fb!==fa)return fb-fa;return a.i-b.i;})[0];
+      afterVal={v:best.v,d:best.i};
+    } else afterVal={v:afterCands[0].v,d:afterCands[0].i};
+  }
   const before=text.slice(Math.max(0,idx-24),idx); let bm=null,mm; const bRe=/\d{1,3}(?:[.\s]\d{3})*,\d{2}/g; while((mm=bRe.exec(before)))bm=mm;
   let beforeVal=null;
   if(bm){const gap=before.slice(bm.index+bm[0].length); if(gap.includes('€')||/\beur/i.test(gap)) beforeVal={v:parseValorPT(bm[0]),d:gap.length};}
@@ -3494,21 +3518,34 @@ function dataDebito(text){
   for(const re of A){const m=re.exec(text);if(m){const start=m.index+m[0].length;const d=parseDataPT(text.slice(start,start+30));if(d)return d;}}
   return null;
 }
+/* mês de competência — "Período de faturação: Junho de 2026" (sem dia). Mais fiável que adivinhar entre
+   emissão/débito: é a própria fatura a dizer a que mês o serviço se refere. */
+function periodoFaturacao(text){
+  const re=/per[íi]odo\s*de\s*fac?tura[çc][ãa]o:?\s*/i;
+  const m=re.exec(text); if(!m)return null;
+  const s=text.slice(m.index+m[0].length,m.index+m[0].length+40);
+  const d=s.match(/([A-Za-zçÇÀ-ſ]{3,12})\.?\s*(?:de\s+)?(\d{4})/);
+  if(d){const mi=_mesPT(d[1]),y=+d[2];if(mi>=0&&y>=2015&&y<=2035)return[mi,y];}
+  return null;
+}
 /* deteta movimento já existente (mesma natureza, valor ao cêntimo e mês) — evita importar a mesma fatura/recibo 2x */
 function isDupMov(tipo,catId,valor,ym){return state.movimentos.find(m=>m.tipo===tipo&&m.categoriaId===catId&&Math.abs(Math.abs(m.valor)-Math.abs(valor))<0.005&&m.data.slice(0,7)===ym)||null;}
 function parseFatura(text){
-  const amtRe=/\d{1,3}(?:[.\s]\d{3})*,\d{2}/g;
-  const all=[...text.matchAll(amtRe)].map(m=>parseValorPT(m[0])).filter(v=>v!=null&&v>0);
+  const all=_scanAmounts(text).map(c=>c.v);
   let total=null;
   const KW=[/total\s*a\s*debitar/i,/total\s*a\s*pagar/i,/valor\s*a\s*pagar/i,/montante\s*a\s*pagar/i,/total\s*a\s*liquidar/i,/valor\s*a\s*debitar/i,/pr[ée]mio\s*total/i,/total\s*da\s*fatura/i,/total\s*c\/?\s*iva/i,/valor\s*desta\s*fatura/i,/\btotal\b/i,/\bmontante\b/i,/\ba\s*pagar\b/i];
   for(const re of KW){const v=_amountNear(text,re);if(v!=null){total=v;break;}}
   if(total==null&&all.length)total=Math.max(...all);
   const cand=[...new Set(all)].sort((a,b)=>b-a).slice(0,8);
-  // data: débito direto (quando sai da conta) primeiro; senão data de emissão/fatura
+  // mês de competência: "Período de faturação" é o mais fiável (a fatura diz a que mês se refere o serviço);
+  // senão data de emissão/fatura; senão (faturas sem nenhum dos dois) cai na data de débito direto.
   let mi=null,year=null,dia=null;
+  const per=periodoFaturacao(text);
+  if(per){mi=per[0];year=per[1];}
+  if(mi==null){const idx=text.search(/data\s*(?:de|da)?\s*(?:emiss|fatura)/i);const d=idx>=0?parseDataPT(text.slice(idx,idx+45)):null;if(d){mi=d[0];year=d[1];dia=d[2];}}
   const deb=dataDebito(text);
-  if(deb){mi=deb[0];year=deb[1];dia=deb[2];}
-  if(mi==null){const idx=text.search(/data\s*(?:de|da)?\s*(?:emiss|fatura)/i);const d=idx>=0?parseDataPT(text.slice(idx,idx+45)):parseDataPT(text);if(d){mi=d[0];year=d[1];if(dia==null)dia=d[2];}}
+  if(mi==null&&deb){mi=deb[0];year=deb[1];dia=deb[2];}
+  if(dia==null){const idx=text.search(/data\s*(?:de|da)?\s*(?:emiss|fatura)/i);const d=idx>=0?parseDataPT(text.slice(idx,idx+45)):parseDataPT(text);if(d)dia=d[2];}
   // data REAL de cobrança (independente do mês de competência acima) — quando a fatura é deste mês mas só é debitada mais tarde
   const debReal=deb?`${deb[1]}-${String(deb[0]+1).padStart(2,'0')}-${String(deb[2]).padStart(2,'0')}`:null;
   // categoria pelo fornecedor (regra que dispara é a "assinatura" segura: não depende do nome do cliente)
