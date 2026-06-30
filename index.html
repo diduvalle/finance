@@ -271,6 +271,10 @@ table.grid th.thtog:hover .exptog{color:var(--acc)}
 table.grid thead th[data-cat]{cursor:grab}
 table.grid thead th.th-drop{outline:2px dashed var(--acc);outline-offset:-2px;background:var(--acc-16)!important}
 table.grid thead th.th-before{box-shadow:inset 4px 0 0 var(--acc)}
+/* arrastar uma célula para mover os seus movimentos para outro mês/categoria (PC) */
+table.grid td.cell[draggable="true"]{cursor:grab}
+table.grid td.cell.celldrag{opacity:.4}
+table.grid td.cell.celldrop{outline:2px dashed var(--acc);outline-offset:-2px;background:var(--acc-16)!important}
 .thedit{background:none;border:0;color:var(--mut);cursor:pointer;padding:1px;border-radius:4px;opacity:.35;display:inline-flex;margin-left:2px}
 .thedit svg{width:13px;height:13px}
 table.grid thead th:hover .thedit{opacity:.7}
@@ -1327,7 +1331,7 @@ function vGrelha(m){
         <th class="tot">Total</th></tr></thead>
       <tbody>
         ${MESES.map((nm,i)=>`<tr class="${i===mi?'now':''}"><th>${MC[i]}</th>
-          ${cols.map(col=>{const v=colVal(col,i);let bc='';if(gridTipo==='despesa'&&col.top&&v>0){const lim=+state.orcamentos[col.c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}const pend=v&&cellHasPend(col.c.id,i,col.top);if(pend)bc+=' pend';return `<td class="cell ${v?'':'z'} ${col.top?'':'subcell'}${bc}" data-cell="${col.c.id}|${i}"${pend?' title="Inclui débito agendado (ainda não cobrado)"':''}>${v?fmtn(v):'·'}${pend?` <span class="eico">${svg(I.clock)}</span>`:''}</td>`;}).join('')}
+          ${cols.map(col=>{const v=colVal(col,i);let bc='';if(gridTipo==='despesa'&&col.top&&v>0){const lim=+state.orcamentos[col.c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}const pend=v&&cellHasPend(col.c.id,i,col.top);if(pend)bc+=' pend';const drag=v&&!isFrozenMi(ano,i);const ttl=drag?(pend?'Inclui débito agendado · arrasta para mover de mês/categoria':'Arrasta para mover para outro mês/categoria'):(pend?'Inclui débito agendado (ainda não cobrado)':'');return `<td class="cell ${v?'':'z'} ${col.top?'':'subcell'}${bc}" data-cell="${col.c.id}|${i}"${drag?' draggable="true"':''}${ttl?` title="${ttl}"`:''}>${v?fmtn(v):'·'}${pend?` <span class="eico">${svg(I.clock)}</span>`:''}</td>`;}).join('')}
           <td></td>
           <td class="tot">${fmtn(rowTot(i))}</td></tr>`).join('')}
       </tbody>
@@ -2377,6 +2381,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v74',d:'30 jun',bul:['Grelha (vista tabela, no PC): arrasta uma célula para outra para MOVER os seus movimentos para outro mês e/ou categoria — ideal para acertos, como uma mensalidade que caiu no mês errado (ex.: NOS de Julho que pertence a Junho). Pede sempre confirmação (mostra quantos movimentos e o total) e respeita os meses bloqueados.']},
   {v:'v73',d:'30 jun',bul:['Consumos · mapa do ano com SEMÁFOROS: cada mês passa a mostrar um mini-farol (verde = normal/abaixo · âmbar = ligeiro acima · vermelho = acima) em vez do número com fundo pintado — leitura imediata, como no conceito do lab de design. Nova coluna <b>Total</b> (do ano) à direita; o valor de cada mês fica no tooltip.']},
   {v:'v72',d:'30 jun',bul:['Consumos · semáforo afinado: o mapa do ano e as setas (▲▼) passam a usar as cores exatas da paleta «sálvia» do Lovable (verde = abaixo · âmbar = ligeiro acima · terracota/vermelho = bem acima). O mapa de cores passa também a respeitar o tema claro (antes usava sempre as cores do escuro).']},
   {v:'v71',d:'30 jun',bul:['Adeus emojis coloridos: todos os ícones da interface (avisos, «agendado», dinheiro, banco/email/recibo na Caixa de entrada, dicas, metas atingidas, cadeado aberto, etc.) passam a ícones SVG monocromáticos a condizer com o resto da app. Mais limpo e moderno.']},
@@ -3009,6 +3014,30 @@ document.addEventListener('dragover',e=>{ if(!dragCat)return; clearDropFx(); con
 document.addEventListener('drop',e=>{ if(!dragCat)return; const top=e.target.closest('th[data-droptop]'); const t=e.target.closest('th[data-cat]'); e.preventDefault(); clearDropFx(); if(top){ unnestCat(dragCat); } else if(t){ if(dropMode(e,t)==='before') reorderBefore(dragCat,t.dataset.cat); else nestCat(dragCat,t.dataset.cat); } dragCat=null; });
 document.addEventListener('dragend',()=>{ dragCat=null; clearDropFx(); });
 document.addEventListener('dblclick',e=>{ const th=e.target.closest('th[data-cat]'); if(th) renameCat(th.dataset.cat); });
+
+/* arrastar CÉLULAS da grelha (vista tabela) para mover os movimentos de mês/categoria — só rato (PC), sempre com confirmação */
+let dragCell=null;
+function clearCellFx(){ document.querySelectorAll('td.cell.celldrag,td.cell.celldrop').forEach(x=>x.classList.remove('celldrag','celldrop')); }
+document.addEventListener('dragstart',e=>{ const td=e.target.closest('table.grid td.cell[draggable="true"]'); if(!td)return; const a=td.dataset.cell.split('|'); dragCell={cat:a[0],mi:+a[1]}; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain','cell')}catch(_){ } td.classList.add('celldrag'); });
+document.addEventListener('dragover',e=>{ if(!dragCell)return; const td=e.target.closest('table.grid td.cell'); document.querySelectorAll('td.cell.celldrop').forEach(x=>x.classList.remove('celldrop')); if(td && td.dataset.cell!==dragCell.cat+'|'+dragCell.mi){ e.preventDefault(); e.dataTransfer.dropEffect='move'; td.classList.add('celldrop'); } });
+document.addEventListener('drop',e=>{ if(!dragCell)return; const td=e.target.closest('table.grid td.cell'); e.preventDefault(); const src=dragCell; dragCell=null; clearCellFx(); if(!td)return; const a=td.dataset.cell.split('|'); moverCelula(src.cat,src.mi,a[0],+a[1]); });
+document.addEventListener('dragend',()=>{ if(dragCell){ dragCell=null; clearCellFx(); } });
+function moverCelula(srcCat,srcMi,tgtCat,tgtMi){
+  if(srcCat===tgtCat && srcMi===tgtMi) return;
+  if(isFrozenMi(ano,srcMi)){ toast('Mês de origem congelado — desbloqueia o histórico'); return; }
+  if(isFrozenMi(ano,tgtMi)){ toast('Mês de destino congelado — desbloqueia o histórico'); return; }
+  const movs=cellMovs(srcCat,srcMi);
+  if(!movs.length){ toast('Nada para mover aqui (arrasta a sub-categoria)'); return; }
+  const total=movs.reduce((a,m)=>a+Math.abs(m.valor),0);
+  const sameCat=srcCat===tgtCat;
+  const msg='Mover '+movs.length+' movimento'+(movs.length>1?'s':'')+' ('+fmt(round2(total))+')\n\n'
+    +'de:  '+catName(srcCat)+' · '+MESES[srcMi]+'\npara: '+catName(tgtCat)+' · '+MESES[tgtMi]
+    +(sameCat?'':'\n\nAtenção: muda também de categoria.');
+  if(!confirm(msg)) return;
+  const dim=new Date(ano,tgtMi+1,0).getDate();
+  movs.forEach(m=>{ const day=Math.min(+m.data.slice(8,10)||1,dim); m.data=ano+'-'+String(tgtMi+1).padStart(2,'0')+'-'+String(day).padStart(2,'0'); m.categoriaId=tgtCat; });
+  save(); closePop(); render(); toast(movs.length+(movs.length>1?' movimentos movidos':' movimento movido')+' → '+catName(tgtCat)+' · '+MESES[tgtMi]);
+}
 /* manter o estado aberto/fechado das secções de Definições entre renders (toggle não faz bubble => capture) */
 document.addEventListener('toggle',e=>{ const d=e.target; if(d&&d.classList&&d.classList.contains('defgroup')&&d.dataset&&d.dataset.dg){ if(d.open)defGroupsOpen.add(d.dataset.dg); else defGroupsOpen.delete(d.dataset.dg); } },true);
 
