@@ -28,6 +28,7 @@
   --bg:#121613; --bg2:#181d19; --card:#1e241f; --card2:#27302a; --line:#333d36; --line2:#43504a;
   --txt:#ecefe8; --mut:#9aa79e; --acc:#7aa183; --accd:#5f7a6b;
   --in:#8cba98; --out:#df8c7d; --warn:#d9a85c; --info:#87a9c0;
+  --sem-ok:#88ca95; --sem-warn:#f2b966; --sem-hi:#e7917b; --sem-max:#ec5c50; /* semáforo dos consumos — paleta sálvia do Lovable */
   --nb:#1bb6a6; --cflex:#fb8168; --cativo:#a78bfa; /* verde novobanco · coral Coverflex · roxo cativo */
   --acc-10:rgba(122,161,131,.10); --acc-12:rgba(122,161,131,.12); --acc-15:rgba(122,161,131,.15); --acc-16:rgba(122,161,131,.16);
   --r:20px; --r-sm:13px; --r-lg:26px;
@@ -41,6 +42,7 @@
   --bg:#f3f1ea; --bg2:#ece8df; --card:#fbf9f4; --card2:#f1ede4; --line:#ddd7c9; --line2:#cabfac;
   --txt:#26302a; --mut:#6d7a70; --acc:#5f7a6b; --accd:#4d6657;
   --in:#5f8a6c; --out:#c06f5e; --warn:#b3893f; --info:#5e84a0;
+  --sem-ok:#66a277; --sem-warn:#e4ac59; --sem-hi:#d37e69; --sem-max:#d6483e; /* semáforo dos consumos — paleta sálvia do Lovable (tema claro) */
   --nb:#0a8d80; --cflex:#d9624a; --cativo:#7e5bd0; /* verde novobanco · coral Coverflex · roxo cativo */
   --acc-10:rgba(95,122,107,.10); --acc-12:rgba(95,122,107,.13); --acc-15:rgba(95,122,107,.16); --acc-16:rgba(95,122,107,.17);
   --sh-sm:0 1px 2px rgba(60,70,50,.06);
@@ -2177,7 +2179,7 @@ function anaSeasonalAlerts(refY,refMi){
 }
 /* heatmap do ano: rubrica × 12 meses, cor = desvio face ao normal sazonal do mês */
 function anaUtilHeatmap(refY,refMi,cats){
-  const heatCol=r=>{ if(r==null)return 'transparent'; if(r>=1.5)return 'rgba(223,140,125,.50)'; if(r>=1.2)return 'rgba(223,140,125,.28)'; if(r>=1.08)return 'rgba(217,168,92,.26)'; if(r<=0.8)return 'rgba(140,186,152,.26)'; return 'var(--card2)'; };
+  const heatCol=r=>{ if(r==null)return 'transparent'; if(r>=1.5)return 'color-mix(in srgb, var(--sem-max) 40%, transparent)'; if(r>=1.2)return 'color-mix(in srgb, var(--sem-hi) 30%, transparent)'; if(r>=1.08)return 'color-mix(in srgb, var(--sem-warn) 30%, transparent)'; if(r<=0.8)return 'color-mix(in srgb, var(--sem-ok) 28%, transparent)'; return 'var(--card2)'; };
   const head=`<tr><th></th>${MC.map((mc,i)=>`<th class="${i===refMi?'sel':''}">${mc}</th>`).join('')}</tr>`;
   const rows=cats.map(c=>{
     const tds=MC.map((mc,i)=>{
@@ -2203,7 +2205,7 @@ function anaUtilitiesPanel(){
   const thr=1+anaCfg().spike/100;
   const prevOf=(c)=>refMi>0?round2(anaSum(c.id,cur,refMi-1)):round2(anaSum(c.id,cur-1,11));
   const isDispro=(val,yoy,med)=>val>0 && (yoy>0?val>=yoy*thr:(med>0&&val>=med*thr)) && (med>0?val>med:true);
-  const dchip=(val,base)=>{ if(!(base>0))return '<span style="color:var(--mut)">·</span>'; const d=Math.round((val/base-1)*100); const col=d>0?'var(--out)':(d<0?'var(--in)':'var(--mut)'); const ar=d>0?'▲':(d<0?'▼':'='); return `<span style="color:${col};font-variant-numeric:tabular-nums" title="${fmt(val)} vs ${fmt(base)}">${ar} ${d>0?'+':''}${d}%</span>`; };
+  const dchip=(val,base)=>{ if(!(base>0))return '<span style="color:var(--mut)">·</span>'; const d=Math.round((val/base-1)*100); const col=d>0?'var(--sem-hi)':(d<0?'var(--sem-ok)':'var(--mut)'); const ar=d>0?'▲':(d<0?'▼':'='); return `<span style="color:${col};font-variant-numeric:tabular-nums" title="${fmt(val)} vs ${fmt(base)}">${ar} ${d>0?'+':''}${d}%</span>`; };
   const seasonal=anaSeasonalAlerts(cur,refMi); const seasonalSet=new Set(seasonal.map(a=>a.catId));
   const dispro=[];
   cats.forEach(c=>{ const val=round2(anaSum(c.id,cur,refMi)), yoy=round2(anaSum(c.id,cur-1,refMi)); const tr=anaTrailing(c.id,cur,refMi,12), med=round2(mediana(tr.filter(v=>v>0))); if(isDispro(val,yoy,med)) dispro.push({catId:c.id,nome:c.nome,val,base:yoy>0?yoy:med,baseLbl:yoy>0?'homólogo':'média'}); });
@@ -2366,6 +2368,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v72',d:'30 jun',bul:['Consumos · semáforo afinado: o mapa do ano e as setas (▲▼) passam a usar as cores exatas da paleta «sálvia» do Lovable (verde = abaixo · âmbar = ligeiro acima · terracota/vermelho = bem acima). O mapa de cores passa também a respeitar o tema claro (antes usava sempre as cores do escuro).']},
   {v:'v71',d:'30 jun',bul:['Adeus emojis coloridos: todos os ícones da interface (avisos, «agendado», dinheiro, banco/email/recibo na Caixa de entrada, dicas, metas atingidas, cadeado aberto, etc.) passam a ícones SVG monocromáticos a condizer com o resto da app. Mais limpo e moderno.']},
   {v:'v70',d:'29 jun',bul:['Cadeados monocromáticos: os meses bloqueados deixam de mostrar o emoji 🔒 e passam a um ícone de cadeado a condizer com o resto da app (cinza) — na lista de meses e no cabeçalho do editor de célula.']},
   {v:'v69',d:'29 jun',bul:['Navegação repensada no telemóvel: o menu passou para uma barra fixa no fundo (ao alcance do polegar), numa só linha com os 6 menus + o botão da IA (✦) + a navegação de ano (‹ 2026 ›). O header volta a ter uma única linha (logótipo, saldos e atalhos) e o botão flutuante da IA desapareceu. No PC mantém-se tudo no topo como antes.']},
