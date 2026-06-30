@@ -449,6 +449,13 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .pe{display:flex;align-items:center;gap:8px;font-size:12.5px;background:var(--card2);border-radius:7px;padding:6px 9px}
 .pe .x{margin-left:auto;cursor:pointer;color:var(--mut);background:none;border:0;font-size:13px;line-height:1;padding:2px 4px;border-radius:5px}
 .pe .x:hover{color:var(--out);background:var(--card)}
+.pe-acts{margin-left:auto;display:inline-flex;align-items:center;gap:2px;flex:none}
+.pe-acts .x{margin-left:0}
+.pe .peaq{font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;border:1px solid var(--line);white-space:nowrap;margin-right:4px}
+.pe .peaq.aq-half{color:var(--mut)}
+.pe .peaq.aq-da{color:var(--out);border-color:var(--out);background:color-mix(in srgb,var(--out) 13%,transparent)}
+.pe .peaq.aq-dv{color:var(--in);border-color:var(--in);background:color-mix(in srgb,var(--in) 13%,transparent)}
+.pe .peaq:hover{background:var(--card)}
 .pe-ed{gap:6px}
 .pe-ed input{background:var(--card);border:1px solid var(--line);border-radius:6px;padding:5px 7px;font-size:12.5px;color:var(--txt);min-width:0}
 .pe-ed .pe-ed-val{width:84px;flex:none;font-variant-numeric:tabular-nums}
@@ -1376,6 +1383,8 @@ function openCellPop(catId,mi,anchor){
   const movs=(kids.length?cellMovsDeep(catId,mi):cellMovs(catId,mi)).sort((a,b)=>a.data.localeCompare(b.data));
   const pop=document.getElementById('pop');
   const frozen=isFrozenMi(ano,mi);
+  const acIds=acertoCatIds(); // categorias partilhadas (contam na Dívida) → mostrar quota por movimento
+  const aqInfo=aq=>aq===100?{t:'100% dela',c:'aq-da'}:(aq===0?{t:'0% · tua',c:'aq-dv'}:{t:'50/50',c:'aq-half'});
   pop.innerHTML=`
     <div class="ph"><span class="dot" style="background:${c.cor}"></span>${catName(catId)} · ${MESES[mi]} ${ano}${frozen?` <span class="phlock">${svg(I.lock)}</span>`:''}</div>
     <div class="pb">
@@ -1384,7 +1393,7 @@ function openCellPop(catId,mi,anchor){
       <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'− valor (desconto)':'+ valor'}" autofocus>${c.tipo==='despesa'?`<button class="btn" id="pAddCash" title="Pagar em dinheiro (Cofre)">${svg(I.cash)}</button>`:''}<button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
       <input id="pNota" type="text" maxlength="80" placeholder="nota (opcional)" style="width:100%;margin-top:6px">
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
-      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)"><span class="eico">${svg(I.clock)}</span> agendado (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<button class="x" data-editmov="${mo.id}" title="Editar valor/nota" style="margin-right:2px">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
+      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)"><span class="eico">${svg(I.clock)}</span> agendado (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<span class="pe-acts">${acIds.has(mo.categoriaId)?`<button class="x peaq ${aqInfo(mo.aq).c}" data-aqcycle="${mo.id}" title="Quota de quem deve este valor na Dívida — clica para alternar 50/50 · 100% dela · 0% (tua)">${aqInfo(mo.aq).t}</button>`:''}<button class="x" data-editmov="${mo.id}" title="Editar valor/nota">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button></span>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
     </div>`;
   pop.classList.add('on');
   // position near anchor
@@ -1495,10 +1504,11 @@ function acertoLedger(){
   const base=src.filter(r=>r.ym<ACERTO_GRID_FROM).map(r=>({ym:r.ym,deve:+r.deve||0,pago:+r.pago||0,fwd:false}));
   // pagamentos dela registados no Excel para meses já geridos pela grelha (preserva, se existirem)
   const pagosFwd={}; src.filter(r=>r.ym>=ACERTO_GRID_FROM&&(+r.pago||0)>0).forEach(r=>{pagosFwd[r.ym]=+r.pago||0;});
-  // quota dela = metade das despesas das contas partilhadas lançadas na grelha, do mês de corte em diante
+  // quota dela das despesas das contas partilhadas lançadas na grelha, do mês de corte em diante.
+  // por defeito 50%; cada movimento pode ter uma quota própria (mo.aq: 100 = só dela, 0 = só do Diogo) — ex.: seguro de vida (2 apólices)
   const acIds=acertoCatIds(); const fwd={};
   state.movimentos.filter(x=>x.tipo==='despesa'&&acIds.has(x.categoriaId)&&x.data.slice(0,7)>=ACERTO_GRID_FROM)
-    .forEach(x=>{const ym=x.data.slice(0,7);fwd[ym]=(fwd[ym]||0)+x.valor/2;});
+    .forEach(x=>{const ym=x.data.slice(0,7);const q=(x.aq!=null?x.aq:50)/100;fwd[ym]=(fwd[ym]||0)+x.valor*q;});
   [...new Set([...Object.keys(fwd),...Object.keys(pagosFwd)])].sort().forEach(ym=>base.push({ym,deve:round2(fwd[ym]||0),pago:round2(pagosFwd[ym]||0),fwd:true}));
   /* a dívida só conta a partir de outubro de 2022 — tudo o que é anterior é ignorado */
   const rows=base.filter(r=>r.ym>=ACERTO_DIVIDA_FROM);
@@ -1626,17 +1636,18 @@ function openAcertoDetail(ym){
   const flagged=state.categorias.filter(c=>c.acerto).map(c=>catName(c.id));
   const movs=state.movimentos.filter(x=>x.tipo==='despesa'&&acIds.has(x.categoriaId)&&x.data.slice(0,7)===ym).sort((a,b)=>a.data.localeCompare(b.data));
   const tot=round2(movs.reduce((s,x)=>s+x.valor,0)); const meio=round2(tot/2);
+  const aqOf=x=>(x.aq!=null?x.aq:50), shareOf=x=>round2(x.valor*aqOf(x)/100), shareSum=round2(movs.reduce((s,x)=>s+shareOf(x),0));
   let body = row.fwd
-    ? `<div class="hint" style="border-left:3px solid var(--acc)">A quota dela é <b>metade (50%)</b> das despesas das contas partilhadas lançadas neste mês.</div>`
+    ? `<div class="hint" style="border-left:3px solid var(--acc)">A quota dela é, por defeito, <b>metade (50%)</b> das despesas das contas partilhadas deste mês — mas cada movimento pode ter a sua quota (ex.: seguro de vida: a apólice dela 100%, a tua 0%).</div>`
     : `<div class="hint" style="border-left:3px solid var(--info)">Valor do <b>histórico</b>: quota dela registada na folha de acerto do Excel (= 50% das despesas partilhadas que o Excel tinha nesse mês − transferências).</div>`;
   if(movs.length){
-    body+=`<p class="dsub" style="margin-top:10px">Movimentos das contas partilhadas neste mês (½ de cada):</p>
-    <div class="plist" style="max-height:40vh">${movs.map(x=>`<div class="pe"><span style="font-weight:700">${fmt(Math.abs(x.valor))}</span><span style="color:var(--mut)">${esc(catName(x.categoriaId))} · ${x.data.slice(8,10)}/${x.data.slice(5,7)}${x.nota?' · '+esc(x.nota):''}</span><span style="margin-left:auto;color:var(--acc)">½ ${fmt(x.valor/2)}</span></div>`).join('')}</div>
-    <div style="display:flex;justify-content:space-between;margin-top:8px"><span>Total destes movimentos</span><span>${fmt(tot)} → ½ <b>${fmt(meio)}</b></span></div>`;
+    body+=`<p class="dsub" style="margin-top:10px">Movimentos das contas partilhadas neste mês (quota dela de cada):</p>
+    <div class="plist" style="max-height:40vh">${movs.map(x=>`<div class="pe"><span style="font-weight:700">${fmt(Math.abs(x.valor))}</span><span style="color:var(--mut)">${esc(catName(x.categoriaId))} · ${x.data.slice(8,10)}/${x.data.slice(5,7)}${x.nota?' · '+esc(x.nota):''}</span><span style="margin-left:auto;color:var(--acc)">${aqOf(x)===50?'½':aqOf(x)+'%'} ${fmt(shareOf(x))}</span></div>`).join('')}</div>
+    <div style="display:flex;justify-content:space-between;margin-top:8px"><span>Total destes movimentos</span><span>${fmt(tot)} → quota <b>${fmt(shareSum)}</b></span></div>`;
   } else if(!row.fwd){
     body+=`<p class="dsub" style="margin-top:10px">Não há movimentos destas categorias lançados na grelha deste mês — o valor vem só da folha de acerto do Excel.</p>`;
   }
-  body+=`<div style="display:flex;justify-content:space-between;margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><span>Quota dela${row.fwd?' (½ dos movimentos)':' (valor do Excel)'}</span><b>${fmt(row.deve)}</b></div>
+  body+=`<div style="display:flex;justify-content:space-between;margin-top:12px;border-top:1px solid var(--line);padding-top:10px"><span>Quota dela${row.fwd?' (quota dos movimentos)':' (valor do Excel)'}</span><b>${fmt(row.deve)}</b></div>
   <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Pago por ela</span><span>${fmt(row.pago)}</span></div>
   <div style="display:flex;justify-content:space-between;margin-top:4px"><span>Saldo do mês</span><b class="${row.saldo>0?'neg':(row.saldo<0?'pos':'')}">${fmt(row.saldo)}</b></div>`;
   if(!row.fwd && movs.length && Math.abs(meio-row.deve)>=5){
@@ -2407,6 +2418,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v77',d:'30 jun',bul:['Dívida · quota por movimento: cada lançamento de uma conta partilhada pode agora ser 50/50 (defeito), <b>100% dela</b> ou <b>0% (tua)</b> — clica no selo no popover da célula. Serve para o seguro de vida daqui para a frente: lanças as duas apólices em separado (a dela 100%, a tua 0%) e a Dívida conta certo, sem mais o erro do 50/50.']},
   {v:'v76',d:'30 jun',bul:['Dívida · novo acerto «Correção seguro de vida»: a Prévoir são duas apólices (a dela é maior) e foram sempre dividas 50/50 por engano. Acerto da diferença desde out/2022 (47,05 € — 35 meses exatos do Excel + 9 estimados), que ela deve a 100%. Os acertos pontuais passam a suportar quota ≠ 50% e cada um mostra os seus próprios juros de mora.']},
   {v:'v75',d:'30 jun',bul:['Arrasto de células: a confirmação passa a ser uma janela dentro da app (em vez do aviso do navegador) — mais bonita, com o valor, o nº de movimentos e o «de → para» (categoria · mês).']},
   {v:'v74',d:'30 jun',bul:['Grelha (vista tabela, no PC): arrasta uma célula para outra para MOVER os seus movimentos para outro mês e/ou categoria — ideal para acertos, como uma mensalidade que caiu no mês errado (ex.: NOS de Julho que pertence a Junho). Pede sempre confirmação (mostra quantos movimentos e o total) e respeita os meses bloqueados.']},
@@ -2840,6 +2852,7 @@ document.addEventListener('click',e=>{
   if(t.id==='acCsv'){expAcertoCSV();return;}
   if(d.delmov){const mv=state.movimentos.find(x=>x.id===d.delmov);if(mv&&isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado — não pode ser apagado');return;}if(mv&&!confirm('Apagar este movimento?\n'+catName(mv.categoriaId)+' · '+fmt(Math.abs(mv.valor))+' · '+mv.data))return;reverteValete(mv);state.movimentos=state.movimentos.filter(x=>x.id!==d.delmov);save();const pc=popCell;render();if(pc){const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`);if(an)openCellPop(pc.catId,pc.mi,an);}return;}
   if(d.editmov){ popEditId=d.editmov; reopenPop(); return; }
+  if(d.aqcycle){ const mv=state.movimentos.find(x=>x.id===d.aqcycle); if(mv){ if(isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado');return;} const cur=mv.aq!=null?mv.aq:50; const next=cur===50?100:(cur===100?0:50); if(next===50)delete mv.aq; else mv.aq=next; save(); render(); reopenPop(); toast('Quota na Dívida: '+(next===100?'100% dela':next===0?'0% (só Diogo)':'50/50')); } return; }
   if(d.editsave){ saveEditMov(d.editsave); return; }
   if(d.editcancel){ popEditId=null; reopenPop(); return; }
   if(d.delcat){delCat(d.delcat);return;}
