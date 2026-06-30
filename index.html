@@ -1476,8 +1476,18 @@ const ACERTO_EXTRAS=[{
     {nm:'Notário',v:569.50},{nm:'Comissão Processo',v:120.00},{nm:'Imposto Processo',v:4.80},
     {nm:'Devolvido DA',v:-100.00},{nm:'Devolvido DA2',v:-1174.74},{nm:'Devolvido DV',v:-134.25},{nm:'Devolvido DV2',v:-1174.74}
   ]
+},{
+  /* Seguro de vida Prévoir: 2 apólices (a dela é a maior). Diogo paga tudo; sempre dividido 50/50 por engano,
+     mas a parte dela > metade. Acerto = soma de (dela − metade) desde out/2022, que ela deve a 100%.
+     data = média ponderada dos atrasos (out/2022→mai/2026), para os juros baterem certo com o mês-a-mês. */
+  id:'segvida2022', ano:'2022–2026', data:'2024-08-24', quota:100,
+  titulo:'Correção seguro de vida (apólices separadas)',
+  nota:'9 dos 44 meses estimados pela fração média (53,3% dela); os outros 35 são exatos do Excel (valor dela + valor teu).',
+  itens:[
+    {nm:'2022 (out–dez)',v:2.79},{nm:'2023',v:12.20},{nm:'2024',v:12.68},{nm:'2025',v:13.30},{nm:'2026 (até mai)',v:6.08}
+  ]
 }];
-function acertoExtras(){return ACERTO_EXTRAS.map(e=>{const total=round2(e.itens.reduce((s,i)=>s+i.v,0));return Object.assign({},e,{total,metade:round2(total/2)});});}
+function acertoExtras(){return ACERTO_EXTRAS.map(e=>{const total=round2(e.itens.reduce((s,i)=>s+i.v,0));const quota=e.quota||50;return Object.assign({},e,{total,quota,metade:round2(total*quota/100)});});}
 function acertoExtrasTotal(){return round2(acertoExtras().reduce((s,e)=>s+e.metade,0));}
 /* Constrói o livro de dívida: histórico do Excel (até ACERTO_GRID_FROM) + meses da grelha (a partir daí). */
 function acertoLedger(){
@@ -1505,9 +1515,9 @@ function computeJuros(){
   const taxa=jurosTaxa(), today=_hojeMeiaNoite();
   let jMensal=0, capMensal=0;
   acertoLedger().forEach(r=>{ if(!r.saldo)return; const mo=+r.ym.slice(5,7), y=+r.ym.slice(0,4); const dt=new Date(y,mo,0); /* último dia do mês */ jMensal+=r.saldo*(taxa/100)*(_diasAte(dt,today)/365); capMensal+=r.saldo; });
-  let jExtra=0, capExtra=0;
-  acertoExtras().forEach(e=>{ const dt=e.data?new Date(e.data+'T00:00:00'):new Date(e.ano,0,1); jExtra+=e.metade*(taxa/100)*(_diasAte(dt,today)/365); capExtra+=e.metade; });
-  return {taxa, jMensal:round2(jMensal), jExtra:round2(jExtra), juros:round2(jMensal+jExtra), capMensal:round2(capMensal), capExtra:round2(capExtra)};
+  const extras=acertoExtras().map(e=>{ const dt=e.data?new Date(e.data+'T00:00:00'):new Date((''+e.ano).slice(0,4),0,1); const j=e.metade*(taxa/100)*(_diasAte(dt,today)/365); return {id:e.id,titulo:e.titulo,data:e.data,cap:e.metade,j:round2(j)}; });
+  const jExtra=round2(extras.reduce((s,e)=>s+e.j,0)), capExtra=round2(extras.reduce((s,e)=>s+e.cap,0));
+  return {taxa, jMensal:round2(jMensal), jExtra, juros:round2(jMensal+jExtra), capMensal:round2(capMensal), capExtra, extras};
 }
 function vAcerto(m){
   const [a,b]=P(); // a = Diogo (DV), b = ela (DA)
@@ -1576,13 +1586,14 @@ function vAcerto(m){
 
   <div class="card" style="margin-top:14px">
     <h3 class="dh">${svg(I.scale)} Acertos pontuais <span style="color:var(--mut);font-weight:600;font-size:13px">(fora do registo mensal)</span></h3>
-    <p class="dsub">Valores one-off somados à dívida — ${esc(b.nome)} deve 50% de cada. Preto = pago por ${esc(a.nome)}; <span class="pos">verde</span> = devolvido no ajuste.</p>
+    <p class="dsub">Valores one-off somados à dívida — ${esc(b.nome)} deve a quota indicada de cada. Preto = pago por ${esc(a.nome)}; <span class="pos">verde</span> = devolvido no ajuste.</p>
     ${extras.map(e=>`<details class="defgroup" open style="margin-bottom:0">
       <summary><span style="flex:1">${esc(e.titulo)} <span style="color:var(--mut);font-weight:400">· ${e.ano}</span></span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(e.metade)}</b></summary>
       <div style="padding:12px 14px">
         <div class="plist" style="max-height:none">${e.itens.map(it=>`<div class="pe"><span style="flex:1">${esc(it.nm)}</span><span class="${it.v<0?'pos':''}" style="font-variant-numeric:tabular-nums;font-weight:${it.v<0?'500':'600'}">${fmt(it.v)}</span></div>`).join('')}</div>
-        <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><span>Total líquido pago por ${esc(a.nome)}</span><b style="font-variant-numeric:tabular-nums">${fmt(e.total)}</b></div>
-        <div style="display:flex;justify-content:space-between;margin-top:5px"><span>Metade (50%) — quota de ${esc(b.nome)}</span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(e.metade)}</b></div>
+        ${e.quota<100?`<div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><span>Total líquido pago por ${esc(a.nome)}</span><b style="font-variant-numeric:tabular-nums">${fmt(e.total)}</b></div>`:''}
+        <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><span>Quota de ${esc(b.nome)} (${e.quota}%)</span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(e.metade)}</b></div>
+        ${e.nota?`<p class="dsub" style="margin-top:8px;font-size:11.5px">${esc(e.nota)}</p>`:''}
       </div></details>`).join('')}
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:14px;padding-top:13px;border-top:1px solid var(--line2)">
       <span style="color:var(--mut);font-size:13px">Registo mensal <b style="color:var(--txt)">${fmt(dividaMensal)}</b> + pontuais <b style="color:var(--txt)">${fmt(extrasTotal)}</b></span>
@@ -1595,7 +1606,7 @@ function vAcerto(m){
     <p class="dsub" style="margin-bottom:12px">Juros legais civis a <b>4%/ano</b> (taxa entre particulares, constante desde 2003), sobre cada valor em dívida desde a data a que respeita até hoje. Fórmula: <b>valor em dívida × 4% × dias em atraso ÷ 365</b> (juros simples).</p>
     <div class="plist" style="max-height:none">
       <div class="pe"><span style="flex:1">Juros do registo mensal <span style="color:var(--mut)">(desde cada mês · capital ${fmt(jr.capMensal)})</span></span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(jr.jMensal)}</b></div>
-      <div class="pe"><span style="flex:1">Juros dos impostos de 2016 <span style="color:var(--mut)">(desde 05/01/2016 · capital ${fmt(jr.capExtra)})</span></span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(jr.jExtra)}</b></div>
+      ${jr.extras.map(e=>`<div class="pe"><span style="flex:1">Juros · ${esc(e.titulo)} <span style="color:var(--mut)">(desde ${e.data?e.data.split('-').reverse().join('/'):'—'} · capital ${fmt(e.cap)})</span></span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(e.j)}</b></div>`).join('')}
     </div>
     <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><span>Total de juros de mora (${fmtPct(jr.taxa)})</span><b class="neg" style="font-variant-numeric:tabular-nums">${fmt(jr.juros)}</b></div>
     <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-top:13px;padding-top:13px;border-top:1px solid var(--line2)">
@@ -2396,6 +2407,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v76',d:'30 jun',bul:['Dívida · novo acerto «Correção seguro de vida»: a Prévoir são duas apólices (a dela é maior) e foram sempre dividas 50/50 por engano. Acerto da diferença desde out/2022 (47,05 € — 35 meses exatos do Excel + 9 estimados), que ela deve a 100%. Os acertos pontuais passam a suportar quota ≠ 50% e cada um mostra os seus próprios juros de mora.']},
   {v:'v75',d:'30 jun',bul:['Arrasto de células: a confirmação passa a ser uma janela dentro da app (em vez do aviso do navegador) — mais bonita, com o valor, o nº de movimentos e o «de → para» (categoria · mês).']},
   {v:'v74',d:'30 jun',bul:['Grelha (vista tabela, no PC): arrasta uma célula para outra para MOVER os seus movimentos para outro mês e/ou categoria — ideal para acertos, como uma mensalidade que caiu no mês errado (ex.: NOS de Julho que pertence a Junho). Pede sempre confirmação (mostra quantos movimentos e o total) e respeita os meses bloqueados.']},
   {v:'v73',d:'30 jun',bul:['Consumos · mapa do ano com SEMÁFOROS: cada mês passa a mostrar um mini-farol (verde = normal/abaixo · âmbar = ligeiro acima · vermelho = acima) em vez do número com fundo pintado — leitura imediata, como no conceito do lab de design. Nova coluna <b>Total</b> (do ano) à direita; o valor de cada mês fica no tooltip.']},
