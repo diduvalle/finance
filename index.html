@@ -994,6 +994,24 @@ function liquidarPendentes(){
   if(n){ save(); if(isUnlocked()) toast(n+' débito(s) cobrado(s) hoje — Valete atualizado ('+fmt(total)+')'); }
   return n;
 }
+/* Prévoir (seguro de vida) manda 2 débitos SDD separados por mês — o MAIOR é sempre a apólice DELA (100%), o
+   MENOR a do Diogo (0%); nunca 50/50 entre os dois. Corre no arranque (auto-corretivo, sem precisar de clicar):
+   agrupa por mês os movimentos cuja nota bate "prévoir" e, quando há exatamente 2 nesse mês, aplica a quota
+   certa por magnitude. Cobre também o histórico já lançado na grelha (desde que a Dívida passou a vir daqui,
+   jun/2026) — cada abertura da app revê tudo de novo, é idempotente. */
+function reconcilePrevoirQuotas(){
+  const grupos={};
+  (state.movimentos||[]).forEach(m=>{ if(m.tipo==='despesa' && /pr[ée]voir/i.test(m.nota||'')){ const ym=m.data.slice(0,7); (grupos[ym]=grupos[ym]||[]).push(m); } });
+  let n=0;
+  Object.values(grupos).forEach(pair=>{
+    if(pair.length!==2)return;
+    const [maior,menor]=pair.slice().sort((x,y)=>Math.abs(y.valor)-Math.abs(x.valor));
+    if(maior.aq!==100){maior.aq=100;n++;}
+    if(menor.aq!==0){menor.aq=0;n++;}
+  });
+  if(n)save();
+  return n;
+}
 /* soma dos movimentos ainda agendados (não cobrados) — usada para perceber se uma diferença vs banco é só isto */
 function vbPendenteSum(){return round2((state.movimentos||[]).filter(m=>m.pendente).reduce((s,m)=>s+Math.abs(m.valor),0));}
 function vbIsExplained(vb){ if(!vb)return false; const sum=vbPendenteSum(); return sum>0.005 && Math.abs(vb.abs-sum)<0.05; }
@@ -2438,6 +2456,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v82',d:'30 jun',bul:['Seguro de vida (Prévoir): agora que o banco manda os 2 débitos SDD em separado, a app corrige-os sozinha sempre que abres a app — a apólice de valor <b>maior é sempre 100% dela</b>, a <b>menor 0% (tua)</b>, nunca 50/50. Aplica-se ao mês corrente e a todo o histórico já lançado na grelha (autocorretivo, revê tudo outra vez de cada vez que entras).']},
   {v:'v81',d:'30 jun',bul:[
     'Adeus aos avisos cinzentos do navegador ("Apagar este movimento?" etc.) — as 19 confirmações da app (eliminar, descartar, desligar, repetidos…) passam a ser janelas com o visual da app.',
     'Popover de célula: a lista de movimentos cresce até quase metade do ecrã (antes ficava espremida em 180px) — muito mais fácil de navegar em monitores grandes.',
@@ -4546,7 +4565,7 @@ async function bioUnlock(silent){
     const pk={ challenge:crypto.getRandomValues(new Uint8Array(32)), rpId:location.hostname, userVerification:'required', timeout:60000 };
     if(c.id) pk.allowCredentials=[{type:'public-key',id:_b64urlBuf(c.id)}]; // ajuda o telemóvel a encontrar a passkey
     await navigator.credentials.get({publicKey:pk});
-    sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){} try{resetIdle();}catch(_){} return true;
+    sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove(); try{liquidarPendentes();reconcilePrevoirQuotas();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){} try{resetIdle();}catch(_){} return true;
   }catch(e){ if(!silent){ const m=document.getElementById('lockMsg'); if(m)m.textContent='Biometria: '+(e.name||'cancelada')+' — usa o código'; } return false; }
   finally{ _bioBusy=false; }
 }
@@ -4770,7 +4789,7 @@ function pinBack(){ _pinEntry=_pinEntry.slice(0,-1); pinUpdate(); }
 function pinSubmit(){
   if(_pinEntry===String(state.settings.codigo)){
     sessionStorage.setItem('casa-unlock','1'); const e=document.getElementById('lock'); if(e)e.remove();
-    try{liquidarPendentes();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){} try{resetIdle();}catch(_){}
+    try{liquidarPendentes();reconcilePrevoirQuotas();render();}catch(_){} try{lembreteBoot();}catch(_){} try{bankTryProcess();}catch(_){} try{bankAutoImport();}catch(_){} try{resetIdle();}catch(_){}
   } else {
     const box=document.getElementById('lockBox'); if(box){box.classList.add('shake');setTimeout(()=>box.classList.remove('shake'),420);}
     const m=document.getElementById('lockMsg'); if(m)m.textContent='PIN errado';
@@ -4805,7 +4824,7 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden)return; if
 window.addEventListener('focus',()=>{ if(_idleOn() && Date.now()-_lastActive>=_idleMs()) autoLock(); });
 window.addEventListener('pageshow',()=>{ if(_idleOn() && Date.now()-_lastActive>=_idleMs()) autoLock(); });
 
-load();try{bankCaptureCallback();}catch(e){}try{liquidarPendentes();}catch(e){}render();showLock();
+load();try{bankCaptureCallback();}catch(e){}try{liquidarPendentes();reconcilePrevoirQuotas();}catch(e){}render();showLock();
 try{lembreteBoot();}catch(e){}
 try{bankTryProcess();}catch(e){}
 try{bankAutoImport();}catch(e){}
