@@ -2456,6 +2456,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v83',d:'30 jun',bul:['Sincronização entre dispositivos muito mais segura: até agora o browser só puxava da Dropbox quando a página carregava — um separador aberto no PC podia mostrar a Caixa de entrada desatualizada e até gravar por cima do que o telemóvel tinha acabado de lançar. Agora: (1) ao voltar ao separador/app, puxa automaticamente o que houver de mais recente; (2) abrir a Caixa de entrada também verifica; (3) ao sair da app (telemóvel), o envio para a Dropbox é imediato em vez de esperar 2,5s (que podiam perder-se se fechasses logo a app).']},
   {v:'v82',d:'30 jun',bul:['Seguro de vida (Prévoir): agora que o banco manda os 2 débitos SDD em separado, a app corrige-os sozinha sempre que abres a app — a apólice de valor <b>maior é sempre 100% dela</b>, a <b>menor 0% (tua)</b>, nunca 50/50. Aplica-se ao mês corrente e a todo o histórico já lançado na grelha (autocorretivo, revê tudo outra vez de cada vez que entras).']},
   {v:'v81',d:'30 jun',bul:[
     'Adeus aos avisos cinzentos do navegador ("Apagar este movimento?" etc.) — as 19 confirmações da app (eliminar, descartar, desligar, repetidos…) passam a ser janelas com o visual da app.',
@@ -3454,6 +3455,29 @@ async function syncPullNow(){
   try{ const txt=await dbxDownload(); if(txt){ const remote=JSON.parse(txt); state=remote; persist(); load(); _lastSync=Date.now(); toast('Recebido da Dropbox'); } else { toast('Ainda não há cópia na Dropbox'); } }
   catch(e){ _syncErr=e.message; toast('Falha: '+e.message); } finally{ _syncing=false; render(); }
 }
+/* pull leve ao voltar ao 1º plano / abrir a Caixa de entrada: adota o remoto se for MAIS RECENTE (nunca faz push).
+   Fecha a janela de conflito entre dispositivos: sem isto, um separador antigo do PC podia gravar por cima
+   do que o telemóvel tinha acabado de lançar (o sync é estado-inteiro, ganha o _updated mais recente). */
+let _lastFocusPull=0;
+async function syncFocusPull(){
+  if(!dbxOn()||_syncing||_dirty)return; // com alterações locais por enviar, não adotar o remoto por cima
+  if(Date.now()-_lastFocusPull<15000)return; _lastFocusPull=Date.now();
+  try{
+    const txt=await dbxDownload(); if(!txt)return;
+    const remote=JSON.parse(txt);
+    if((remote._updated||0)>(state._updated||0)){
+      state=remote; persist(); load(); _lastSync=Date.now(); render();
+      const back=document.getElementById('back');
+      if(back&&back.classList.contains('on')&&back.innerHTML.indexOf('Caixa de entrada')>=0) openInbox(); // refresca a inbox aberta
+      if(isUnlocked()) toast('Sincronizado da Dropbox');
+    }
+  }catch(e){}
+}
+document.addEventListener('visibilitychange',()=>{
+  if(document.hidden){ if(dbxOn()&&_dirty){ clearTimeout(_syncTimer); syncPush(); } } // vai para 2º plano: envia JÁ o que está pendente (não esperar os 2,5s)
+  else syncFocusPull(); // volta ao 1º plano: puxa o que outro dispositivo possa ter mudado
+});
+window.addEventListener('focus',()=>syncFocusPull());
 async function syncOpen(){ /* ao abrir: adota o remoto se for mais recente; senão envia o local */
   if(!dbxOn())return; _syncing=true;_syncUI();
   try{
@@ -3601,6 +3625,7 @@ async function processFatura(file){
 }
 /* ===== CAIXA DE ENTRADA DE FATURAS (lidas por QR, por classificar) ===== */
 function openInbox(){
+  try{syncFocusPull();}catch(e){} // outro dispositivo pode ter lançado/descartado entretanto — se houver mais recente, a lista refresca sozinha
   const items=(state.inbox||[]).slice().sort((a,b)=>(b.ts||0)-(a.ts||0));
   const row=(it)=>{
     const tipo = it.tipo||'despesa';
