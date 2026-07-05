@@ -2456,6 +2456,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v84',d:'30 jun',bul:['Fim dos duplicados do banco: o import passa a cruzar cada transação com os movimentos JÁ lançados (o movimento guarda agora o id da transação) — mesmo que a lista de «já vistos» se perca num sync entre dispositivos, nada é reoferecido na Caixa de entrada. Reconhece também a mesma transação quando o banco lhe muda o id (pendente→liquidada) e, se ela corresponder a um débito que estava <b>agendado</b> na grelha, liquida-o nesse momento em vez de criar um duplicado.']},
   {v:'v83',d:'30 jun',bul:['Sincronização entre dispositivos muito mais segura: até agora o browser só puxava da Dropbox quando a página carregava — um separador aberto no PC podia mostrar a Caixa de entrada desatualizada e até gravar por cima do que o telemóvel tinha acabado de lançar. Agora: (1) ao voltar ao separador/app, puxa automaticamente o que houver de mais recente; (2) abrir a Caixa de entrada também verifica; (3) ao sair da app (telemóvel), o envio para a Dropbox é imediato em vez de esperar 2,5s (que podiam perder-se se fechasses logo a app).']},
   {v:'v82',d:'30 jun',bul:['Seguro de vida (Prévoir): agora que o banco manda os 2 débitos SDD em separado, a app corrige-os sozinha sempre que abres a app — a apólice de valor <b>maior é sempre 100% dela</b>, a <b>menor 0% (tua)</b>, nunca 50/50. Aplica-se ao mês corrente e a todo o histórico já lançado na grelha (autocorretivo, revê tudo outra vez de cada vez que entras).']},
   {v:'v81',d:'30 jun',bul:[
@@ -3690,6 +3691,7 @@ function _commitInbox(it,catId,mi,year,cash,forceDupe){
   const dupe=isDupMov(tipo,catId,it.total,ym);
   if(dupe && !forceDupe) return {status:'dupe',dupe};
   const mv={id:nid('m'),data:dataStr,tipo,categoriaId:catId,valor:valorComSinal(catId,tipo,it.total),pagador:P()[0].id,split:{...state.settings.splitDefault},nota:(isBank||isMail)?(it.desc||(isMail?'fatura':'banco')):'fatura'};
+  if(isBank&&it.txId)mv.txId=it.txId; // rasto da transação do banco no movimento — impede o import de a reoferecer (mesmo que bankSeen se perca num sync)
   if(rec)mv.recId=rec.id;
   if(cash){mv.cash=true;mv.ts=Date.now();}
   if(it.prov&&tipo==='receita')mv.provisorio=true; // Fase 1: aguarda o recibo para distribuir/descontar
@@ -4253,8 +4255,20 @@ async function bankImport(silent){
         for(const t of (r.transactions||[])){
           const id=bankTxId(t);
           if(seen.has(id)){dup++;continue;}
-          seen.add(id); state.bankSeen.push(id);
-          const it=bankTxToInbox(t); it.acct=acc.name; state.inbox.push(it); added++;
+          const mark=x=>{ if(!seen.has(x)){seen.add(x);state.bankSeen.push(x);} };
+          // alias composto: quando a transação é re-identificada pelo banco (pendente→liquidada ganha outro id), o alias mantém-se
+          const alias=(t.booking_date||'')+'|'+(((t.transaction_amount||{}).amount)||'')+'|'+(t.credit_debit_indicator||'');
+          if(alias!==id&&seen.has(alias)){mark(id);dup++;continue;}
+          const it=bankTxToInbox(t);
+          // já foi lançada como movimento (noutro dispositivo, ou antes de um sync ter reposto o bankSeen) → não reoferecer
+          if(it.txId&&state.movimentos.some(m=>m.txId===it.txId)){mark(id);mark(alias);dup++;continue;}
+          // já está na Caixa de entrada (estado antigo restaurado por sync) → não duplicar o item
+          if((state.inbox||[]).some(x=>x.source==='bank'&&x.txId===it.txId)){mark(id);mark(alias);dup++;continue;}
+          // é a versão liquidada de um movimento bank ainda AGENDADO com o mesmo desc+valor → liquida-o em vez de criar duplicado
+          const pendMatch=state.movimentos.find(m=>m.pendente&&m.tipo===it.tipo&&Math.abs(Math.abs(m.valor)-it.total)<0.005&&(m.nota||'')===(it.desc||''));
+          if(pendMatch){ if(!it.pend){ delete pendMatch.pendente; delete pendMatch.cobraEm; aplicaValete(pendMatch); pendMatch.txId=it.txId; } mark(id);mark(alias);dup++;continue; }
+          mark(id);mark(alias);
+          it.acct=acc.name; state.inbox.push(it); added++;
         }
       }catch(e){ err++; }
     }
