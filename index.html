@@ -1032,8 +1032,11 @@ let editHist=false; // desbloqueio temporário do histórico (volta a bloquear a
 function nowYm(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function ymOf(year,mi){return year+'-'+String(mi+1).padStart(2,'0');}
 function isPastMonth(year,mi){return ymOf(year,mi)<nowYm();}        // passado real (ignora desbloqueio)
-function isFrozenYm(ym){return !editHist && ym<nowYm();}
-function isFrozenMi(year,mi){return !editHist && isPastMonth(year,mi);}
+/* fecho pendente: o mês ainda tem o salário PROVISÓRIO por substituir pelo recibo — o fecho faz-se sempre no
+   mês seguinte, por isso o mês só congela DEPOIS do recibo carregado (que remove os provisórios). */
+function mesComFechoPendente(ym){return (state.movimentos||[]).some(m=>m.provisorio&&m.tipo==='receita'&&m.data.slice(0,7)===ym);}
+function isFrozenYm(ym){return !editHist && ym<nowYm() && !mesComFechoPendente(ym);}
+function isFrozenMi(year,mi){return isFrozenYm(ymOf(year,mi));}
 /* ---- alertas & poupança (heurística sobre o histórico) ---- */
 function mediana(arr){const s=arr.slice().sort((a,b)=>a-b);const n=s.length;return n?(n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):0;}
 function mesesDespesa(){return [...new Set(state.movimentos.filter(m=>m.tipo==='despesa').map(m=>m.data.slice(0,7)))].sort();}
@@ -2456,6 +2459,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v85',d:'5 jul',bul:['O mês só fecha DEPOIS do recibo: como o recibo do ordenado é sempre carregado no mês seguinte, o mês anterior já não congela enquanto tiver o salário provisório por substituir — carregas o recibo sem avisos de «mês congelado», e só aí o mês fecha sozinho. O próprio carregamento do recibo ficou isento do congelamento (tem as suas validações próprias: aviso de repetido e conferência com o líquido).']},
   {v:'v84',d:'30 jun',bul:['Fim dos duplicados do banco: o import passa a cruzar cada transação com os movimentos JÁ lançados (o movimento guarda agora o id da transação) — mesmo que a lista de «já vistos» se perca num sync entre dispositivos, nada é reoferecido na Caixa de entrada. Reconhece também a mesma transação quando o banco lhe muda o id (pendente→liquidada) e, se ela corresponder a um débito que estava <b>agendado</b> na grelha, liquida-o nesse momento em vez de criar um duplicado.']},
   {v:'v83',d:'30 jun',bul:['Sincronização entre dispositivos muito mais segura: até agora o browser só puxava da Dropbox quando a página carregava — um separador aberto no PC podia mostrar a Caixa de entrada desatualizada e até gravar por cima do que o telemóvel tinha acabado de lançar. Agora: (1) ao voltar ao separador/app, puxa automaticamente o que houver de mais recente; (2) abrir a Caixa de entrada também verifica; (3) ao sair da app (telemóvel), o envio para a Dropbox é imediato em vez de esperar 2,5s (que podiam perder-se se fechasses logo a app).']},
   {v:'v82',d:'30 jun',bul:['Seguro de vida (Prévoir): agora que o banco manda os 2 débitos SDD em separado, a app corrige-os sozinha sempre que abres a app — a apólice de valor <b>maior é sempre 100% dela</b>, a <b>menor 0% (tua)</b>, nunca 50/50. Aplica-se ao mês corrente e a todo o histórico já lançado na grelha (autocorretivo, revê tudo outra vez de cada vez que entras).']},
@@ -4074,7 +4078,8 @@ function recProvUpdate(){
 }
 function gravarRecibo(){
   const mi=+document.getElementById('recMes').value, year=+val('recAno')||ano;
-  if(isFrozenMi(year,mi)){toast('Mês congelado — desbloqueia na grelha para lançar no passado');return;}
+  // NOTA: o recibo é sempre carregado no mês SEGUINTE ao que fecha — este fluxo é isento do congelamento
+  // (tem as suas próprias validações: aviso de repetido e conferência com o líquido/provisório).
   // sincronizar escolhas do utilizador
   document.querySelectorAll('[data-recchk]').forEach(ch=>{const i=+ch.dataset.recchk;const l=_recLinhas.find(x=>x.i===i);if(l)l.skip=!ch.checked;});
   document.querySelectorAll('[data-reccat]').forEach(s=>{const i=+s.dataset.reccat;const l=_recLinhas.find(x=>x.i===i);if(l)l.catId=s.value;});
