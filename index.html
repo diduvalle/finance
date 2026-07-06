@@ -2459,6 +2459,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v86',d:'5 jul',bul:['Recibo sem duplicados: se uma linha do recibo já estava lançada à mão no mês (ex.: o carregamento do Coverflex registado no fim do mês), a gravação do recibo ignora-a e avisa no resumo («já lançada, não duplicada») em vez de criar uma segunda igual.']},
   {v:'v85',d:'5 jul',bul:['O mês só fecha DEPOIS do recibo: como o recibo do ordenado é sempre carregado no mês seguinte, o mês anterior já não congela enquanto tiver o salário provisório por substituir — carregas o recibo sem avisos de «mês congelado», e só aí o mês fecha sozinho. O próprio carregamento do recibo ficou isento do congelamento (tem as suas validações próprias: aviso de repetido e conferência com o líquido).']},
   {v:'v84',d:'30 jun',bul:['Fim dos duplicados do banco: o import passa a cruzar cada transação com os movimentos JÁ lançados (o movimento guarda agora o id da transação) — mesmo que a lista de «já vistos» se perca num sync entre dispositivos, nada é reoferecido na Caixa de entrada. Reconhece também a mesma transação quando o banco lhe muda o id (pendente→liquidada) e, se ela corresponder a um débito que estava <b>agendado</b> na grelha, liquida-o nesse momento em vez de criar um duplicado.']},
   {v:'v83',d:'30 jun',bul:['Sincronização entre dispositivos muito mais segura: até agora o browser só puxava da Dropbox quando a página carregava — um separador aberto no PC podia mostrar a Caixa de entrada desatualizada e até gravar por cima do que o telemóvel tinha acabado de lançar. Agora: (1) ao voltar ao separador/app, puxa automaticamente o que houver de mais recente; (2) abrir a Caixa de entrada também verifica; (3) ao sair da app (telemóvel), o envio para a Dropbox é imediato em vez de esperar 2,5s (que podiam perder-se se fechasses logo a app).']},
@@ -4098,13 +4099,17 @@ function _gravarReciboCommit(mi,year,dia,ymR){
   let provN=0,provV=0;
   state.movimentos.filter(m=>m.provisorio&&m.tipo==='receita'&&m.data.slice(0,7)===ymR).forEach(m=>{ if(!isPastMonth(year,mi))reverteValete(m); provV+=m.valor; provN++; });
   state.movimentos=state.movimentos.filter(m=>!(m.provisorio&&m.tipo==='receita'&&m.data.slice(0,7)===ymR));
-  let n=0,liq=0;
+  let n=0,liq=0,skipDup=0,skipNames=[];
+  // não duplicar linhas já lançadas à mão (ex.: carregamento do Coverflex registado no fim do mês e que o recibo traz outra vez)
+  const pre=new Set(state.movimentos.map(m=>m.id)); // só compara com o que existia ANTES desta gravação (linhas iguais dentro do mesmo recibo continuam a entrar)
   _recLinhas.filter(l=>!l.skip&&l.catId).forEach(l=>{
     const v=valorComSinal(l.catId,'receita',l.valor);
+    const dupe=state.movimentos.find(m=>pre.has(m.id)&&m.tipo==='receita'&&m.categoriaId===l.catId&&Math.abs(Math.abs(m.valor)-Math.abs(v))<0.005&&m.data.slice(0,7)===ymR);
+    if(dupe){skipDup++;skipNames.push(catName(l.catId)+' '+fmt(Math.abs(v)));return;}
     const mv={id:nid('m'),data:dataStr,tipo:'receita',categoriaId:l.catId,valor:v,pagador:P()[0].id,split:{...state.settings.splitDefault},nota:'recibo'};
     state.movimentos.push(mv); if(!isPastMonth(year,mi))aplicaValete(mv); n++; liq+=v;
   });
-  ano=year; save(); closeBack(); render(); toast('Recibo gravado: '+n+' linhas · líquido '+fmt(round2(liq))+(provN?' · substituiu provisório de '+fmt(round2(provV)):''));
+  ano=year; save(); closeBack(); render(); toast('Recibo gravado: '+n+' linhas · líquido '+fmt(round2(liq))+(provN?' · substituiu provisório de '+fmt(round2(provV)):'')+(skipDup?' · já lançada(s), não duplicada(s): '+skipNames.join(', '):''));
   _recLinhas=null;
 }
 let _recDiaVal=null,_recTotalPago=null; function p_recDia(){return _recDiaVal!=null?_recDiaVal:(+state.settings.diaSalario||23);}
