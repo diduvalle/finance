@@ -2201,26 +2201,55 @@ let _consSel='';
 function _consUnit(cat){ const nm=(cat.nome||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase(); if(/luz|eletric|edp|endesa/.test(nm))return 'kWh'; if(/agua/.test(nm))return 'm³'; if(/gas|gascan/.test(nm))return 'm³'; return ''; }
 function consumoCats(){ return utilitiesCats().filter(c=>_consUnit(c)); }
 function getConsumo(catId,ym){ const o=state.consumos&&state.consumos[catId]; return o?o[ym]:undefined; }
+/* o consumo guardado pode ser um número (legado/manual) ou {k:total, r:{c,p,v} leituras} (auto da fatura de Luz) */
+function consK(v){ return v==null?undefined:(typeof v==='number'?v:v.k); }
+function consR(v){ return (v&&typeof v==='object'&&v.r)?v.r:null; }
+/* preenche o consumo a partir de uma fatura (mantém-se alinhado ao ym do movimento) — não sobrepõe um valor manual já lá posto */
+function setConsumoFromFatura(catId,ym,kwh,leituras){
+  if(!catId||!(kwh>0))return;
+  state.consumos[catId]=state.consumos[catId]||{};
+  const cur=state.consumos[catId][ym], curK=consK(cur);
+  if(curK!=null && Math.abs(curK-kwh)>=0.5) return; // já tinha um total diferente à mão → respeita o que lá está
+  const o={k:round2(kwh)}; if(leituras&&leituras.c!=null)o.r={c:leituras.c,p:leituras.p,v:leituras.v};
+  else if(consR(cur))o.r=consR(cur);
+  state.consumos[catId][ym]=o;
+}
 function _up3(v){ return (v==null)?'·':v.toLocaleString('pt-PT',{minimumFractionDigits:3,maximumFractionDigits:3}); }
 function consumosCard(){
   const cats=consumoCats(); if(!cats.length) return '';
   const sel=(_consSel&&cats.some(c=>c.id===_consSel))?_consSel:cats[0].id;
-  const cat=cats.find(c=>c.id===sel), unit=_consUnit(cat);
+  const cat=cats.find(c=>c.id===sel), unit=_consUnit(cat), isLuz=/luz|eletric|edp|endesa/i.test(cat.nome||'');
   const yms=[...new Set(state.movimentos.filter(m=>m.tipo==='despesa'&&anaCatIds(sel).has(m.categoriaId)&&m.valor>0).map(m=>m.data.slice(0,7)))].sort().slice(-12).reverse();
-  const rows=yms.map(ym=>{ const y=+ym.slice(0,4),mi=+ym.slice(5,7)-1; const eur=round2(anaSum(sel,y,mi)); const cons=getConsumo(sel,ym); const up=(cons>0)?round2(eur/cons):null; return {ym,y,mi,eur,cons,up}; });
+  const rows=yms.map(ym=>{ const y=+ym.slice(0,4),mi=+ym.slice(5,7)-1; const eur=round2(anaSum(sel,y,mi)); const cv=getConsumo(sel,ym); const cons=consK(cv); const rd=consR(cv); const up=(cons>0)?eur/cons:null; return {ym,y,mi,eur,cons,rd,up}; }); // €/unidade sem arredondar (3 casas na exibição — a 3ª é a que distingue tarifários)
   const withUp=rows.filter(r=>r.up!=null); const latest=withUp[0], prevU=withUp[1];
-  const trend=(latest&&prevU&&prevU.up>0)?Math.round((latest.up/prevU.up-1)*100):null;
+  const trend=(latest&&prevU&&prevU.up>0)?Math.round((latest.up/prevU.up-1)*100):null;              // €/kWh (tarifário)
+  const kwhTrend=(latest&&prevU&&prevU.cons>0)?Math.round((latest.cons/prevU.cons-1)*100):null;      // kWh (consumo)
+  // repartição por período (Luz): consumo = diferença das leituras entre a fatura e a anterior
+  let per=null;
+  if(isLuz){ const wr=rows.filter(r=>r.rd); if(wr.length>=2){ const a=wr[0].rd,b=wr[1].rd; const dc=a.c-b.c,dp=a.p-b.p,dv=a.v-b.v,tot=dc+dp+dv; if(tot>0&&dc>=0&&dp>=0&&dv>=0) per={mi:wr[0].mi,y:wr[0].y,c:dc,p:dp,v:dv,tot,pShare:Math.round(dp/tot*100)}; } }
+  // veredito: separa consumo (kWh↑) de tarifário (€/kWh↑ com kWh estável)
+  let verdict='';
+  if(trend!=null&&kwhTrend!=null){
+    const tSig=Math.abs(trend)>=5, kSig=Math.abs(kwhTrend)>=8;
+    if(tSig&&!kSig) verdict=`<span class="eico" style="color:var(--sem-warn)">${svg(I.warn)}</span> O <b>preço subiu ${trend>0?'+':''}${trend}%</b> com o consumo praticamente igual (${kwhTrend>0?'+':''}${kwhTrend}% ${unit}) → foi o <b>tarifário</b>, não tu. Vale a pena comparar ofertas.`;
+    else if(kSig&&!tSig) verdict=`Consumiste <b>${kwhTrend>0?'+':''}${kwhTrend}% ${unit}</b> que na fatura anterior — o preço unitário quase não mexeu (${trend>0?'+':''}${trend}%). A conta subiu por <b>consumo</b>.`;
+    else if(kSig&&tSig) verdict=`Subiram os dois: <b>consumo ${kwhTrend>0?'+':''}${kwhTrend}% ${unit}</b> e <b>preço ${trend>0?'+':''}${trend}%</b>.`;
+    else verdict=`Consumo e preço estáveis vs fatura anterior ✓`;
+  }
   const segs=cats.map(c=>`<button data-conssel="${c.id}" class="${c.id===sel?'on-out':''}">${esc(c.nome)}</button>`).join('');
   return `<div class="card" style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 class="dh" style="margin:0">${svg(I.trend)} Consumos · ${esc(cat.nome)} <span style="color:var(--mut);font-weight:600">(${unit})</span></h3><div class="seg">${segs}</div></div>
-    <p class="dsub" style="margin-top:6px">Regista o consumo de cada fatura (${unit}). A app calcula o <b>preço unitário (€/${unit})</b> — se subir com consumo parecido, foi o <b>tarifário</b>. Útil para comparar propostas da concorrência.</p>
+    <p class="dsub" style="margin-top:6px">${isLuz?`Importa a fatura (Endesa/EDP) e o <b>${unit}</b> preenche-se sozinho. `:''}A app calcula o <b>preço unitário (€/${unit})</b> e separa se a conta subiu por <b>consumo</b> ou por <b>tarifário</b>. Útil para comparar propostas.</p>
     ${latest?`<div class="kstrip">
       <div class="kbox"><div class="l">Preço atual (€/${unit})</div><div class="v">${_up3(latest.up)}</div><div class="l">${MESES[latest.mi]} ${latest.y}</div></div>
-      ${trend!=null?`<div class="kbox"><div class="l">vs fatura anterior</div><div class="v ${trend>0?'neg':(trend<0?'pos':'')}">${trend>0?'▲':(trend<0?'▼':'=')} ${Math.abs(trend)}%</div><div class="l">${trend>0?'tarifário subiu':(trend<0?'tarifário desceu':'igual')}</div></div>`:''}
-    </div>`:`<div class="hint" style="border-left:3px solid var(--info);margin-top:4px">Ainda não registaste consumos. Preenche a coluna <b>${unit}</b> em baixo, a partir das tuas faturas, e a app começa a mostrar o preço unitário.</div>`}
+      ${trend!=null?`<div class="kbox"><div class="l">Preço vs anterior</div><div class="v ${trend>0?'neg':(trend<0?'pos':'')}">${trend>0?'▲':(trend<0?'▼':'=')} ${Math.abs(trend)}%</div><div class="l">tarifário</div></div>`:''}
+      ${kwhTrend!=null?`<div class="kbox"><div class="l">Consumo vs anterior</div><div class="v ${kwhTrend>0?'neg':(kwhTrend<0?'pos':'')}">${kwhTrend>0?'▲':(kwhTrend<0?'▼':'=')} ${Math.abs(kwhTrend)}%</div><div class="l">${latest.cons} ${unit}</div></div>`:''}
+    </div>`:`<div class="hint" style="border-left:3px solid var(--info);margin-top:4px">Ainda não há consumos. ${isLuz?'Importa a fatura da Luz e preenche-se sozinho, ou':'Preenche a coluna'} <b>${unit}</b> em baixo a partir das tuas faturas.</div>`}
+    ${verdict?`<div class="hint" style="border-left:3px solid ${(trend!=null&&Math.abs(trend)>=5&&Math.abs(kwhTrend||0)<8)?'var(--sem-warn)':'var(--acc)'};margin-top:10px">${verdict}</div>`:''}
+    ${per?`<p class="dsub" style="margin-top:10px;margin-bottom:0">Repartição de ${MESES[per.mi]} (das leituras): <b>Cheia ${per.c}</b> · <b>Ponta ${per.p}</b> · <b>Vazio ${per.v}</b> kWh — <b>${per.pShare}%</b> em Ponta (horas caras).</p>`:''}
     <div class="gridwrap" style="margin-top:12px"><table class="sumtable">
       <thead><tr><th>Mês</th><th class="num">€</th><th class="num">${unit}</th><th class="num">€/${unit}</th></tr></thead>
-      <tbody>${rows.map(r=>`<tr><td>${MC[r.mi]} ${String(r.y).slice(2)}</td><td class="num">${fmtn(r.eur)}</td><td class="num"><input class="consinp" type="number" step="0.01" min="0" inputmode="decimal" data-consumo="${sel}|${r.ym}" value="${r.cons!=null?r.cons:''}" placeholder="—"></td><td class="num">${_up3(r.up)}</td></tr>`).join('')}</tbody>
+      <tbody>${rows.map(r=>`<tr><td>${MC[r.mi]} ${String(r.y).slice(2)}${r.rd?` <span class="eico" title="Leituras da fatura: Cheia ${r.rd.c} · Ponta ${r.rd.p} · Vazio ${r.rd.v}" style="color:var(--mut)">${svg(I.report)}</span>`:''}</td><td class="num">${fmtn(r.eur)}</td><td class="num"><input class="consinp" type="number" step="1" min="0" inputmode="decimal" data-consumo="${sel}|${r.ym}" value="${r.cons!=null?r.cons:''}" placeholder="—"></td><td class="num">${_up3(r.up)}</td></tr>`).join('')}</tbody>
     </table></div>
   </div>`;
 }
@@ -2459,6 +2488,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v87',d:'5 jul',bul:['Consumos da Luz automáticos: ao importares a fatura Endesa/EDP, os <b>kWh</b> passam a preencher-se sozinhos (a app lê o "Termo de Energia" da fatura) — já não tens de os escrever à mão. Guarda também as leituras Cheia/Ponta/Vazio do contador e mostra a repartição por período (quanto foi em horas de Ponta). A análise passa a separar claramente se a conta subiu por <b>consumo</b> (gastaste mais kWh) ou por <b>tarifário</b> (o €/kWh disparou com o consumo igual) — este último com aviso, para saberes quando vale a pena comparar ofertas. Corrigido também o preço unitário para 3 casas (0,287 €/kWh em vez de 0,29).']},
   {v:'v86',d:'5 jul',bul:['Recibo sem duplicados: se uma linha do recibo já estava lançada à mão no mês (ex.: o carregamento do Coverflex registado no fim do mês), a gravação do recibo ignora-a e avisa no resumo («já lançada, não duplicada») em vez de criar uma segunda igual.']},
   {v:'v85',d:'5 jul',bul:['O mês só fecha DEPOIS do recibo: como o recibo do ordenado é sempre carregado no mês seguinte, o mês anterior já não congela enquanto tiver o salário provisório por substituir — carregas o recibo sem avisos de «mês congelado», e só aí o mês fecha sozinho. O próprio carregamento do recibo ficou isento do congelamento (tem as suas validações próprias: aviso de repetido e conferência com o líquido).']},
   {v:'v84',d:'30 jun',bul:['Fim dos duplicados do banco: o import passa a cruzar cada transação com os movimentos JÁ lançados (o movimento guarda agora o id da transação) — mesmo que a lista de «já vistos» se perca num sync entre dispositivos, nada é reoferecido na Caixa de entrada. Reconhece também a mesma transação quando o banco lhe muda o id (pendente→liquidada) e, se ela corresponder a um débito que estava <b>agendado</b> na grelha, liquida-o nesse momento em vez de criar um duplicado.']},
@@ -3047,7 +3077,7 @@ document.addEventListener('change',e=>{
   if(ds.poupval!=null){const[y,i]=ds.poupval.split('|');state.poupancas[y].contas[+i].valor=parseFloat(e.target.value)||0;save();render();}
   if(ds.contq!=null){const[y,i]=ds.contq.split('|');state.poupancas[y].contagem[+i].q=parseFloat(e.target.value)||0;state.poupancas[y].contagemData=Date.now();save();render();}
   if(ds.orc!=null){const v=parseFloat(e.target.value); if(v>0)state.orcamentos[ds.orc]=v; else delete state.orcamentos[ds.orc]; save();}
-  if(ds.consumo!=null){const [cid,ym]=ds.consumo.split('|'); const v=parseFloat(e.target.value); state.consumos[cid]=state.consumos[cid]||{}; if(v>0)state.consumos[cid][ym]=round2(v); else delete state.consumos[cid][ym]; save(); render(); return;}
+  if(ds.consumo!=null){const [cid,ym]=ds.consumo.split('|'); const v=parseFloat(e.target.value); state.consumos[cid]=state.consumos[cid]||{}; const rd=consR(state.consumos[cid][ym]); if(v>0)state.consumos[cid][ym]=rd?{k:round2(v),r:rd}:round2(v); else delete state.consumos[cid][ym]; save(); render(); return;}
   if(e.target.id==='bankAuto'){if(state.bank){state.bank.auto=e.target.checked;save();render();toast(e.target.checked?'Banco: automático ligado (1×/dia)':'Banco: automático desligado');}}
   if(e.target.id==='bankSince'){if(state.bank){state.bank.since=e.target.value||isoToday();save();}}
   if(e.target.id==='bankHour'){if(state.bank){state.bank.autoHour=parseInt((e.target.value||'20:00').split(':')[0])||0;save();}}
@@ -3588,10 +3618,26 @@ function dataDebito(text){
 function periodoFaturacao(text){
   const re=/per[íi]odo\s*de\s*fac?tura[çc][ãa]o:?\s*/i;
   const m=re.exec(text); if(!m)return null;
-  const s=text.slice(m.index+m[0].length,m.index+m[0].length+40);
+  const s=text.slice(m.index+m[0].length,m.index+m[0].length+50);
+  // range (ex.: Endesa "23 abr 2026 a 22 mai 2026") → usa o mês FINAL, que é o mais representativo (fim do período/emissão)
+  const rg=s.match(/\d{1,2}\s*[A-Za-zçÇÀ-ſ]{3,12}\.?\s*\d{4}\s*a\s*\d{1,2}\s*([A-Za-zçÇÀ-ſ]{3,12})\.?\s*(\d{4})/);
+  if(rg){const mi=_mesPT(rg[1]),y=+rg[2];if(mi>=0&&y>=2015&&y<=2035)return[mi,y];}
   const d=s.match(/([A-Za-zçÇÀ-ſ]{3,12})\.?\s*(?:de\s+)?(\d{4})/);
   if(d){const mi=_mesPT(d[1]),y=+d[2];if(mi>=0&&y>=2015&&y<=2035)return[mi,y];}
   return null;
+}
+/* consumo lido de uma fatura de utility: kWh/m³ faturado (soma dos "Termo de Energia N kWh") e, para a Luz,
+   as leituras do contador Cheia/Ponta/Vazio (linha de referência) — o split por período obtém-se por diferença
+   destas leituras entre meses consecutivos. */
+function consumoFatura(text){
+  let kwh=0,n=0; const eRe=/Termo\s+de\s+Energia[^0-9]{0,15}(\d{1,6})\s*kWh/gi; let m;
+  while((m=eRe.exec(text))){kwh+=parseInt(m[1],10);n++;}
+  if(!n){ const c=text.match(/consumo\s*(?:faturado|total|real)?[^0-9]{0,15}(\d{1,6})\s*kWh/i); if(c)kwh=parseInt(c[1],10); }
+  const numPT=s=>parseInt(String(s).replace(/\./g,''),10);
+  let leituras=null;
+  const rm=text.match(/Cheia:?\s*([\d.]+)\s*kWh\s*[|·,]?\s*Ponta:?\s*([\d.]+)\s*kWh\s*[|·,]?\s*Vazio:?\s*([\d.]+)\s*kWh/i);
+  if(rm)leituras={c:numPT(rm[1]),p:numPT(rm[2]),v:numPT(rm[3])};
+  return {kwh:kwh>0?kwh:null,leituras};
 }
 /* deteta movimento já existente (mesma natureza, valor ao cêntimo e mês) — evita importar a mesma fatura/recibo 2x */
 function isDupMov(tipo,catId,valor,ym){return state.movimentos.find(m=>m.tipo===tipo&&m.categoriaId===catId&&Math.abs(Math.abs(m.valor)-Math.abs(valor))<0.005&&m.data.slice(0,7)===ym)||null;}
@@ -3619,7 +3665,8 @@ function parseFatura(text){
   // categoria aprendida (override): se já corrigiste antes a categoria deste tipo de fornecedor
   const learned=forn?(state.faturaMap||{})[forn]:null;
   if(learned&&cat(learned))catId=learned;
-  return {total,cand,mi,year,dia,catId,forn,sig:forn,text,debReal};
+  const cons=consumoFatura(text);
+  return {total,cand,mi,year,dia,catId,forn,sig:forn,text,debReal,kwh:cons.kwh,leituras:cons.leituras};
 }
 async function processFatura(file){
   if(!file)return; toast('A ler a fatura…');
@@ -3706,6 +3753,7 @@ function _commitInbox(it,catId,mi,year,cash,forceDupe){
   const futuro = (isBank ? it.pend : (debReal!=null || ((isMail||recorrente) && !cash && dataStr>isoToday()))) && !isPastMonth(year,mi);
   if(futuro){ mv.pendente=true; if(!isBank) mv.cobraEm=debReal||dataStr; }
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
+  { const _u=cat(catId)&&_consUnit(cat(catId)); if(_u&&it.kwh)setConsumoFromFatura(catId,ym,it.kwh,it.leituras); } // consumo auto (fatura por email)
   if(it.nif)state.nifMap[it.nif]=catId; // aprende NIF -> categoria
   if(isMail && it.from){ // aprende remetente -> categoria (cria/atualiza o fornecedor)
     state.providers=state.providers||[];
@@ -3827,11 +3875,11 @@ async function processFotoFatura(file){
     openFaturaReview(p);
   }catch(e){ toast('Falha a ler a foto: '+(e.message||e.name||'erro')); }
 }
-let _faturaDia=null,_faturaSig='',_faturaCatSug=null,_faturaDebReal=null;
+let _faturaDia=null,_faturaSig='',_faturaCatSug=null,_faturaDebReal=null,_faturaKwh=null,_faturaLeit=null;
 function openFaturaReview(p){
   const year=p.year!=null?p.year:ano, mi=p.mi!=null?p.mi:new Date().getMonth();
   _faturaDia=(p.dia!=null&&p.dia>=1&&p.dia<=31)?p.dia:null;
-  _faturaSig=p.sig||''; _faturaCatSug=p.catId||null; _faturaDebReal=p.debReal||null;
+  _faturaSig=p.sig||''; _faturaCatSug=p.catId||null; _faturaDebReal=p.debReal||null; _faturaKwh=p.kwh||null; _faturaLeit=p.leituras||null;
   // pré-visualização: com os valores já preenchidos (mês/ano), esta fatura vai ficar agendada? (mesma lógica do gravarFatura)
   const diaPrev=(p.dia!=null&&p.dia>=1&&p.dia<=28)?p.dia:15;
   const dataStrPrev=`${year}-${String(mi+1).padStart(2,'0')}-${String(diaPrev).padStart(2,'0')}`;
@@ -3879,11 +3927,14 @@ function _gravarFaturaCommit(v,catId,mi,year){
   const futuro = (dataStr>isoToday()||debReal!=null) && !isPastMonth(year,mi);
   if(futuro){ mv.pendente=true; mv.cobraEm=debReal||dataStr; }
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
+  // consumo (Luz/Água/Gás): preenche a tabela de Consumos no mesmo mês do movimento
+  const _u=cat(catId)&&_consUnit(cat(catId));
+  if(_u&&_faturaKwh)setConsumoFromFatura(catId,`${year}-${String(mi+1).padStart(2,'0')}`,_faturaKwh,_faturaLeit);
   // aprender fornecedor->categoria se corrigiste a sugestão
   let aprendi=false; if(_faturaSig&&catId!==_faturaCatSug){state.faturaMap[_faturaSig]=catId;aprendi=true;}
   ano=year; save(); closeBack(); render();
-  toast((futuro?'Fatura agendada p/ '+(mv.cobraEm||dataStr).slice(8,10)+'/'+(mv.cobraEm||dataStr).slice(5,7)+': ':'Fatura gravada: ')+fmt(Math.abs(v))+' · '+catName(catId)+(aprendi?' · aprendi a categoria':''));
-  _faturaDia=null;_faturaSig='';_faturaCatSug=null;_faturaDebReal=null;
+  toast((futuro?'Fatura agendada p/ '+(mv.cobraEm||dataStr).slice(8,10)+'/'+(mv.cobraEm||dataStr).slice(5,7)+': ':'Fatura gravada: ')+fmt(Math.abs(v))+' · '+catName(catId)+(_u&&_faturaKwh?' · '+_faturaKwh+' '+_u:'')+(aprendi?' · aprendi a categoria':''));
+  _faturaDia=null;_faturaSig='';_faturaCatSug=null;_faturaDebReal=null;_faturaKwh=null;_faturaLeit=null;
 }
 
 /* ===== IMPORTAR VÁRIAS FATURAS (lote) ===== */
@@ -3901,7 +3952,7 @@ async function processFaturasBatch(files){
 }
 function openFaturasBatch(items){
   const ok=items.filter(x=>x.p);
-  _fatBatch=ok.map((x,i)=>{const p=x.p;const mi=p.mi!=null?p.mi:new Date().getMonth();const year=p.year!=null?p.year:ano;const dup=(p.catId&&p.total!=null)?isDupMov('despesa',p.catId,p.total,`${year}-${String(mi+1).padStart(2,'0')}`):null;return {nome:x.nome,total:p.total,catId:p.catId,catSug:p.catId,sig:p.sig,mi,year,dia:p.dia,debReal:p.debReal,forn:p.forn,dup:!!dup,inc:!dup,i};});
+  _fatBatch=ok.map((x,i)=>{const p=x.p;const mi=p.mi!=null?p.mi:new Date().getMonth();const year=p.year!=null?p.year:ano;const dup=(p.catId&&p.total!=null)?isDupMov('despesa',p.catId,p.total,`${year}-${String(mi+1).padStart(2,'0')}`):null;return {nome:x.nome,total:p.total,catId:p.catId,catSug:p.catId,sig:p.sig,mi,year,dia:p.dia,debReal:p.debReal,kwh:p.kwh,leituras:p.leituras,forn:p.forn,dup:!!dup,inc:!dup,i};});
   const erros=items.filter(x=>x.erro);
   const row=(l)=>`<tr style="${l.inc?'':'opacity:.5'}">
     <td style="padding:4px 6px"><input type="checkbox" data-fbchk="${l.i}" ${l.inc?'checked':''}></td>
@@ -3945,6 +3996,7 @@ function gravarFaturasBatch(){
     const futuro=(dataStr>isoToday()||debReal!=null) && !isPastMonth(l.year,l.mi);
     if(futuro){mv.pendente=true;mv.cobraEm=debReal||dataStr;agendadas++;}
     state.movimentos.push(mv); if(!futuro && !isPastMonth(l.year,l.mi))aplicaValete(mv);
+    { const ym=`${l.year}-${String(l.mi+1).padStart(2,'0')}`; const _u=cat(l.catId)&&_consUnit(cat(l.catId)); if(_u&&l.kwh)setConsumoFromFatura(l.catId,ym,l.kwh,l.leituras); }
     if(l.sig&&l.catId!==l.catSug){state.faturaMap[l.sig]=l.catId;}
     n++;
   });
@@ -4451,7 +4503,7 @@ async function mailImport(silent){
       const ed=new Date(+msg.internalDate||Date.now());
       const year=pf.year!=null?pf.year:ed.getFullYear();
       const mi=pf.mi!=null?pf.mi:ed.getMonth();
-      const it={id:nid('ib'),source:'mail',tipo:'despesa',total:pf.total,desc:(prov&&prov.label)||pf.forn||fromName||hdr('subject')||'fatura',year,mi,dia:pf.dia||null,debReal:pf.debReal||null,catId:(prov&&prov.catId)||pf.catId,from:fromDom||fromHdr,fromName,providerId:prov?prov.id:null,mailId:mref.id,ts:Date.now()};
+      const it={id:nid('ib'),source:'mail',tipo:'despesa',total:pf.total,desc:(prov&&prov.label)||pf.forn||fromName||hdr('subject')||'fatura',year,mi,dia:pf.dia||null,debReal:pf.debReal||null,kwh:pf.kwh||null,leituras:pf.leituras||null,catId:(prov&&prov.catId)||pf.catId,from:fromDom||fromHdr,fromName,providerId:prov?prov.id:null,mailId:mref.id,ts:Date.now()};
       // fornecedor com Auto ligado e categoria => lança direto na grelha (salta a revisão)
       if(prov&&prov.auto&&it.catId&&!isFrozenMi(year,mi)){
         const dia=(it.dia&&it.dia>=1&&it.dia<=28)?it.dia:15;
@@ -4461,6 +4513,7 @@ async function mailImport(silent){
         const debReal=(it.debReal&&it.debReal>isoToday())?it.debReal:null;
         const futuro=(dataStr>isoToday()||debReal!=null)&&!isPastMonth(year,mi); if(futuro){mv.pendente=true;mv.cobraEm=debReal||dataStr;}
         state.movimentos.push(mv); if(!futuro&&!isPastMonth(year,mi))aplicaValete(mv);
+        { const _u=cat(it.catId)&&_consUnit(cat(it.catId)); if(_u&&it.kwh)setConsumoFromFatura(it.catId,ym,it.kwh,it.leituras); } // consumo auto
         prov.n=(prov.n||0)+1; prov.last={total:it.total,ym}; auto++;
       } else { state.inbox.push(it); added++; }
     }
