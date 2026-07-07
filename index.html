@@ -470,6 +470,10 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .back{position:fixed;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(2px);display:none;align-items:flex-start;justify-content:center;z-index:100;overflow:auto;padding:50px 16px}
 .back.on{display:flex}
 .modal{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);width:100%;max-width:520px;box-shadow:var(--sh-lg);overflow:hidden}
+.modal.wide{max-width:min(760px,96vw)}
+.modal.wide .sumtable th,.modal.wide .sumtable td{padding:5px 6px;font-size:12.5px}
+.modal.wide .sumtable select,.modal.wide .sumtable input{padding:5px 6px}
+.modal.wide .body{padding:16px}
 .modal h2{font-size:17px;font-weight:800;letter-spacing:-.3px;padding:17px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:9px}
 .modal .body{padding:18px 20px;display:grid;gap:13px}
 .modal .foot{padding:14px 20px;border-top:1px solid var(--line);display:flex;gap:10px;align-items:center}
@@ -2521,6 +2525,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v91',d:'7 jul',bul:['A janela de <b>importar fatura para Consumos</b> passou a ser mais larga e compacta, para a tabela (fornecedor, categoria, mês, ano, consumo, €) caber toda sem barra de scroll lateral.']},
   {v:'v90',d:'7 jul',bul:['Botão <b>«Remover e corrigir duplicados»</b> no cartão Consumos: deteta as faturas que uma versão anterior lançou <b>duas vezes</b> (no mês de débito e no de consumo) e que ficaram presas em <b>meses fechados</b> — remove o lançamento a mais e usa esse valor como <b>€ da fatura</b> no mês de consumo, corrigindo a mensalidade e o <b>€/unidade</b> num só clique, sem desbloquear meses nem re-importar. Os kWh mantêm-se.']},
   {v:'v89',d:'7 jul',bul:['<b>Correção importante</b> no cartão Consumos: importar a fatura ali passou a registar <b>só o consumo</b> — deixa de criar (e duplicar) despesas na grelha. Antes, uma fatura importada aparecia duas vezes (uma no mês do débito, outra no mês de consumo) e os valores somavam-se num mês (ex.: 85,82 = 43,30+42,52). Agora o consumo entra no <b>mês de consumo</b> (o período faturado, não o dia do débito) e o <b>preço €/unidade</b> é calculado a partir do total da própria fatura, independente da grelha.','Novo modo de <b>comparação homóloga</b>: coluna «ano-1» na tabela e KPI que compara cada mês com o <b>mesmo mês do ano passado</b> (consumo e preço unitário) — vai-se preenchendo à medida que importas as faturas dos meses homólogos.','O import passou a validar melhor o mês: numa fatura importada podes confirmar/corrigir o mês de consumo, a categoria e o consumo antes de guardar, sem nunca tocar nos teus movimentos nem no Valete.']},
   {v:'v88',d:'7 jul',bul:['Botão «Importar fatura» dentro do cartão <b>Consumos</b> (Luz, Água e Gás): fazes o upload do PDF ali mesmo e a app lê o fornecedor, o valor e o <b>consumo</b> — kWh na Luz, m³ na Água e no Gás — e preenche a tabela sozinha. Passou a ler o consumo também das faturas de Água («consumo é de X litros» → m³) e Gás (Gascan, «Estimativa acumulada»), e a perceber o período de faturação quando vem como intervalo de datas (ex.: 08/05 a 12/06 → conta para Junho).','Faturas de utilities deixam de bater na parede «Mês congelado»: como o período faturado é sempre do mês anterior, uma fatura de Luz/Água/Gás pode lançar-se num mês já fechado sem teres de o desbloquear — e nunca mexe no saldo do Valete desse mês passado (o dinheiro já lá saiu).']},
@@ -3758,15 +3763,15 @@ function openConsumoReview(items){
     <td style="font-size:12px">${esc(it.forn||it.name||'fatura')}</td>
     <td><select id="cr_cat_${i}">${it.catId?'':'<option value="">— escolher —</option>'}${opt(it.catId)}</select></td>
     <td><select id="cr_mes_${i}">${MESES.map((x,k)=>`<option value="${k}" ${k===it.mi?'selected':''}>${x.slice(0,3)}</option>`).join('')}</select></td>
-    <td><input id="cr_ano_${i}" type="number" step="1" value="${it.year}" style="width:64px"></td>
-    <td><input id="cr_kwh_${i}" type="number" step="1" min="0" value="${it.kwh!=null?it.kwh:''}" placeholder="—" style="width:76px"> <span style="color:var(--mut);font-size:11px">${u||'kWh/m³'}</span></td>
+    <td><input id="cr_ano_${i}" type="number" step="1" value="${it.year}" style="width:56px"></td>
+    <td style="white-space:nowrap"><input id="cr_kwh_${i}" type="number" step="1" min="0" value="${it.kwh!=null?it.kwh:''}" placeholder="—" style="width:60px"> <span style="color:var(--mut);font-size:11px">${u||'kWh/m³'}</span></td>
     <td class="num">${it.eur!=null?fmtn(it.eur):'·'}</td>
   </tr>`; };
-  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.trend)} Consumos — importar fatura${items.length>1?'s':''} <button class="close" data-close="1">&times;</button></h2>
+  document.getElementById('back').innerHTML=`<div class="modal wide"><h2>${svg(I.trend)} Consumos — importar fatura${items.length>1?'s':''} <button class="close" data-close="1">&times;</button></h2>
   <div class="body">
     <div class="hint" style="border-left:3px solid var(--acc)">Isto <b>só regista o consumo</b> (${'kWh/m³'}) no <b>mês de consumo</b> (o período faturado, não o dia do débito). <b>Não cria despesas na grelha</b> nem mexe no Valete — os teus movimentos ficam como estão. Confere o mês e o consumo de cada linha.</div>
     <div class="gridwrap" style="margin-top:10px"><table class="sumtable">
-      <thead><tr><th>Fornecedor</th><th>Categoria</th><th>Mês consumo</th><th>Ano</th><th>Consumo</th><th class="num">€ fatura</th></tr></thead>
+      <thead><tr><th>Fornecedor</th><th>Categoria</th><th>Mês</th><th>Ano</th><th>Consumo</th><th class="num">€</th></tr></thead>
       <tbody>${items.map(row).join('')}</tbody>
     </table></div>
   </div>
