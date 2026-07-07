@@ -2203,17 +2203,21 @@ function consumoCats(){ return utilitiesCats().filter(c=>_consUnit(c)); }
 /* faturas de utilities (consumo) podem lançar em meses recentes já congelados — o período de faturação é sempre um mês atrás; nunca mexe no Valete se for passado */
 function _faturaFreezeOK(catId,year,mi){ if(!isFrozenMi(year,mi))return true; const c=state.categorias.find(x=>x.id===catId); return !!(c&&_consUnit(c)); }
 function getConsumo(catId,ym){ const o=state.consumos&&state.consumos[catId]; return o?o[ym]:undefined; }
-/* o consumo guardado pode ser um número (legado/manual) ou {k:total, r:{c,p,v} leituras} (auto da fatura de Luz) */
+/* o consumo guardado pode ser um número (legado/manual) ou {k:total, r:{c,p,v} leituras, eur:total da fatura} */
 function consK(v){ return v==null?undefined:(typeof v==='number'?v:v.k); }
 function consR(v){ return (v&&typeof v==='object'&&v.r)?v.r:null; }
-/* preenche o consumo a partir de uma fatura (mantém-se alinhado ao ym do movimento) — não sobrepõe um valor manual já lá posto */
-function setConsumoFromFatura(catId,ym,kwh,leituras){
+function consEur(v){ return (v&&typeof v==='object'&&v.eur!=null)?v.eur:null; }
+/* preenche o consumo a partir de uma fatura — grava kWh/m³, leituras E o total da própria fatura (€),
+   para o preço unitário (€/unidade) ficar independente da grelha: assim o mês de consumo (período faturado)
+   nunca é misturado com o mês de débito dos movimentos. É autoritário (re-importar a mesma fatura é idempotente). */
+function setConsumoFromFatura(catId,ym,kwh,leituras,eur){
   if(!catId||!(kwh>0))return;
   state.consumos[catId]=state.consumos[catId]||{};
-  const cur=state.consumos[catId][ym], curK=consK(cur);
-  if(curK!=null && Math.abs(curK-kwh)>=0.5) return; // já tinha um total diferente à mão → respeita o que lá está
-  const o={k:round2(kwh)}; if(leituras&&leituras.c!=null)o.r={c:leituras.c,p:leituras.p,v:leituras.v};
+  const cur=state.consumos[catId][ym];
+  const o={k:round2(kwh)};
+  if(leituras&&leituras.c!=null)o.r={c:leituras.c,p:leituras.p,v:leituras.v};
   else if(consR(cur))o.r=consR(cur);
+  if(eur>0)o.eur=round2(eur); else if(consEur(cur)!=null)o.eur=consEur(cur);
   state.consumos[catId][ym]=o;
 }
 function _up3(v){ return (v==null)?'·':v.toLocaleString('pt-PT',{minimumFractionDigits:3,maximumFractionDigits:3}); }
@@ -2221,9 +2225,17 @@ function consumosCard(){
   const cats=consumoCats(); if(!cats.length) return '';
   const sel=(_consSel&&cats.some(c=>c.id===_consSel))?_consSel:cats[0].id;
   const cat=cats.find(c=>c.id===sel), unit=_consUnit(cat), isLuz=/luz|eletric|edp|endesa/i.test(cat.nome||'');
-  const yms=[...new Set(state.movimentos.filter(m=>m.tipo==='despesa'&&anaCatIds(sel).has(m.categoriaId)&&m.valor>0).map(m=>m.data.slice(0,7)))].sort().slice(-12).reverse();
-  const rows=yms.map(ym=>{ const y=+ym.slice(0,4),mi=+ym.slice(5,7)-1; const eur=round2(anaSum(sel,y,mi)); const cv=getConsumo(sel,ym); const cons=consK(cv); const rd=consR(cv); const up=(cons>0)?eur/cons:null; return {ym,y,mi,eur,cons,rd,up}; }); // €/unidade sem arredondar (3 casas na exibição — a 3ª é a que distingue tarifários)
+  const gyms=state.movimentos.filter(m=>m.tipo==='despesa'&&anaCatIds(sel).has(m.categoriaId)&&m.valor>0).map(m=>m.data.slice(0,7));
+  const cyms=(state.consumos&&state.consumos[sel])?Object.keys(state.consumos[sel]):[];
+  const yms=[...new Set([...gyms,...cyms])].sort().slice(-12).reverse();
+  // € por mês de consumo: usa o total da PRÓPRIA fatura (guardado) e só cai para a grelha nos meses sem fatura importada
+  const _cAt=(y,mi)=>{ const cv=getConsumo(sel,`${y}-${String(mi+1).padStart(2,'0')}`); const cons=consK(cv); const fe=consEur(cv); const eur=fe!=null?fe:round2(anaSum(sel,y,mi)); return {cons,eur,up:(cons>0)?eur/cons:null,fatura:fe!=null}; };
+  const rows=yms.map(ym=>{ const y=+ym.slice(0,4),mi=+ym.slice(5,7)-1; const cv=getConsumo(sel,ym); const cons=consK(cv); const rd=consR(cv); const fe=consEur(cv); const eur=fe!=null?fe:round2(anaSum(sel,y,mi)); const up=(cons>0)?eur/cons:null; const h=_cAt(y-1,mi); const dCons=(h.cons>0&&cons>0)?Math.round((cons/h.cons-1)*100):null; return {ym,y,mi,eur,cons,rd,up,fatura:fe!=null,hCons:h.cons,hUp:h.up,dCons}; }); // €/unidade sem arredondar (3 casas — a 3ª distingue tarifários)
   const withUp=rows.filter(r=>r.up!=null); const latest=withUp[0], prevU=withUp[1];
+  // homólogo (mesmo mês do ano passado) do mês mais recente com consumo
+  const latestC=rows.find(r=>r.cons>0);
+  const homoDkwh=(latestC&&latestC.hCons>0)?Math.round((latestC.cons/latestC.hCons-1)*100):null;
+  const homoDup=(latestC&&latestC.hUp!=null&&latestC.up!=null&&latestC.hUp>0)?Math.round((latestC.up/latestC.hUp-1)*100):null;
   const trend=(latest&&prevU&&prevU.up>0)?Math.round((latest.up/prevU.up-1)*100):null;              // €/kWh (tarifário)
   const kwhTrend=(latest&&prevU&&prevU.cons>0)?Math.round((latest.cons/prevU.cons-1)*100):null;      // kWh (consumo)
   // repartição por período (Luz): consumo = diferença das leituras entre a fatura e a anterior
@@ -2241,20 +2253,22 @@ function consumosCard(){
   const segs=cats.map(c=>`<button data-conssel="${c.id}" class="${c.id===sel?'on-out':''}">${esc(c.nome)}</button>`).join('');
   return `<div class="card" style="margin-bottom:14px">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap"><h3 class="dh" style="margin:0">${svg(I.trend)} Consumos · ${esc(cat.nome)} <span style="color:var(--mut);font-weight:600">(${unit})</span></h3>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn sm primary" id="consImpFat" title="Importar fatura (PDF) — lê o valor, o fornecedor e o consumo">${svg(I.scan)}Importar fatura</button><div class="seg">${segs}</div></div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button class="btn sm primary" id="consImpFat" title="Importar fatura (PDF) — regista SÓ o consumo, não cria despesas na grelha">${svg(I.scan)}Importar fatura</button><div class="seg">${segs}</div></div>
       <input type="file" id="consFatIn" accept="application/pdf,.pdf" multiple style="display:none"></div>
-    <p class="dsub" style="margin-top:6px">Importa a fatura da <b>${esc(cat.nome)}</b> (PDF) e o <b>${unit}</b> preenche-se sozinho (Endesa/EDP, Gascan, Águas). A app calcula o <b>preço unitário (€/${unit})</b> e separa se a conta subiu por <b>consumo</b> ou por <b>tarifário</b>. Útil para comparar propostas.</p>
+    <p class="dsub" style="margin-top:6px">Importa a fatura (PDF, Endesa/EDP, Gascan, Águas) e o <b>${unit}</b> regista-se no <b>mês de consumo</b> (o período faturado, não o dia do débito). <b>Não cria despesas na grelha</b> — é só para acompanhar consumo e <b>preço unitário (€/${unit})</b>, e separar se a conta subiu por <b>consumo</b> ou por <b>tarifário</b>.</p>
     ${latest?`<div class="kstrip">
       <div class="kbox"><div class="l">Preço atual (€/${unit})</div><div class="v">${_up3(latest.up)}</div><div class="l">${MESES[latest.mi]} ${latest.y}</div></div>
       ${trend!=null?`<div class="kbox"><div class="l">Preço vs anterior</div><div class="v ${trend>0?'neg':(trend<0?'pos':'')}">${trend>0?'▲':(trend<0?'▼':'=')} ${Math.abs(trend)}%</div><div class="l">tarifário</div></div>`:''}
       ${kwhTrend!=null?`<div class="kbox"><div class="l">Consumo vs anterior</div><div class="v ${kwhTrend>0?'neg':(kwhTrend<0?'pos':'')}">${kwhTrend>0?'▲':(kwhTrend<0?'▼':'=')} ${Math.abs(kwhTrend)}%</div><div class="l">${latest.cons} ${unit}</div></div>`:''}
-    </div>`:`<div class="hint" style="border-left:3px solid var(--info);margin-top:4px">Ainda não há consumos. ${isLuz?'Importa a fatura da Luz e preenche-se sozinho, ou':'Preenche a coluna'} <b>${unit}</b> em baixo a partir das tuas faturas.</div>`}
+      ${(latestC&&latestC.hCons>0)?`<div class="kbox"><div class="l">Homólogo (${MC[latestC.mi]} ${String(latestC.y-1).slice(2)})</div><div class="v ${homoDkwh>0?'neg':(homoDkwh<0?'pos':'')}">${homoDkwh>0?'▲':(homoDkwh<0?'▼':'=')} ${Math.abs(homoDkwh)}%</div><div class="l">${latestC.hCons} → ${latestC.cons} ${unit}${homoDup!=null?` · preço ${homoDup>0?'+':''}${homoDup}%`:''}</div></div>`:''}
+    </div>`:`<div class="hint" style="border-left:3px solid var(--info);margin-top:4px">Ainda não há consumos. Usa <b>Importar fatura</b> em cima (ou preenche a coluna <b>${unit}</b> em baixo) a partir das tuas faturas.</div>`}
     ${verdict?`<div class="hint" style="border-left:3px solid ${(trend!=null&&Math.abs(trend)>=5&&Math.abs(kwhTrend||0)<8)?'var(--sem-warn)':'var(--acc)'};margin-top:10px">${verdict}</div>`:''}
     ${per?`<p class="dsub" style="margin-top:10px;margin-bottom:0">Repartição de ${MESES[per.mi]} (das leituras): <b>Cheia ${per.c}</b> · <b>Ponta ${per.p}</b> · <b>Vazio ${per.v}</b> kWh — <b>${per.pShare}%</b> em Ponta (horas caras).</p>`:''}
     <div class="gridwrap" style="margin-top:12px"><table class="sumtable">
-      <thead><tr><th>Mês</th><th class="num">€</th><th class="num">${unit}</th><th class="num">€/${unit}</th></tr></thead>
-      <tbody>${rows.map(r=>`<tr><td>${MC[r.mi]} ${String(r.y).slice(2)}${r.rd?` <span class="eico" title="Leituras da fatura: Cheia ${r.rd.c} · Ponta ${r.rd.p} · Vazio ${r.rd.v}" style="color:var(--mut)">${svg(I.report)}</span>`:''}</td><td class="num">${fmtn(r.eur)}</td><td class="num"><input class="consinp" type="number" step="1" min="0" inputmode="decimal" data-consumo="${sel}|${r.ym}" value="${r.cons!=null?r.cons:''}" placeholder="—"></td><td class="num">${_up3(r.up)}</td></tr>`).join('')}</tbody>
+      <thead><tr><th>Mês</th><th class="num">€</th><th class="num">${unit}</th><th class="num">€/${unit}</th><th class="num" title="Mesmo mês no ano anterior">${unit} ano-1</th></tr></thead>
+      <tbody>${rows.map(r=>`<tr><td>${MC[r.mi]} ${String(r.y).slice(2)}${r.rd?` <span class="eico" title="Leituras da fatura: Cheia ${r.rd.c} · Ponta ${r.rd.p} · Vazio ${r.rd.v}" style="color:var(--mut)">${svg(I.report)}</span>`:''}</td><td class="num"${r.fatura?' title="Total da própria fatura"':' title="Da grelha (sem fatura importada neste mês)"'}>${fmtn(r.eur)}${r.fatura?'':'<span style="color:var(--mut)">*</span>'}</td><td class="num"><input class="consinp" type="number" step="1" min="0" inputmode="decimal" data-consumo="${sel}|${r.ym}" value="${r.cons!=null?r.cons:''}" placeholder="—"></td><td class="num">${_up3(r.up)}</td><td class="num">${r.hCons>0?`${r.hCons}${r.dCons!=null?` <span style="color:var(--mut);font-size:11px">${r.dCons>0?'+':''}${r.dCons}%</span>`:''}`:'<span style="color:var(--mut)">·</span>'}</td></tr>`).join('')}</tbody>
     </table></div>
+    <p class="dsub" style="margin-top:8px;margin-bottom:0">A coluna <b>${unit} ano-1</b> compara com o mesmo mês do ano passado — preenche-se à medida que importas as faturas dos meses homólogos. <span style="color:var(--mut)">O <b>*</b> no € marca meses sem fatura importada (valor vindo da grelha).</span></p>
   </div>`;
 }
 /* N valores mensais terminando em (year,mi), cronológico */
@@ -2492,6 +2506,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v89',d:'7 jul',bul:['<b>Correção importante</b> no cartão Consumos: importar a fatura ali passou a registar <b>só o consumo</b> — deixa de criar (e duplicar) despesas na grelha. Antes, uma fatura importada aparecia duas vezes (uma no mês do débito, outra no mês de consumo) e os valores somavam-se num mês (ex.: 85,82 = 43,30+42,52). Agora o consumo entra no <b>mês de consumo</b> (o período faturado, não o dia do débito) e o <b>preço €/unidade</b> é calculado a partir do total da própria fatura, independente da grelha.','Novo modo de <b>comparação homóloga</b>: coluna «ano-1» na tabela e KPI que compara cada mês com o <b>mesmo mês do ano passado</b> (consumo e preço unitário) — vai-se preenchendo à medida que importas as faturas dos meses homólogos.','O import passou a validar melhor o mês: numa fatura importada podes confirmar/corrigir o mês de consumo, a categoria e o consumo antes de guardar, sem nunca tocar nos teus movimentos nem no Valete.']},
   {v:'v88',d:'7 jul',bul:['Botão «Importar fatura» dentro do cartão <b>Consumos</b> (Luz, Água e Gás): fazes o upload do PDF ali mesmo e a app lê o fornecedor, o valor e o <b>consumo</b> — kWh na Luz, m³ na Água e no Gás — e preenche a tabela sozinha. Passou a ler o consumo também das faturas de Água («consumo é de X litros» → m³) e Gás (Gascan, «Estimativa acumulada»), e a perceber o período de faturação quando vem como intervalo de datas (ex.: 08/05 a 12/06 → conta para Junho).','Faturas de utilities deixam de bater na parede «Mês congelado»: como o período faturado é sempre do mês anterior, uma fatura de Luz/Água/Gás pode lançar-se num mês já fechado sem teres de o desbloquear — e nunca mexe no saldo do Valete desse mês passado (o dinheiro já lá saiu).']},
   {v:'v87',d:'5 jul',bul:['Consumos da Luz automáticos: ao importares a fatura Endesa/EDP, os <b>kWh</b> passam a preencher-se sozinhos (a app lê o "Termo de Energia" da fatura) — já não tens de os escrever à mão. Guarda também as leituras Cheia/Ponta/Vazio do contador e mostra a repartição por período (quanto foi em horas de Ponta). A análise passa a separar claramente se a conta subiu por <b>consumo</b> (gastaste mais kWh) ou por <b>tarifário</b> (o €/kWh disparou com o consumo igual) — este último com aviso, para saberes quando vale a pena comparar ofertas. Corrigido também o preço unitário para 3 casas (0,287 €/kWh em vez de 0,29).']},
   {v:'v86',d:'5 jul',bul:['Recibo sem duplicados: se uma linha do recibo já estava lançada à mão no mês (ex.: o carregamento do Coverflex registado no fim do mês), a gravação do recibo ignora-a e avisa no resumo («já lançada, não duplicada») em vez de criar uma segunda igual.']},
@@ -3012,6 +3027,7 @@ document.addEventListener('click',e=>{
   if(d.ibclear){ if((state.inbox||[]).length){ confirmModal('Descartar TODAS as '+state.inbox.length+' entradas da Caixa de entrada? (não são lançadas na grelha)',()=>{state.inbox=[];save();render();openInbox();},{titulo:'Descartar tudo',okLabel:'Descartar'}); } return; }
   if(d.fatcand){const i=document.getElementById('fatVal');if(i)i.value=(+d.fatcand).toFixed(2);return;}
   if(t.id==='fatSave'){gravarFatura();return;}
+  if(t.id==='consSave'){gravarConsumos();return;}
   if(t.id==='recSave'){gravarRecibo();return;}
   if(t.id==='fbSave'){gravarFaturasBatch();return;}
   if(t.id==='mmSave'){doMoveMov();return;}
@@ -3068,7 +3084,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='anaCatSel'){anaCat=e.target.value;render();return;}
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
   if(e.target.id==='pdfIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
-  if(e.target.id==='consFatIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
+  if(e.target.id==='consFatIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';processFaturasConsumo(fs);}
   if(e.target.id==='csvIn'&&e.target.files[0]){const f=e.target.files[0];e.target.value='';const c=(document.getElementById('csvCat')||{}).value||null;importExtratoCSV(f,c);}
   if(e.target.id==='reciboIn'&&e.target.files[0]){processRecibo(e.target.files[0]);e.target.value='';}
   if(e.target.id==='fotoIn'&&e.target.files[0]){processFotoFatura(e.target.files[0]);e.target.value='';}
@@ -3084,7 +3100,7 @@ document.addEventListener('change',e=>{
   if(ds.poupval!=null){const[y,i]=ds.poupval.split('|');state.poupancas[y].contas[+i].valor=parseFloat(e.target.value)||0;save();render();}
   if(ds.contq!=null){const[y,i]=ds.contq.split('|');state.poupancas[y].contagem[+i].q=parseFloat(e.target.value)||0;state.poupancas[y].contagemData=Date.now();save();render();}
   if(ds.orc!=null){const v=parseFloat(e.target.value); if(v>0)state.orcamentos[ds.orc]=v; else delete state.orcamentos[ds.orc]; save();}
-  if(ds.consumo!=null){const [cid,ym]=ds.consumo.split('|'); const v=parseFloat(e.target.value); state.consumos[cid]=state.consumos[cid]||{}; const rd=consR(state.consumos[cid][ym]); if(v>0)state.consumos[cid][ym]=rd?{k:round2(v),r:rd}:round2(v); else delete state.consumos[cid][ym]; save(); render(); return;}
+  if(ds.consumo!=null){const [cid,ym]=ds.consumo.split('|'); const v=parseFloat(e.target.value); state.consumos[cid]=state.consumos[cid]||{}; const cur=state.consumos[cid][ym]; const rd=consR(cur),ce=consEur(cur); if(v>0){const o={k:round2(v)}; if(rd)o.r=rd; if(ce!=null)o.eur=ce; state.consumos[cid][ym]=o;} else delete state.consumos[cid][ym]; save(); render(); return;}
   if(e.target.id==='bankAuto'){if(state.bank){state.bank.auto=e.target.checked;save();render();toast(e.target.checked?'Banco: automático ligado (1×/dia)':'Banco: automático desligado');}}
   if(e.target.id==='bankSince'){if(state.bank){state.bank.since=e.target.value||isoToday();save();}}
   if(e.target.id==='bankHour'){if(state.bank){state.bank.autoHour=parseInt((e.target.value||'20:00').split(':')[0])||0;save();}}
@@ -3697,6 +3713,64 @@ async function processFatura(file){
     openFaturaReview(parseFatura(text));
   }catch(e){ toast('Falha a ler o PDF: '+(e.message||e.name||'erro')); }
 }
+/* ===== IMPORTAR FATURA SÓ PARA CONSUMOS (nunca cria movimento na grelha nem mexe no Valete) ===== */
+let _consRev=null;
+async function processFaturasConsumo(files){
+  toast('A ler '+files.length+' fatura'+(files.length>1?'s':'')+'…');
+  const items=[];
+  for(const f of files){
+    try{
+      const text=await extractPdfText(f);
+      if(!text||text.replace(/\s/g,'').length<20){ toast(f.name+': PDF sem texto (parece digitalizado)'); continue; }
+      const p=parseFatura(text);
+      const per=periodoFaturacao(text);                 // mês de CONSUMO = período faturado (NÃO o dia do débito)
+      const mi=per?per[0]:(p.mi!=null?p.mi:new Date().getMonth());
+      const year=per?per[1]:(p.year!=null?p.year:ano);
+      const catId=(p.catId&&cat(p.catId)&&_consUnit(cat(p.catId)))?p.catId:'';
+      items.push({forn:p.forn||'',sig:p.sig||'',catId,mi,year,kwh:p.kwh,leituras:p.leituras,eur:p.total,name:f.name});
+    }catch(e){ toast(f.name+': falha a ler'); }
+  }
+  if(!items.length){ toast('Nada para importar'); return; }
+  openConsumoReview(items);
+}
+function openConsumoReview(items){
+  _consRev=items;
+  const ccats=consumoCats();
+  const opt=sel=>ccats.map(c=>`<option value="${c.id}" ${c.id===sel?'selected':''}>${esc(c.nome)}</option>`).join('');
+  const row=(it,i)=>{ const u=(it.catId&&cat(it.catId))?_consUnit(cat(it.catId)):''; return `<tr>
+    <td style="font-size:12px">${esc(it.forn||it.name||'fatura')}</td>
+    <td><select id="cr_cat_${i}">${it.catId?'':'<option value="">— escolher —</option>'}${opt(it.catId)}</select></td>
+    <td><select id="cr_mes_${i}">${MESES.map((x,k)=>`<option value="${k}" ${k===it.mi?'selected':''}>${x.slice(0,3)}</option>`).join('')}</select></td>
+    <td><input id="cr_ano_${i}" type="number" step="1" value="${it.year}" style="width:64px"></td>
+    <td><input id="cr_kwh_${i}" type="number" step="1" min="0" value="${it.kwh!=null?it.kwh:''}" placeholder="—" style="width:76px"> <span style="color:var(--mut);font-size:11px">${u||'kWh/m³'}</span></td>
+    <td class="num">${it.eur!=null?fmtn(it.eur):'·'}</td>
+  </tr>`; };
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.trend)} Consumos — importar fatura${items.length>1?'s':''} <button class="close" data-close="1">&times;</button></h2>
+  <div class="body">
+    <div class="hint" style="border-left:3px solid var(--acc)">Isto <b>só regista o consumo</b> (${'kWh/m³'}) no <b>mês de consumo</b> (o período faturado, não o dia do débito). <b>Não cria despesas na grelha</b> nem mexe no Valete — os teus movimentos ficam como estão. Confere o mês e o consumo de cada linha.</div>
+    <div class="gridwrap" style="margin-top:10px"><table class="sumtable">
+      <thead><tr><th>Fornecedor</th><th>Categoria</th><th>Mês consumo</th><th>Ano</th><th>Consumo</th><th class="num">€ fatura</th></tr></thead>
+      <tbody>${items.map(row).join('')}</tbody>
+    </table></div>
+  </div>
+  <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Cancelar</button><button class="btn primary" id="consSave">${svg(I.check)}Guardar consumos</button></div></div>`;
+  openBack();
+}
+function gravarConsumos(){
+  if(!_consRev)return; let ok=0,skip=0;
+  _consRev.forEach((it,i)=>{
+    const catId=(document.getElementById('cr_cat_'+i)||{}).value||it.catId;
+    const mi=+((document.getElementById('cr_mes_'+i)||{}).value)||0;
+    const year=+((document.getElementById('cr_ano_'+i)||{}).value)||ano;
+    const kwh=parseFloat((document.getElementById('cr_kwh_'+i)||{}).value);
+    if(!catId||!(kwh>0)){skip++;return;}
+    setConsumoFromFatura(catId,`${year}-${String(mi+1).padStart(2,'0')}`,kwh,it.leituras,it.eur);
+    if(it.sig&&catId)state.faturaMap[it.sig]=catId;   // aprende fornecedor→categoria
+    ok++;
+  });
+  _consRev=null; save(); closeBack(); render();
+  toast(ok?('Consumo'+(ok>1?'s':'')+' guardado'+(ok>1?'s':'')+(skip?' · '+skip+' ignorado'+(skip>1?'s':''):'')):'Nada guardado — indica categoria e consumo');
+}
 /* ===== CAIXA DE ENTRADA DE FATURAS (lidas por QR, por classificar) ===== */
 function openInbox(){
   try{syncFocusPull();}catch(e){} // outro dispositivo pode ter lançado/descartado entretanto — se houver mais recente, a lista refresca sozinha
@@ -3774,7 +3848,7 @@ function _commitInbox(it,catId,mi,year,cash,forceDupe){
   const futuro = (isBank ? it.pend : (debReal!=null || ((isMail||recorrente) && !cash && dataStr>isoToday()))) && !isPastMonth(year,mi);
   if(futuro){ mv.pendente=true; if(!isBank) mv.cobraEm=debReal||dataStr; }
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
-  { const _u=cat(catId)&&_consUnit(cat(catId)); if(_u&&it.kwh)setConsumoFromFatura(catId,ym,it.kwh,it.leituras); } // consumo auto (fatura por email)
+  { const _u=cat(catId)&&_consUnit(cat(catId)); if(_u&&it.kwh)setConsumoFromFatura(catId,ym,it.kwh,it.leituras,it.total); } // consumo auto (fatura por email)
   if(it.nif)state.nifMap[it.nif]=catId; // aprende NIF -> categoria
   if(isMail && it.from){ // aprende remetente -> categoria (cria/atualiza o fornecedor)
     state.providers=state.providers||[];
@@ -3950,7 +4024,7 @@ function _gravarFaturaCommit(v,catId,mi,year){
   state.movimentos.push(mv); if(!futuro && !isPastMonth(year,mi))aplicaValete(mv);
   // consumo (Luz/Água/Gás): preenche a tabela de Consumos no mesmo mês do movimento
   const _u=cat(catId)&&_consUnit(cat(catId));
-  if(_u&&_faturaKwh)setConsumoFromFatura(catId,`${year}-${String(mi+1).padStart(2,'0')}`,_faturaKwh,_faturaLeit);
+  if(_u&&_faturaKwh)setConsumoFromFatura(catId,`${year}-${String(mi+1).padStart(2,'0')}`,_faturaKwh,_faturaLeit,Math.abs(v));
   // aprender fornecedor->categoria se corrigiste a sugestão
   let aprendi=false; if(_faturaSig&&catId!==_faturaCatSug){state.faturaMap[_faturaSig]=catId;aprendi=true;}
   ano=year; save(); closeBack(); render();
