@@ -3630,7 +3630,9 @@ function periodoFaturacao(text){
    as leituras do contador Cheia/Ponta/Vazio (linha de referência) — o split por período obtém-se por diferença
    destas leituras entre meses consecutivos. */
 function consumoFatura(text){
-  let kwh=0,n=0; const eRe=/Termo\s+de\s+Energia[^0-9]{0,15}(\d{1,6})\s*kWh/gi; let m;
+  // âncora: o kWh do "Termo de Energia" é o número colado a "kWh" seguido do preço "€/kWh" — robusto à ordem
+  // que o pdf.js produz (mete a coluna do IVA "6% (b)" no meio) e ignora a linha do Imposto Especial (não tem "Termo de Energia").
+  let kwh=0,n=0; const eRe=/Termo\s+de\s+Energia[\s\S]{0,45}?(\d{1,6})\s*kWh\s*[\d.,]+\s*€\s*\/\s*kWh/gi; let m;
   while((m=eRe.exec(text))){kwh+=parseInt(m[1],10);n++;}
   if(!n){ const c=text.match(/consumo\s*(?:faturado|total|real)?[^0-9]{0,15}(\d{1,6})\s*kWh/i); if(c)kwh=parseInt(c[1],10); }
   const numPT=s=>parseInt(String(s).replace(/\./g,''),10);
