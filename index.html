@@ -2221,6 +2221,20 @@ function setConsumoFromFatura(catId,ym,kwh,leituras,eur){
   state.consumos[catId][ym]=o;
 }
 function _up3(v){ return (v==null)?'·':v.toLocaleString('pt-PT',{minimumFractionDigits:3,maximumFractionDigits:3}); }
+/* duplicados criados por engano pelo botão de Consumos numa versão anterior (v88): a fatura foi lançada
+   TAMBÉM no mês de consumo, além do mês de débito → par com o mesmo valor em meses próximos (≤2).
+   O mais ANTIGO (mês de consumo) é o artefacto; o mais recente (débito) é o legítimo. */
+function _consDupArtifacts(catId){
+  if(!catId)return[];
+  const ids=anaCatIds(catId);
+  const all=state.movimentos.filter(m=>m.tipo==='despesa'&&ids.has(m.categoriaId)&&m.valor>0);
+  const byVal={}; all.forEach(m=>{const k=Math.round(m.valor*100);(byVal[k]=byVal[k]||[]).push(m);});
+  const dm=(a,b)=>{const A=a.slice(0,7).split('-').map(Number),B=b.slice(0,7).split('-').map(Number);return (B[0]*12+B[1])-(A[0]*12+A[1]);};
+  return all.filter(m=>m.nota==='fatura').filter(m=>{
+    const peers=byVal[Math.round(m.valor*100)]||[];
+    return peers.some(o=>o!==m && o.data.slice(0,7)>m.data.slice(0,7) && dm(m.data,o.data)>=1 && dm(m.data,o.data)<=2);
+  });
+}
 function consumosCard(){
   const cats=consumoCats(); if(!cats.length) return '';
   const sel=(_consSel&&cats.some(c=>c.id===_consSel))?_consSel:cats[0].id;
@@ -2262,6 +2276,7 @@ function consumosCard(){
       ${kwhTrend!=null?`<div class="kbox"><div class="l">Consumo vs anterior</div><div class="v ${kwhTrend>0?'neg':(kwhTrend<0?'pos':'')}">${kwhTrend>0?'▲':(kwhTrend<0?'▼':'=')} ${Math.abs(kwhTrend)}%</div><div class="l">${latest.cons} ${unit}</div></div>`:''}
       ${(latestC&&latestC.hCons>0)?`<div class="kbox"><div class="l">Homólogo (${MC[latestC.mi]} ${String(latestC.y-1).slice(2)})</div><div class="v ${homoDkwh>0?'neg':(homoDkwh<0?'pos':'')}">${homoDkwh>0?'▲':(homoDkwh<0?'▼':'=')} ${Math.abs(homoDkwh)}%</div><div class="l">${latestC.hCons} → ${latestC.cons} ${unit}${homoDup!=null?` · preço ${homoDup>0?'+':''}${homoDup}%`:''}</div></div>`:''}
     </div>`:`<div class="hint" style="border-left:3px solid var(--info);margin-top:4px">Ainda não há consumos. Usa <b>Importar fatura</b> em cima (ou preenche a coluna <b>${unit}</b> em baixo) a partir das tuas faturas.</div>`}
+    ${(function(){const arts=_consDupArtifacts(sel);if(!arts.length)return '';return `<div class="hint" style="border-left:3px solid var(--sem-warn);margin-top:10px"><b><span class="eico" style="color:var(--sem-warn)">${svg(I.warn)}</span> Lançamentos duplicados na grelha</b> — uma versão anterior lançou ${arts.length>1?'estas faturas':'esta fatura'} também no mês de consumo (além do mês de débito), inflacionando a mensalidade: ${arts.map(m=>`<b>${MC[+m.data.slice(5,7)-1]} ${m.data.slice(2,4)}</b> ${fmtn(m.valor)}`).join(' · ')}. Estão em meses fechados; carrega para os remover — os <b>kWh mantêm-se</b> e o valor removido passa a ser o <b>€ da fatura</b> nesse mês (corrige o €/${unit}). <button class="btn sm danger" id="consFixDup" style="margin-top:8px">Remover e corrigir ${arts.length} duplicado${arts.length>1?'s':''}</button></div>`;})()}
     ${verdict?`<div class="hint" style="border-left:3px solid ${(trend!=null&&Math.abs(trend)>=5&&Math.abs(kwhTrend||0)<8)?'var(--sem-warn)':'var(--acc)'};margin-top:10px">${verdict}</div>`:''}
     ${per?`<p class="dsub" style="margin-top:10px;margin-bottom:0">Repartição de ${MESES[per.mi]} (das leituras): <b>Cheia ${per.c}</b> · <b>Ponta ${per.p}</b> · <b>Vazio ${per.v}</b> kWh — <b>${per.pShare}%</b> em Ponta (horas caras).</p>`:''}
     <div class="gridwrap" style="margin-top:12px"><table class="sumtable">
@@ -2506,6 +2521,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v90',d:'7 jul',bul:['Botão <b>«Remover e corrigir duplicados»</b> no cartão Consumos: deteta as faturas que uma versão anterior lançou <b>duas vezes</b> (no mês de débito e no de consumo) e que ficaram presas em <b>meses fechados</b> — remove o lançamento a mais e usa esse valor como <b>€ da fatura</b> no mês de consumo, corrigindo a mensalidade e o <b>€/unidade</b> num só clique, sem desbloquear meses nem re-importar. Os kWh mantêm-se.']},
   {v:'v89',d:'7 jul',bul:['<b>Correção importante</b> no cartão Consumos: importar a fatura ali passou a registar <b>só o consumo</b> — deixa de criar (e duplicar) despesas na grelha. Antes, uma fatura importada aparecia duas vezes (uma no mês do débito, outra no mês de consumo) e os valores somavam-se num mês (ex.: 85,82 = 43,30+42,52). Agora o consumo entra no <b>mês de consumo</b> (o período faturado, não o dia do débito) e o <b>preço €/unidade</b> é calculado a partir do total da própria fatura, independente da grelha.','Novo modo de <b>comparação homóloga</b>: coluna «ano-1» na tabela e KPI que compara cada mês com o <b>mesmo mês do ano passado</b> (consumo e preço unitário) — vai-se preenchendo à medida que importas as faturas dos meses homólogos.','O import passou a validar melhor o mês: numa fatura importada podes confirmar/corrigir o mês de consumo, a categoria e o consumo antes de guardar, sem nunca tocar nos teus movimentos nem no Valete.']},
   {v:'v88',d:'7 jul',bul:['Botão «Importar fatura» dentro do cartão <b>Consumos</b> (Luz, Água e Gás): fazes o upload do PDF ali mesmo e a app lê o fornecedor, o valor e o <b>consumo</b> — kWh na Luz, m³ na Água e no Gás — e preenche a tabela sozinha. Passou a ler o consumo também das faturas de Água («consumo é de X litros» → m³) e Gás (Gascan, «Estimativa acumulada»), e a perceber o período de faturação quando vem como intervalo de datas (ex.: 08/05 a 12/06 → conta para Junho).','Faturas de utilities deixam de bater na parede «Mês congelado»: como o período faturado é sempre do mês anterior, uma fatura de Luz/Água/Gás pode lançar-se num mês já fechado sem teres de o desbloquear — e nunca mexe no saldo do Valete desse mês passado (o dinheiro já lá saiu).']},
   {v:'v87',d:'5 jul',bul:['Consumos da Luz automáticos: ao importares a fatura Endesa/EDP, os <b>kWh</b> passam a preencher-se sozinhos (a app lê o "Termo de Energia" da fatura) — já não tens de os escrever à mão. Guarda também as leituras Cheia/Ponta/Vazio do contador e mostra a repartição por período (quanto foi em horas de Ponta). A análise passa a separar claramente se a conta subiu por <b>consumo</b> (gastaste mais kWh) ou por <b>tarifário</b> (o €/kWh disparou com o consumo igual) — este último com aviso, para saberes quando vale a pena comparar ofertas. Corrigido também o preço unitário para 3 casas (0,287 €/kWh em vez de 0,29).']},
@@ -3028,6 +3044,7 @@ document.addEventListener('click',e=>{
   if(d.fatcand){const i=document.getElementById('fatVal');if(i)i.value=(+d.fatcand).toFixed(2);return;}
   if(t.id==='fatSave'){gravarFatura();return;}
   if(t.id==='consSave'){gravarConsumos();return;}
+  if(t.id==='consFixDup'){ const cats=consumoCats(); const sel=(_consSel&&cats.some(c=>c.id===_consSel))?_consSel:(cats[0]&&cats[0].id); const arts=_consDupArtifacts(sel); if(!arts.length){toast('Nada a remover');return;} const lst=arts.map(m=>MC[+m.data.slice(5,7)-1]+' '+m.data.slice(2,4)+' · '+fmt(m.valor)).join('\n'); confirmModal('Remover '+arts.length+' lançamento'+(arts.length>1?'s':'')+' duplicado'+(arts.length>1?'s':'')+' da grelha?\n\n'+lst+'\n\nOs kWh mantêm-se e o valor removido passa a ser o € da fatura nesse mês (corrige a mensalidade e o €/unidade).',()=>{ const rm=new Set(arts.map(m=>m.id)); arts.forEach(m=>{ const ym=m.data.slice(0,7); const cc=state.consumos&&state.consumos[m.categoriaId]; if(cc&&cc[ym]&&typeof cc[ym]==='object'&&consK(cc[ym])>0&&consEur(cc[ym])==null){cc[ym].eur=round2(m.valor);} if(m.vAdj)reverteValete(m); }); state.movimentos=state.movimentos.filter(m=>!rm.has(m.id)); save(); render(); toast('Corrigido — '+arts.length+' duplicado'+(arts.length>1?'s':'')+' removido'+(arts.length>1?'s':'')); },{titulo:'Corrigir mensalidade',okLabel:'Remover e corrigir',danger:true}); return; }
   if(t.id==='recSave'){gravarRecibo();return;}
   if(t.id==='fbSave'){gravarFaturasBatch();return;}
   if(t.id==='mmSave'){doMoveMov();return;}
