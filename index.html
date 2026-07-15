@@ -1149,7 +1149,11 @@ function disponivelMimos(mi){
   const sup=_superSet();
   const recReal=round2(state.movimentos.filter(m=>m.tipo==='receita'&&m.data.slice(0,7)===ym).reduce((a,m)=>a+m.valor,0));
   const recPrev=estimativaReceitaLiq(ym);
-  const receita=recReal>0?recReal:recPrev;
+  // simétrico às essenciais: durante o mês, o recibo ainda não está carregado (entra no mês seguinte),
+  // por isso a receita real é parcial — usa a estimativa do mês inteiro se for maior (senão descontávamos
+  // despesas do mês todo contra uma receita parcial e o "mimo" ficava falsamente muito negativo)
+  const receita=Math.max(recReal,recPrev);
+  const receitaEstimada=receita>recReal+0.005;
   const desp=state.movimentos.filter(m=>m.tipo==='despesa'&&m.data.slice(0,7)===ym);
   const essReal=round2(desp.filter(m=>!sup.has(m.categoriaId)).reduce((a,m)=>a+m.valor,0));
   const essPrev=prevEssenciais(ym,sup);
@@ -1158,7 +1162,7 @@ function disponivelMimos(mi){
   const poup=Math.max(0,+state.settings.poupancaMensal||0);
   const orcamento=round2(receita-essenciais-poup);
   const resta=round2(orcamento-mimosGasto);
-  return {ym,receita,recReal,recPrev,essenciais,essReal,essPrev,mimosGasto,poup,orcamento,resta,semSuper:sup.size===0};
+  return {ym,receita,recReal,recPrev,receitaEstimada,essenciais,essReal,essPrev,mimosGasto,poup,orcamento,resta,semSuper:sup.size===0};
 }
 /* cartão "Orçamentos do mês" — barras de progresso das categorias com limite definido (só mês corrente do ano atual) */
 function orcamentosCard(){
@@ -1187,7 +1191,7 @@ function mimoCard(){
   const orc=d.orcamento, gasto=d.mimosGasto, resta=d.resta;
   const pct=orc>0?Math.min(100,Math.round(gasto/orc*100)):(gasto>0?100:0);
   const estado=resta<0?'neg':'pos';
-  const calc=`<details class="mimo-det"><summary>como é calculado</summary><div class="mimo-calc"><div><span>Receita do mês</span><b>${fmt(d.receita)}${d.recReal>0?'':' (prev.)'}</b></div><div><span>− Despesas essenciais</span><b>${fmt(d.essenciais)}${d.essPrev>d.essReal?' (prev.)':''}</b></div><div><span>− Poupança do mês</span><b>${fmt(d.poup)}</b></div><div class="mimo-eq"><span>= Orçamento de lazer</span><b>${fmt(d.orcamento)}</b></div><div><span>Já gastaste em lazer (★)</span><b>${fmt(d.mimosGasto)}</b></div></div></details>`;
+  const calc=`<details class="mimo-det"><summary>como é calculado</summary><div class="mimo-calc"><div><span>Receita do mês</span><b>${fmt(d.receita)}${d.receitaEstimada?' (prev.)':''}</b></div><div><span>− Despesas essenciais</span><b>${fmt(d.essenciais)}${d.essPrev>d.essReal?' (prev.)':''}</b></div><div><span>− Poupança do mês</span><b>${fmt(d.poup)}</b></div><div class="mimo-eq"><span>= Orçamento de lazer</span><b>${fmt(d.orcamento)}</b></div><div><span>Já gastaste em lazer (★)</span><b>${fmt(d.mimosGasto)}</b></div></div></details>`;
   return `<div class="mimocard ${estado}">
     <div class="mimo-top"><span class="mimo-ttl">${svg(I.star)} Mimos · ${MESES[mi]}</span><b class="mimo-big">${fmt(resta)}</b></div>
     ${d.semSuper
@@ -2525,6 +2529,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v92',d:'7 jul',bul:['Corrigido o cálculo do <b>«Para mimos»</b> do mês em curso. Como o recibo só é carregado no mês seguinte, a receita real do mês corrente está incompleta — mas as despesas essenciais já eram projetadas para o mês inteiro. Isso criava uma <b>assimetria</b> que fazia o mimo aparecer falsamente muito negativo (ex.: -2 264 €). Agora a receita também usa a <b>estimativa do mês inteiro</b> quando a real ainda é parcial (igual ao que já se fazia com as despesas), e o «como é calculado» assinala quando a receita é estimada.']},
   {v:'v91',d:'7 jul',bul:['A janela de <b>importar fatura para Consumos</b> passou a ser mais larga e compacta, para a tabela (fornecedor, categoria, mês, ano, consumo, €) caber toda sem barra de scroll lateral.']},
   {v:'v90',d:'7 jul',bul:['Botão <b>«Remover e corrigir duplicados»</b> no cartão Consumos: deteta as faturas que uma versão anterior lançou <b>duas vezes</b> (no mês de débito e no de consumo) e que ficaram presas em <b>meses fechados</b> — remove o lançamento a mais e usa esse valor como <b>€ da fatura</b> no mês de consumo, corrigindo a mensalidade e o <b>€/unidade</b> num só clique, sem desbloquear meses nem re-importar. Os kWh mantêm-se.']},
   {v:'v89',d:'7 jul',bul:['<b>Correção importante</b> no cartão Consumos: importar a fatura ali passou a registar <b>só o consumo</b> — deixa de criar (e duplicar) despesas na grelha. Antes, uma fatura importada aparecia duas vezes (uma no mês do débito, outra no mês de consumo) e os valores somavam-se num mês (ex.: 85,82 = 43,30+42,52). Agora o consumo entra no <b>mês de consumo</b> (o período faturado, não o dia do débito) e o <b>preço €/unidade</b> é calculado a partir do total da própria fatura, independente da grelha.','Novo modo de <b>comparação homóloga</b>: coluna «ano-1» na tabela e KPI que compara cada mês com o <b>mesmo mês do ano passado</b> (consumo e preço unitário) — vai-se preenchendo à medida que importas as faturas dos meses homólogos.','O import passou a validar melhor o mês: numa fatura importada podes confirmar/corrigir o mês de consumo, a categoria e o consumo antes de guardar, sem nunca tocar nos teus movimentos nem no Valete.']},
