@@ -923,6 +923,13 @@ function load(){
 }
 function persist(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch(e){toast('Erro a guardar');}}
 let _dirty=false;
+/* _loadedUpd = o _updated tal como veio do disco no ARRANQUE, antes de qualquer save automático
+   (liquidarPendentes, reconcilePrevoirQuotas, import do banco). Sem isto, esses saves carimbavam
+   _updated=agora e faziam um estado VELHO parecer mais recente que o remoto → o syncOpen enviava-o
+   por cima do que o outro dispositivo tinha lançado (perda silenciosa de dados).
+   _syncBooting = enquanto o syncOpen não resolveu, nenhum push automático sai (levaria estado velho). */
+let _loadedUpd=0;
+let _syncBooting=false;
 function save(){state._updated=Date.now();persist();_dirty=true;syncSchedule();}
 
 /* ---------------- helpers ---------------- */
@@ -2529,6 +2536,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v93',d:'7 jul',bul:['<b>Correção grave de sincronização</b> — lançamentos feitos num dispositivo podiam ser <b>apagados</b> ao abrir o outro, e os movimentos voltavam a aparecer na Caixa de entrada. Causa: ao arrancar, a app faz tarefas automáticas que gravam (liquidar débitos agendados, rever as quotas do Prévoir, importar do banco); essas gravações carimbavam a hora <b>atual</b> no estado <b>antigo</b> do dispositivo que estava a abrir, fazendo-o parecer mais recente que a cópia da Dropbox — e era esse estado velho que ia por cima, destruindo o que tinhas lançado no outro dispositivo. Agora a comparação usa a hora com que o estado foi <b>lido do disco</b> (antes dessas gravações automáticas) e nenhum envio sai antes de a sincronização de arranque decidir. Ao adotar a cópia mais recente, as tarefas automáticas voltam a correr por cima dela.']},
   {v:'v92',d:'7 jul',bul:['Corrigido o cálculo do <b>«Para mimos»</b> do mês em curso. Como o recibo só é carregado no mês seguinte, a receita real do mês corrente está incompleta — mas as despesas essenciais já eram projetadas para o mês inteiro. Isso criava uma <b>assimetria</b> que fazia o mimo aparecer falsamente muito negativo (ex.: -2 264 €). Agora a receita também usa a <b>estimativa do mês inteiro</b> quando a real ainda é parcial (igual ao que já se fazia com as despesas), e o «como é calculado» assinala quando a receita é estimada.']},
   {v:'v91',d:'7 jul',bul:['A janela de <b>importar fatura para Consumos</b> passou a ser mais larga e compacta, para a tabela (fornecedor, categoria, mês, ano, consumo, €) caber toda sem barra de scroll lateral.']},
   {v:'v90',d:'7 jul',bul:['Botão <b>«Remover e corrigir duplicados»</b> no cartão Consumos: deteta as faturas que uma versão anterior lançou <b>duas vezes</b> (no mês de débito e no de consumo) e que ficaram presas em <b>meses fechados</b> — remove o lançamento a mais e usa esse valor como <b>€ da fatura</b> no mês de consumo, corrigindo a mensalidade e o <b>€/unidade</b> num só clique, sem desbloquear meses nem re-importar. Os kWh mantêm-se.']},
@@ -3089,7 +3097,7 @@ document.addEventListener('click',e=>{
   if(t.id==='dbxConnect'){dbxStartAuth();return;}
   if(t.id==='dbxFinish'){dbxFinishAuth();return;}
   if(t.id==='dbxDisc'){dbxDisconnect();return;}
-  if(t.id==='syncPushBtn'){_dirty=true;syncPush();return;}
+  if(t.id==='syncPushBtn'){_dirty=true;syncPush(true);return;}
   if(t.id==='syncPullBtn'){syncPullNow();return;}
   if(t.id==='bkpNow'){localStorage.removeItem('casa-lastbackup');dailyBackup().then(()=>toast('Backup feito em /backups')).catch(()=>toast('Falha no backup'));return;}
   if(t.id==='exp'){expJSON();return;}
@@ -3531,8 +3539,10 @@ async function dbxDownload(){
 }
 function syncSchedule(){ if(!dbxOn())return; clearTimeout(_syncTimer); _syncTimer=setTimeout(()=>syncPush(),2500); }
 function _syncUI(){ if(tab==='defs')render(); }
-async function syncPush(){
-  if(!dbxOn()||!_dirty||_syncing)return; _syncing=true;_syncErr=null;_syncUI();
+async function syncPush(force){
+  if(!dbxOn()||!_dirty||_syncing)return;
+  if(_syncBooting&&!force)return; // arranque por resolver: só o syncOpen decide o que sai (ver _loadedUpd)
+  _syncing=true;_syncErr=null;_syncUI();
   try{ await dbxUpload(JSON.stringify(state)); _dirty=false; _lastSync=Date.now(); }
   catch(e){ _syncErr=e.message; } finally{ _syncing=false;_syncUI(); }
 }
@@ -3565,14 +3575,23 @@ document.addEventListener('visibilitychange',()=>{
 });
 window.addEventListener('focus',()=>syncFocusPull());
 async function syncOpen(){ /* ao abrir: adota o remoto se for mais recente; senão envia o local */
-  if(!dbxOn())return; _syncing=true;_syncUI();
+  if(!dbxOn()){ _syncBooting=false; return; } _syncing=true;_syncUI();
   try{
     const txt=await dbxDownload();
     if(txt){ const remote=JSON.parse(txt);
-      if((remote._updated||0)>(state._updated||0)){ state=remote; persist(); load(); _lastSync=Date.now(); _syncErr=null; _syncing=false; render(); toast('Sincronizado da Dropbox'); return; }
+      // compara com o _updated COMO FOI CARREGADO (_loadedUpd), não com o state._updated — este pode ter sido
+      // carimbado agora mesmo pelos saves automáticos do arranque, o que faria o estado velho ganhar sempre
+      if((remote._updated||0)>_loadedUpd){
+        clearTimeout(_syncTimer); _dirty=false;              // descarta o push agendado por esses saves
+        state=remote; persist(); load(); _loadedUpd=state._updated||0;
+        _lastSync=Date.now(); _syncErr=null; _syncing=false; _syncBooting=false;
+        try{liquidarPendentes();reconcilePrevoirQuotas();}catch(_){} // idempotentes: correm de novo sobre o estado adotado
+        render(); toast('Sincronizado da Dropbox'); return;
+      }
     }
-    _dirty=true; _syncing=false; await syncPush(); // remoto inexistente/antigo → envia o local
-  }catch(e){ _syncErr=e.message; } finally{ _syncing=false; _syncUI(); }
+    _syncBooting=false;
+    _dirty=true; _syncing=false; await syncPush(true); // remoto inexistente/antigo → envia o local
+  }catch(e){ _syncErr=e.message; } finally{ _syncing=false; _syncBooting=false; _syncUI(); }
 }
 
 /* ===== Importar fatura PDF — 100% local (o PDF nunca sai do dispositivo) ===== */
@@ -5048,7 +5067,8 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden)return; if
 window.addEventListener('focus',()=>{ if(_idleOn() && Date.now()-_lastActive>=_idleMs()) autoLock(); });
 window.addEventListener('pageshow',()=>{ if(_idleOn() && Date.now()-_lastActive>=_idleMs()) autoLock(); });
 
-load();try{bankCaptureCallback();}catch(e){}try{liquidarPendentes();reconcilePrevoirQuotas();}catch(e){}render();showLock();
+load();_loadedUpd=state._updated||0;_syncBooting=dbxOn(); // fotografa o _updated ANTES dos saves automáticos abaixo (ver syncOpen)
+try{bankCaptureCallback();}catch(e){}try{liquidarPendentes();reconcilePrevoirQuotas();}catch(e){}render();showLock();
 try{lembreteBoot();}catch(e){}
 try{bankTryProcess();}catch(e){}
 try{bankAutoImport();}catch(e){}
