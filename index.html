@@ -1878,19 +1878,25 @@ function vPoupancas(m){
 function openContaLedger(y,i){
   const c=state.poupancas[y].contas[i]; if(!c)return;
   const mov=(c.mov||[]).slice().sort((a,b)=>b.data.localeCompare(a.data));
+  const totJuros=round2((c.mov||[]).filter(m=>m.j).reduce((a,m)=>a+(+m.valor||0),0)); // rendimento acumulado desta conta
   const mm=String(new Date().getMonth()+1).padStart(2,'0');
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.repeat)} ${esc(c.nome)} · reforços e mobilizações <button class="close" data-close="1">&times;</button></h2>
   <div class="body">
-    <div style="display:flex;justify-content:space-between;align-items:center;background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:11px 14px">
-      <span style="color:var(--mut)">Saldo atual</span><b style="font-size:18px">${fmt(c.valor)}</b></div>
+    <div style="background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:11px 14px">
+      <div style="display:flex;justify-content:space-between;align-items:center"><span style="color:var(--mut)">Saldo atual</span><b style="font-size:18px">${fmt(c.valor)}</b></div>
+      ${totJuros>0?`<div style="display:flex;justify-content:space-between;align-items:center;margin-top:7px;padding-top:7px;border-top:1px solid var(--line)"><span style="color:var(--mut);font-size:12.5px">Juros recebidos</span><b style="color:var(--acc);font-size:13.5px">${fmt(totJuros)}</b></div>`:''}
+    </div>
     ${c.auto?`<div class="hint" style="display:flex;align-items:center;gap:10px;justify-content:space-between"><span>Reforço automático: <b>${fmt(c.auto.valor)}</b> todo o dia ${c.auto.dia}.</span><button class="btn sm" id="lgAuto">Lançar reforço de ${MESES[new Date().getMonth()]}</button></div>`:''}
     <div>
       <label>Movimentar</label>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <input id="lgVal" type="number" step="0.01" inputmode="decimal" placeholder="valor" style="width:120px">
         <input id="lgData" type="date" value="${isoToday()}" style="width:auto">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
         <button class="btn sm" id="lgReforco" style="border-color:var(--in);color:var(--in)">${svg(I.up)} Reforço</button>
         <button class="btn sm" id="lgMob" style="border-color:var(--out);color:var(--out)">${svg(I.down)} Mobilizar</button>
+        <button class="btn sm" id="lgJuros" style="border-color:var(--acc);color:var(--acc)" title="Juros creditados pelo banco — aumentam o saldo mas não contam como reforço teu">${svg(I.trend)} Juros</button>
       </div>
       <input id="lgNota" placeholder="nota (opcional)" style="margin-top:8px">
     </div>
@@ -1900,7 +1906,7 @@ function openContaLedger(y,i){
     </div>
     <div>
       <label>Histórico</label>
-      <div class="plist" style="max-height:200px">${mov.length?mov.map((mo,j)=>`<div class="pe"><span style="font-weight:700;color:${mo.valor>=0?'var(--in)':'var(--out)'}">${mo.valor>=0?'+':''}${fmt(mo.valor)}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}/${mo.data.slice(0,4)}${mo.nota?' · '+esc(mo.nota):''}</span><button class="x" data-poupmovdel="${y}|${i}|${(c.mov||[]).indexOf(mo)}">✕</button></div>`).join(''):'<div class="pempty">Sem movimentos registados.</div>'}</div>
+      <div class="plist" style="max-height:200px">${mov.length?mov.map((mo,j)=>`<div class="pe"><span style="font-weight:700;color:${mo.j?'var(--acc)':(mo.valor>=0?'var(--in)':'var(--out)')}">${mo.valor>=0?'+':''}${fmt(mo.valor)}</span>${mo.j?`<span class="pill" style="background:var(--card2);color:var(--acc);font-size:10.5px">juros</span>`:''}<span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}/${mo.data.slice(0,4)}${mo.nota?' · '+esc(mo.nota):''}</span><button class="x" data-poupmovdel="${y}|${i}|${(c.mov||[]).indexOf(mo)}">✕</button></div>`).join(''):'<div class="pempty">Sem movimentos registados.</div>'}</div>
     </div>
     <input type="hidden" id="lgY" value="${y}"><input type="hidden" id="lgI" value="${i}">
   </div>
@@ -1922,6 +1928,18 @@ function poupMovAdd(sign){
   const v=parseFloat(val('lgVal')); if(isNaN(v)||v<=0){document.getElementById('lgVal').focus();return;}
   poupApplyMov(y,i,sign*Math.abs(v),val('lgData')||isoToday(),val('lgNota'));
   save(); render(); openContaLedger(y,i);
+}
+/* Juros: dinheiro NOVO creditado pelo banco. Aumenta o saldo mas não é um reforço teu, por isso
+   (1) fica marcado com j:1 — separa-se dos reforços no histórico e soma no total de juros recebidos;
+   (2) NÃO passa pelo poupApplyMov: numa conta virtual, esse faria o contra-lançamento na conta real
+       (semântica de transferência), e os juros não saem de lado nenhum — entram de fora. */
+function poupJurosAdd(){
+  const y=val('lgY'),i=+val('lgI'); const c=state.poupancas[y].contas[i]; if(!c)return;
+  const v=parseFloat(val('lgVal')); if(isNaN(v)||v<=0){document.getElementById('lgVal').focus();return;}
+  const jv=round2(Math.abs(v));
+  c.mov=c.mov||[]; c.mov.push({data:val('lgData')||isoToday(),valor:jv,nota:(val('lgNota')||'juros'),j:1});
+  c.valor=round2((+c.valor||0)+jv);
+  save(); render(); openContaLedger(y,i); toast('Juros lançados: '+fmt(jv));
 }
 function poupSetSaldo(){
   const y=val('lgY'),i=+val('lgI'); const c=state.poupancas[y].contas[i];
@@ -2536,6 +2554,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) — a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v94',d:'7 jul',bul:['Novo botão <b>«Juros»</b> nas contas de poupança, ao lado de Reforço e Mobilizar. Os juros que o banco credita aumentam o saldo <b>com registo no histórico</b> (já não é preciso usar o «definir saldo exato», que não deixava rasto) e ficam marcados como juros — separam-se dos teus reforços, porque não é dinheiro que puseste, é rendimento. Passas a ver o total de <b>«Juros recebidos»</b> da conta por cima do histórico. Ao contrário de um reforço, os juros <b>não descontam</b> da conta de origem (é dinheiro novo, não uma transferência). Os botões Reforço e Mobilizar ficaram lado a lado.']},
   {v:'v93',d:'7 jul',bul:['<b>Correção grave de sincronização</b> — lançamentos feitos num dispositivo podiam ser <b>apagados</b> ao abrir o outro, e os movimentos voltavam a aparecer na Caixa de entrada. Causa: ao arrancar, a app faz tarefas automáticas que gravam (liquidar débitos agendados, rever as quotas do Prévoir, importar do banco); essas gravações carimbavam a hora <b>atual</b> no estado <b>antigo</b> do dispositivo que estava a abrir, fazendo-o parecer mais recente que a cópia da Dropbox — e era esse estado velho que ia por cima, destruindo o que tinhas lançado no outro dispositivo. Agora a comparação usa a hora com que o estado foi <b>lido do disco</b> (antes dessas gravações automáticas) e nenhum envio sai antes de a sincronização de arranque decidir. Ao adotar a cópia mais recente, as tarefas automáticas voltam a correr por cima dela.']},
   {v:'v92',d:'7 jul',bul:['Corrigido o cálculo do <b>«Para mimos»</b> do mês em curso. Como o recibo só é carregado no mês seguinte, a receita real do mês corrente está incompleta — mas as despesas essenciais já eram projetadas para o mês inteiro. Isso criava uma <b>assimetria</b> que fazia o mimo aparecer falsamente muito negativo (ex.: -2 264 €). Agora a receita também usa a <b>estimativa do mês inteiro</b> quando a real ainda é parcial (igual ao que já se fazia com as despesas), e o «como é calculado» assinala quando a receita é estimada.']},
   {v:'v91',d:'7 jul',bul:['A janela de <b>importar fatura para Consumos</b> passou a ser mais larga e compacta, para a tabela (fornecedor, categoria, mês, ano, consumo, €) caber toda sem barra de scroll lateral.']},
@@ -3041,6 +3060,7 @@ document.addEventListener('click',e=>{
   if(d.poupledger){ const[y,i]=d.poupledger.split('|'); openContaLedger(y,+i); return; }
   if(t.id==='lgReforco'){ poupMovAdd(1); return; }
   if(t.id==='lgMob'){ poupMovAdd(-1); return; }
+  if(t.id==='lgJuros'){ poupJurosAdd(); return; }
   if(t.id==='lgAuto'){ poupAutoReforco(); return; }
   if(t.id==='lgSetBtn'){ poupSetSaldo(); return; }
   if(d.poupmovdel){ const[y,i,j]=d.poupmovdel.split('|'); const yp=state.poupancas[y]; const c=yp.contas[+i]; const mo=c.mov[+j]; if(mo){ confirmModal('Apagar este movimento de '+fmt(mo.valor)+'? O saldo da conta é reajustado.',()=>{ c.valor=round2((+c.valor||0)-mo.valor); c.mov.splice(+j,1); if(!c.real){ const ri=yp.contas.findIndex(x=>x.real); if(ri>=0&&ri!==+i){ yp.contas[ri].valor=round2((+yp.contas[ri].valor||0)+mo.valor); } } save(); render(); openContaLedger(y,+i); },{titulo:'Apagar movimento'});} return; }
