@@ -224,6 +224,21 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .orc-bar i{display:block;height:100%;background:var(--acc);border-radius:4px;min-width:2px}
 .orc-row.warn .orc-bar i{background:var(--warn)} .orc-row.over .orc-bar i{background:var(--out)}
 .consinp{width:84px;max-width:84px;text-align:right;padding:5px 7px;font-variant-numeric:tabular-nums}
+.anayr{display:inline-flex;align-items:center;gap:5px;margin-right:6px;background:none;border:0;color:var(--mut);font-weight:800;font-size:12px;cursor:pointer;padding:3px 7px;border-radius:8px;transition:background .15s,color .15s,opacity .15s}
+.anayr:hover{background:var(--card2);color:var(--txt)}
+.anayr span{width:12px;height:3px;border-radius:2px;display:inline-block;flex:none}
+.anayr.off{opacity:.38} .anayr.off span{background:var(--mut)!important}
+.anachart{position:relative}
+.anaguide{opacity:0;transition:opacity .12s}
+.anahit:hover .anaguide{opacity:.5}
+.anatip{position:absolute;top:4px;left:0;display:none;pointer-events:none;background:var(--card);border:1px solid var(--line);border-radius:10px;box-shadow:var(--sh-lg);padding:9px 11px;font-size:12px;min-width:158px;z-index:6}
+.anatip.on{display:block}
+.anatip-h{font-weight:800;font-size:12.5px;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid var(--line)}
+.anatip-r{display:flex;align-items:center;gap:6px;white-space:nowrap;line-height:1.85}
+.anatip-d{width:11px;height:3px;border-radius:2px;flex:none}
+.anatip-v{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums}
+.anatip-p{font-weight:800;font-size:11px;min-width:38px;text-align:right}
+.anatip-vs{color:var(--mut);font-size:10.5px;font-weight:700}
 /* gráfico de evolução do património (barras HTML de altura fixa - não escala como SVG) */
 .pevol-bars{display:flex;gap:12px;align-items:stretch;height:200px;margin-top:14px}
 .pevol-bar{flex:1;min-width:0;display:flex;flex-direction:column;align-items:center}
@@ -804,6 +819,8 @@ function catIconHtml(c,size){const k=c&&c.icon&&CAT_ICONS[c.icon];const cor=(c&&
 let _seq=0; const nid=p=>(p||'i')+'_'+Date.now().toString(36)+(_seq++);
 
 let state=null, tab='grelha', ano=2026, gridTipo='despesa', qCashMode=false, anaCat=null, anaCum=false, utilNavYm=null;
+let anaHide=new Set(); /* anos escondidos no grafico ano-a-ano (clique na legenda) */
+let _anaTips=[]; /* HTML do tooltip por mes, preenchido ao desenhar o grafico */
 let expandedCols=new Set();
 let gridView='',gmOpen=null; // vista da Grelha: ''=auto (lista no telemóvel, tabela no PC) · meses abertos na lista
 function catOptions(tipo,sel){return topCats(tipo).map(c=>{const kids=childrenOf(c.id);if(!kids.length)return `<option value="${c.id}" ${c.id===sel?'selected':''}>${c.nome}</option>`;return `<optgroup label="${c.nome}"><option value="${c.id}" ${c.id===sel?'selected':''}>${c.nome} (geral)</option>${kids.map(k=>`<option value="${k.id}" ${k.id===sel?'selected':''}>- ${k.nome}</option>`).join('')}</optgroup>`;}).join('');}
@@ -2518,12 +2535,27 @@ function vAnalytics(m){
   const ycol=y=>(['var(--acc)','var(--info)','var(--warn)','#9aa79e','#a78bfa'][years.length-1-years.indexOf(y)]||'var(--mut)');
   const useCum=anaCum;
   const series={}; years.forEach(y=>{let run=0;series[y]=monthlyByYear[y].map(v=>{run=round2(run+v);return useCum?run:v;});});
-  const maxV=Math.max(1,...[].concat.apply([],years.map(y=>series[y])));
+  const shown=years.filter(y=>!anaHide.has(y)); const vis=shown.length?shown:years; /* anos visiveis: a legenda liga/desliga */
+  const maxV=Math.max(1,...[].concat.apply([],vis.map(y=>series[y])));
   const W=700,H=230,padL=8,padR=8,padT=12,padB=22, xx=i=>padL+(W-padL-padR)*(i/11), yy=v=>padT+(H-padT-padB)*(1-v/maxV);
   const grid=[0,.25,.5,.75,1].map(f=>`<line x1="${padL}" y1="${(padT+(H-padT-padB)*(1-f)).toFixed(0)}" x2="${W-padR}" y2="${(padT+(H-padT-padB)*(1-f)).toFixed(0)}" stroke="var(--line)" stroke-width="1" opacity=".5"/>`).join('');
-  const linesSvg=years.map(y=>{const pts=series[y].map((v,i)=>`${xx(i).toFixed(1)},${yy(v).toFixed(1)}`).join(' ');const dots=series[y].map((v,i)=>(monthlyByYear[y][i]>0||useCum)?`<circle cx="${xx(i).toFixed(1)}" cy="${yy(v).toFixed(1)}" r="2.4" fill="${ycol(y)}"/>`:'').join('');return `<polyline points="${pts}" fill="none" stroke="${ycol(y)}" stroke-width="${y===cur?2.4:1.6}" opacity="${y===cur?1:.8}"/>${dots}`;}).join('');
+  const linesSvg=vis.map(y=>{const pts=series[y].map((v,i)=>`${xx(i).toFixed(1)},${yy(v).toFixed(1)}`).join(' ');const dots=series[y].map((v,i)=>(monthlyByYear[y][i]>0||useCum)?`<circle cx="${xx(i).toFixed(1)}" cy="${yy(v).toFixed(1)}" r="2.4" fill="${ycol(y)}"/>`:'').join('');return `<polyline points="${pts}" fill="none" stroke="${ycol(y)}" stroke-width="${y===cur?2.4:1.6}" opacity="${y===cur?1:.8}"/>${dots}`;}).join('');
   const xlabels=MC.map((mc,i)=>`<text x="${xx(i).toFixed(0)}" y="${H-6}" text-anchor="middle" font-size="9" fill="var(--mut)">${mc}</text>`).join('');
-  const legend=years.map(y=>`<span style="display:inline-flex;align-items:center;gap:5px;margin-right:12px"><span style="width:12px;height:3px;background:${ycol(y)};border-radius:2px;display:inline-block"></span>${y}</span>`).join('');
+  const legend=years.map(y=>`<button class="anayr${anaHide.has(y)?' off':''}" data-anayear="${y}" title="${anaHide.has(y)?'Mostrar':'Esconder'} a linha de ${y}"><span style="background:${ycol(y)}"></span>${y}</button>`).join('');
+  /* tooltip por mês: valor de cada ano visível + variação face ao MESMO mês do ano anterior (paguei mais ou menos?) */
+  const _acum=(arr,i)=>{let r=0;for(let k=0;k<=i;k++)r+=arr[k]||0;return round2(r);};
+  _anaTips=MC.map((mc,i)=>{
+    const rows=vis.slice().reverse().map(y=>{
+      const v=series[y][i], raw=monthlyByYear[y][i]||0, sem=!useCum&&!(raw>0);
+      const pm=monthlyByYear[y-1]; let pct='';
+      if(!sem&&pm){ const pv=useCum?_acum(pm,i):(pm[i]||0);
+        if(pv>0){ const p=Math.round((v/pv-1)*100); pct=`<span class="anatip-p" style="color:${p>0?'var(--out)':(p<0?'var(--in)':'var(--mut)')}">${p>0?'+':''}${p}%</span><span class="anatip-vs">vs ${y-1}</span>`; } }
+      return `<div class="anatip-r"><span class="anatip-d" style="background:${ycol(y)}"></span><b>${y}</b><span class="anatip-v">${sem?'-':fmt(v)}</span>${pct}</div>`;
+    }).join('');
+    return `<div class="anatip-h">${MESES[i]}${useCum?' · acumulado':''}</div>${rows}`;
+  });
+  const _cw=(W-padL-padR)/11;
+  const hits=MC.map((mc,i)=>`<g class="anahit" data-anapt="${i}" data-anax="${(xx(i)/W).toFixed(4)}"><line class="anaguide" x1="${xx(i).toFixed(1)}" y1="${padT}" x2="${xx(i).toFixed(1)}" y2="${H-padB}" stroke="var(--acc)" stroke-width="1"/><rect x="${Math.max(0,xx(i)-_cw/2).toFixed(1)}" y="0" width="${_cw.toFixed(1)}" height="${H}" fill="transparent"/></g>`).join('');
   m.innerHTML=`
   ${resumoMesCard()}
   ${anaUtilitiesPanel()}
@@ -2545,7 +2577,7 @@ function vAnalytics(m){
       <div class="seg"><button class="${!useCum?'on':''}" data-anacum="0">Mensal</button><button class="${useCum?'on':''}" data-anacum="1">Acumulado</button></div>
     </div>
     <div style="font-size:12px;color:var(--mut);margin-bottom:6px">${legend}</div>
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:230px">${grid}${linesSvg}${xlabels}</svg>
+    <div class="anachart"><svg viewBox="0 0 ${W} ${H}" style="width:100%;height:230px">${grid}${linesSvg}${xlabels}${hits}</svg><div class="anatip" id="anaTip"></div></div>
     <div class="hint" style="margin-top:8px">${useCum?'As linhas a cruzarem-se mostram quando o ano atual atinge o total do ano anterior.':'Cada linha é um ano. Picos acima da linha do ano anterior = consumo a subir nesse mês.'}</div>
   </div>
   <div class="gridwrap"><table class="sumtable ana-table">
@@ -2564,6 +2596,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v97',d:'25 ago',bul:['O gráfico <b>mês a mês, ano a ano</b> deixou de ser mudo: passa o rato por cima de qualquer mês e vês o <b>valor de cada ano</b> nesse mês e, ao lado, se pagaste <b>mais ou menos que no mesmo mês do ano anterior</b> (a vermelho quando subiu, a verde quando desceu). Uma linha vertical marca o mês em que estás.','Os anos na legenda passaram a ser <b>botões</b>: clica num ano para <b>tirar ou pôr</b> a linha dele no gráfico - útil para comparar só dois anos sem o ruído dos outros. A escala ajusta-se aos anos visíveis e tem de ficar sempre pelo menos um.']},
   {v:'v96',d:'25 ago',bul:['No PC, os botões de <b>despesa</b> e <b>receita</b> (as setas) passaram da barra da grelha para <b>ao lado do campo Valor</b>, no cartão de lançamento rápido: escolhes o valor e dizes logo ali o que é, sem saltar com o rato para o outro lado. No telemóvel ficam onde estavam, porque aí o Valor precisa da largura toda.']},
   {v:'v95',d:'25 ago',bul:['Detalhe visual: todos os traços longos do texto foram trocados por hífen simples (-), mais discreto e uniforme em toda a app.']},
   {v:'v94',d:'25 ago',bul:['Novo botão <b>«Juros»</b> nas contas de poupança, ao lado de Reforço e Mobilizar. Os juros que o banco credita aumentam o saldo <b>com registo no histórico</b> (já não é preciso usar o «definir saldo exato», que não deixava rasto) e ficam marcados como juros - separam-se dos teus reforços, porque não é dinheiro que puseste, é rendimento. Passas a ver o total de <b>«Juros recebidos»</b> da conta por cima do histórico. Ao contrário de um reforço, os juros <b>não descontam</b> da conta de origem (é dinheiro novo, não uma transferência). Os botões Reforço e Mobilizar ficaram lado a lado.']},
@@ -3013,6 +3046,7 @@ document.addEventListener('click',e=>{
   if(d.gview){gridView=d.gview;render();return;}
   if(d.gviewtoggle){gridView=((gridView||'lista')==='lista')?'tabela':'lista';render();return;}
   if(d.anacum!=null){anaCum=d.anacum==='1';render();return;}
+  if(d.anayear){ const _y=+d.anayear, _ys=anaYears(anaCat).slice(-4); if(anaHide.has(_y))anaHide.delete(_y); else { if(_ys.filter(x=>!anaHide.has(x)).length<=1){toast('Pelo menos um ano tem de ficar visivel');return;} anaHide.add(_y); } render(); return; }
   if(d.utilnav){utilNavYm=d.utilnav;render();return;}
   if(t.id==='anaSave'){state.settings.ana=Object.assign(anaCfg(),{spike:Math.max(5,parseInt(val('anaSpike'))||30),min:Math.max(0,parseInt(val('anaMin'))||0),max:Math.max(1,Math.min(20,parseInt(val('anaMax'))||6)),parents:!!(document.getElementById('anaParents')||{}).checked});save();render();toast('Alertas atualizados');return;}
   if(d.gmmonth!=null){const _i=+d.gmmonth;gmOpen.has(_i)?gmOpen.delete(_i):gmOpen.add(_i);render();return;}
@@ -3226,6 +3260,20 @@ function reorderBefore(fromId,beforeId){
 function clearDropFx(){ document.querySelectorAll('.th-drop,.th-before').forEach(x=>x.classList.remove('th-drop','th-before')); }
 function dropMode(e,th){ const r=th.getBoundingClientRect(); return (e.clientX-r.left) < r.width*0.4 ? 'before' : 'nest'; }
 document.addEventListener('dragstart',e=>{ const th=e.target.closest('th[data-cat]'); if(th){ dragCat=th.dataset.cat; e.dataTransfer.effectAllowed='move'; try{e.dataTransfer.setData('text/plain',dragCat);}catch(_){ } } });
+/* gráfico ano-a-ano: hover mostra o valor de cada ano nesse mês e a variação face ao ano anterior */
+document.addEventListener('mouseover',e=>{
+  const el=e.target.closest&&e.target.closest('[data-anapt]'); if(!el)return;
+  const tip=document.getElementById('anaTip'); if(!tip)return;
+  const i=+el.dataset.anapt; if(!_anaTips[i])return;
+  tip.innerHTML=_anaTips[i]; tip.classList.add('on');
+  const w=tip.parentElement.clientWidth, tw=tip.offsetWidth;
+  tip.style.left=Math.max(4,Math.min((+el.dataset.anax||0)*w-tw/2,w-tw-4))+'px';
+});
+document.addEventListener('mouseout',e=>{
+  const c=e.target.closest&&e.target.closest('.anachart'); if(!c)return;
+  if(e.relatedTarget&&c.contains(e.relatedTarget))return;
+  const tip=document.getElementById('anaTip'); if(tip)tip.classList.remove('on');
+});
 document.addEventListener('dragover',e=>{ if(!dragCat)return; clearDropFx(); const top=e.target.closest('th[data-droptop]'); if(top){ e.preventDefault(); top.classList.add('th-drop'); return; } const t=e.target.closest('th[data-cat]'); if(t){ e.preventDefault(); e.dataTransfer.dropEffect='move'; t.classList.add(dropMode(e,t)==='before'?'th-before':'th-drop'); } });
 document.addEventListener('drop',e=>{ if(!dragCat)return; const top=e.target.closest('th[data-droptop]'); const t=e.target.closest('th[data-cat]'); e.preventDefault(); clearDropFx(); if(top){ unnestCat(dragCat); } else if(t){ if(dropMode(e,t)==='before') reorderBefore(dragCat,t.dataset.cat); else nestCat(dragCat,t.dataset.cat); } dragCat=null; });
 document.addEventListener('dragend',()=>{ dragCat=null; clearDropFx(); });
