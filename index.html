@@ -1014,10 +1014,14 @@ function valorComSinal(catId,tipo,v){return (tipo==='receita'&&isDescontoCat(cat
 /* conta de poupança afetada por um lançamento: Coverflex (cat ligada) ou Valete (saldo real) */
 function contaDeMov(mv){return isCoverflexCat(mv.categoriaId)?coverflexConta():valeteConta();}
 /* lançamentos novos na app abatem/somam na conta certa; guardam vAdj+conta p/ reverter ao apagar.
-   Pagamentos em dinheiro (mv.cash) NÃO mexem no Valete - saem do Cofre (contado à mão; ver "Esperado" nas Poupanças). */
+   Movimentos em dinheiro (mv.cash) NÃO mexem no Valete - saem do / entram no Cofre (contado à mão; ver "Esperado" nas Poupanças). */
 function aplicaValete(mv){if(mv.cash)return;const c=contaDeMov(mv);if(!c)return;const delta=mv.tipo==='receita'?mv.valor:(mv.tipo==='despesa'?-mv.valor:0);if(!delta)return;c.valor=round2((parseFloat(c.valor)||0)+delta);mv.vAdj=delta;mv.vAdjConta=(c.nome||'').trim().toLowerCase();}
-/* dinheiro gasto (cash) desde a última contagem do Cofre - para mostrar o "Esperado" */
-function saidasDinheiro(){const base=(state.poupancas[ultimoAnoPoup()]||{}).contagemData||0;return round2(state.movimentos.filter(m=>m.tipo==='despesa'&&m.cash&&m.ts&&m.ts>base).reduce((a,m)=>a+m.valor,0));}
+/* dinheiro movimentado (cash) desde a última contagem do Cofre - para mostrar o "Esperado".
+   Despesas em dinheiro TIRAM do Cofre; receitas em dinheiro (ex.: um trabalho pago em notas) PÕEM lá.
+   Esperado = contado - saídas + entradas. */
+function _cashDesdeContagem(tipo){const base=(state.poupancas[ultimoAnoPoup()]||{}).contagemData||0;return round2(state.movimentos.filter(m=>m.tipo===tipo&&m.cash&&m.ts&&m.ts>base).reduce((a,m)=>a+m.valor,0));}
+function saidasDinheiro(){return _cashDesdeContagem('despesa');}
+function entradasDinheiro(){return _cashDesdeContagem('receita');}
 function reverteValete(mv){if(!mv||!mv.vAdj)return;const p=state.poupancas[ultimoAnoPoup()];if(!p)return;const c=(p.contas||[]).find(x=>(x.nome||'').trim().toLowerCase()===(mv.vAdjConta||'valete'));if(c)c.valor=round2((parseFloat(c.valor)||0)-mv.vAdj);}
 /* DÉBITOS AGENDADOS (pendentes): faturas com débito futuro não abatem no Valete até chegar o dia.
    m.cobraEm = data REAL de cobrança (quando difere do mês de competência em m.data - ex.: fatura de Junho debitada só em Julho).
@@ -1388,10 +1392,10 @@ function vGrelha(m){
         <button class="${gridTipo==='despesa'?'on-out':''}" data-gt="despesa" title="Despesas" aria-label="Despesas">${svg(I.down)}</button>
         <button class="${gridTipo==='receita'?'on-in':''}" data-gt="receita" title="Receitas" aria-label="Receitas">${svg(I.up)}</button>
       </div></div></div>
-    ${gridTipo==='despesa'?`<div class="fld fld-tipo"><label>Sai de</label><div class="seg qconta">
-      <button class="${!qCashMode?'on':''}" data-qconta="banco" title="Desconta da conta (banco / Valete)">${svg(I.bank)}</button>
-      <button class="${qCashMode?'on':''}" data-qconta="cash" title="Sai do Cofre (dinheiro físico)">${svg(I.cash)}</button>
-    </div></div>`:''}
+    <div class="fld fld-tipo"><label>${gridTipo==='receita'?'Entra em':'Sai de'}</label><div class="seg qconta">
+      <button class="${!qCashMode?'on':''}" data-qconta="banco" title="${gridTipo==='receita'?'Entra na conta (banco / Valete)':'Desconta da conta (banco / Valete)'}">${svg(I.bank)}</button>
+      <button class="${qCashMode?'on':''}" data-qconta="cash" title="${gridTipo==='receita'?'Recebido em dinheiro (entra no Cofre)':'Sai do Cofre (dinheiro físico)'}">${svg(I.cash)}</button>
+    </div></div>
     <div class="fld fld-cat"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
     <div class="fld fld-mes"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' (bloqueado)':''}</option>`).join('')}</select></div>
     <div class="fld fld-nota"><label>Nota (opcional)</label><input id="qNota" type="text" maxlength="80" placeholder="ex: o que foi"></div>
@@ -1473,7 +1477,7 @@ function openCellPop(catId,mi,anchor){
     <div class="pb">
       ${frozen?`<div class="pempty" style="margin-bottom:6px">Mês congelado (histórico). Leitura apenas. <button class="btn sm" id="pUnlock" style="margin-top:6px">${svg(I.edit)} Desbloquear para editar</button></div>`:`
       ${kids.length?`<select id="pSub" style="width:100%;margin-bottom:8px"><option value="${c.id}">${c.nome} (geral)</option>${kids.map(k=>`<option value="${k.id}">${k.nome}</option>`).join('')}</select>`:''}
-      <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'- valor (desconto)':'+ valor'}" autofocus>${c.tipo==='despesa'?`<button class="btn" id="pAddCash" title="Pagar em dinheiro (Cofre)">${svg(I.cash)}</button>`:''}<button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
+      <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'- valor (desconto)':'+ valor'}" autofocus><button class="btn" id="pAddCash" title="${c.tipo==='receita'?'Recebido em dinheiro (entra no Cofre)':'Pagar em dinheiro (Cofre)'}">${svg(I.cash)}</button><button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
       <input id="pNota" type="text" maxlength="80" placeholder="nota (opcional)" style="width:100%;margin-top:6px">
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
       <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)"><span class="eico">${svg(I.clock)}</span> agendado${mo.cobraEm?' até '+mo.cobraEm.split('-').reverse().join('/'):''} (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<span class="pe-acts">${acIds.has(mo.categoriaId)?`<button class="x peaq ${aqInfo(mo.aq).c}" data-aqcycle="${mo.id}" title="Quota de quem deve este valor na Dívida - clica para alternar 50/50 · 100% dela · 0% (tua)">${aqInfo(mo.aq).t}</button>`:''}${mo.cash?'':`<button class="x peag${mo.pendente?' on':''}" data-agopen="${mo.id}" title="${mo.pendente?'Agendado'+(mo.cobraEm?' até '+mo.cobraEm.split('-').reverse().join('/'):'')+' - ainda não saiu da conta. Clica para alterar.':'Marcar como ainda não cobrado (agendado) - fica esbatido e só desconta do Valete quando chegar a data'}">${svg(I.clock)}</button>`}<button class="x" data-editmov="${mo.id}" title="Editar valor/nota">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button></span>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
@@ -1521,7 +1525,7 @@ function popAdd(cash){
   const subEl=document.getElementById('pSub'); const targetId=subEl?subEl.value:c.id;
   let pagador=P()[0].id,split={...state.settings.splitDefault};
   const mv={id:nid('m'),data:dateFor(popCell.mi),tipo:c.tipo,categoriaId:targetId,valor:valorComSinal(targetId,c.tipo,v),pagador,split,nota:val('pNota')||''};
-  if(cash&&c.tipo==='despesa'){mv.cash=true;mv.ts=Date.now();}
+  if(cash){mv.cash=true;mv.ts=Date.now();} // dinheiro: nao mexe no Valete (sai/entra no Cofre)
   state.movimentos.push(mv); if(!isPastMonth(ano,popCell.mi)) aplicaValete(mv);
   save(); const cell=popCell; render();
   // reopen popover on same cell to keep adding
@@ -1852,8 +1856,13 @@ function vPoupancas(m){
   const total = totalContas + cofre;
   const liveYear = ano===+ultimoAnoPoup();
   const saidas = liveYear ? saidasDinheiro() : 0;       // dinheiro gasto desde a última contagem
-  const esperado = round2(cofre - saidas);
-  const hasDisc = saidas>0.001;                          // há divergência (pagamentos em dinheiro por descontar)
+  const entradas = liveYear ? entradasDinheiro() : 0;   // dinheiro recebido em notas/moedas desde a última contagem
+  const esperado = round2(cofre - saidas + entradas);
+  const hasDisc = Math.abs(saidas)>0.001||Math.abs(entradas)>0.001; // há dinheiro movimentado por contar
+  const _cashTxt = (Math.abs(saidas)>0.001&&Math.abs(entradas)>0.001)
+    ? `Recebeste <b>${fmt(entradas)}</b> e gastaste <b>${fmt(saidas)}</b> em dinheiro desde a última contagem.`
+    : (Math.abs(entradas)>0.001 ? `Recebeste <b>${fmt(entradas)}</b> em dinheiro desde a última contagem.` : `Gastaste <b>${fmt(saidas)}</b> em dinheiro desde a última contagem.`);
+  const _cashResumo = [Math.abs(saidas)>0.001?fmt(saidas)+' gasto':'', Math.abs(entradas)>0.001?fmt(entradas)+' recebido':''].filter(Boolean).join(' e ');
   const isV=n=>(n||'').trim().toLowerCase()==='valete';
   const denomLabel=d=> (d>=1? String(d) : String(d).replace('.',',')) + ' €';
   m.innerHTML=`
@@ -1876,7 +1885,7 @@ function vPoupancas(m){
       <tfoot><tr><td>Património total</td><td class="num">${fmtn(total)}&nbsp;${moeda()}</td><td></td></tr></tfoot>
     </table>
   </div>
-  ${hasDisc?`<div class="hint" style="margin-top:10px;border-left:3px solid var(--warn)">Gastaste <b>${fmt(saidas)}</b> em dinheiro desde a última contagem. O <b>Esperado</b> mostra quanto deverá estar no Cofre. Quando recontares, acerta as quantidades na "Contagem do Cofre" (ou carrega em <b>recontei</b>) para limpar o aviso.</div>`:''}
+  ${hasDisc?`<div class="hint" style="margin-top:10px;border-left:3px solid var(--warn)">${_cashTxt} O <b>Esperado</b> mostra quanto deverá estar no Cofre. Quando recontares, acerta as quantidades na "Contagem do Cofre" (ou carrega em <b>recontei</b>) para limpar o aviso.</div>`:''}
   <button class="btn sm" data-poupadd="${ano}" style="margin-top:12px">${svg(I.plus)}Adicionar conta</button>
 
   ${metasHtml()}
@@ -1895,7 +1904,7 @@ function vPoupancas(m){
       <tfoot>
         <tr${nMoedas>99?' style="color:var(--out)"':''} title="Depósitos no banco com mais de 99 moedas pagam taxa."><td>Moedas (nº)${nMoedas>99?` · &gt; 99, taxa do banco <span class="eico">${svg(I.warn)}</span>`:''}</td><td class="num"><b>${nMoedas}</b></td><td class="num">${fmtn(moedas)}&nbsp;${moeda()}</td></tr>
         <tr><td>Total Cofre · contado</td><td></td><td class="num">${fmtn(cofre)}&nbsp;${moeda()}</td></tr>
-        ${hasDisc?`<tr style="color:var(--warn)"><td>${svg(I.cash)} Esperado · após ${fmt(saidas)} em dinheiro</td><td></td><td class="num">${fmtn(esperado)}&nbsp;${moeda()}</td></tr>`:''}
+        ${hasDisc?`<tr style="color:var(--warn)"><td>${svg(I.cash)} Esperado · após ${_cashResumo} em dinheiro</td><td></td><td class="num">${fmtn(esperado)}&nbsp;${moeda()}</td></tr>`:''}
       </tfoot>
     </table>
   </div>
@@ -2596,6 +2605,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v98',d:'25 ago',bul:['Já dá para lançar <b>receitas recebidas em dinheiro</b>. O seletor <b>banco / dinheiro</b> passou a aparecer também nas receitas (diz <b>«Entra em»</b>), tal como já existia nas despesas - e o mesmo botão está no popover de cada célula.','O <b>Cofre</b> passou a contar as duas direções: o <b>Esperado</b> era <i>contado menos o que gastaste</i> e agora é <i>contado menos gastos mais recebimentos</i>. Sem isto, um recebimento em dinheiro faria o Esperado ficar abaixo do que realmente lá está. O aviso passa a dizer o que recebeste e o que gastaste desde a última contagem.','Como já acontecia nas despesas, o dinheiro <b>não mexe no Valete</b> (esse é o saldo do banco) - entra no Cofre, que é contado à mão. A receita conta na mesma nos totais do ano.']},
   {v:'v97',d:'25 ago',bul:['O gráfico <b>mês a mês, ano a ano</b> deixou de ser mudo: passa o rato por cima de qualquer mês e vês o <b>valor de cada ano</b> nesse mês e, ao lado, se pagaste <b>mais ou menos que no mesmo mês do ano anterior</b> (a vermelho quando subiu, a verde quando desceu). Uma linha vertical marca o mês em que estás.','Os anos na legenda passaram a ser <b>botões</b>: clica num ano para <b>tirar ou pôr</b> a linha dele no gráfico - útil para comparar só dois anos sem o ruído dos outros. A escala ajusta-se aos anos visíveis e tem de ficar sempre pelo menos um.']},
   {v:'v96',d:'25 ago',bul:['No PC, os botões de <b>despesa</b> e <b>receita</b> (as setas) passaram da barra da grelha para <b>ao lado do campo Valor</b>, no cartão de lançamento rápido: escolhes o valor e dizes logo ali o que é, sem saltar com o rato para o outro lado. No telemóvel ficam onde estavam, porque aí o Valor precisa da largura toda.']},
   {v:'v95',d:'25 ago',bul:['Detalhe visual: todos os traços longos do texto foram trocados por hífen simples (-), mais discreto e uniforme em toda a app.']},
@@ -3434,7 +3444,7 @@ function quickAdd(cash){
   if(isFrozenMi(ano,mi)){toast('Mês congelado - só podes lançar do mês atual para a frente');return;}
   const c=cat(catId); let pagador=P()[0].id,split={...state.settings.splitDefault};
   const mv={id:nid('m'),data:dateFor(mi),tipo:gridTipo,categoriaId:catId,valor:valorComSinal(catId,gridTipo,v),pagador,split,nota:val('qNota')||''};
-  if(cash&&gridTipo==='despesa'){mv.cash=true;mv.ts=Date.now();}
+  if(cash){mv.cash=true;mv.ts=Date.now();} // dinheiro: nao mexe no Valete (sai/entra no Cofre)
   state.movimentos.push(mv); if(!isPastMonth(ano,mi)) aplicaValete(mv);
   qCashMode=false;
   save();render();toast((cash?'Dinheiro: ':'Adicionado: ')+fmt(Math.abs(v))+' · '+c.nome+(mv.nota?' · '+mv.nota:''));
