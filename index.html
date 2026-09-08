@@ -1852,6 +1852,8 @@ function vPoupancas(m){
   const cofre = contagemTotal(cont);
   const moedas = cont.filter(r=>+r.d<=2).reduce((a,r)=>a+(+r.d)*(parseFloat(r.q)||0),0);
   const nMoedas = cont.filter(r=>+r.d<=2).reduce((a,r)=>a+(parseInt(r.q)||0),0); // nº de moedas (taxa do banco > 99)
+  const notas = cont.filter(r=>+r.d>2).reduce((a,r)=>a+(+r.d)*(parseFloat(r.q)||0),0);   // notas = denominações acima de 2 €
+  const nNotas = cont.filter(r=>+r.d>2).reduce((a,r)=>a+(parseInt(r.q)||0),0);
   const totalContas = (p.contas||[]).reduce((a,c)=>a+(parseFloat(c.valor)||0),0);
   const total = totalContas + cofre;
   const liveYear = ano===+ultimoAnoPoup();
@@ -1902,6 +1904,7 @@ function vPoupancas(m){
           <td class="num">${fmtn((+r.d)*(parseFloat(r.q)||0))}</td></tr>`).join(''):`<tr><td colspan="3" style="text-align:center;color:var(--mut);padding:14px">Sem contagem em ${ano}.</td></tr>`}
       </tbody>
       <tfoot>
+        <tr><td>Notas (nº)</td><td class="num"><b>${nNotas}</b></td><td class="num">${fmtn(notas)}&nbsp;${moeda()}</td></tr>
         <tr${nMoedas>99?' style="color:var(--out)"':''} title="Depósitos no banco com mais de 99 moedas pagam taxa."><td>Moedas (nº)${nMoedas>99?` · &gt; 99, taxa do banco <span class="eico">${svg(I.warn)}</span>`:''}</td><td class="num"><b>${nMoedas}</b></td><td class="num">${fmtn(moedas)}&nbsp;${moeda()}</td></tr>
         <tr><td>Total Cofre · contado</td><td></td><td class="num">${fmtn(cofre)}&nbsp;${moeda()}</td></tr>
         ${hasDisc?`<tr style="color:var(--warn)"><td>${svg(I.cash)} Esperado · após ${_cashResumo} em dinheiro</td><td></td><td class="num">${fmtn(esperado)}&nbsp;${moeda()}</td></tr>`:''}
@@ -2605,6 +2608,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v99',d:'8 set',bul:['Na <b>Contagem do Cofre</b>, a par da linha das moedas passa a haver uma linha das <b>notas</b>, com o número de notas e o respetivo valor. Assim vês de relance quanto do cofre é papel e quanto é moeda (e as duas linhas somam sempre o total contado).']},
   {v:'v98',d:'25 ago',bul:['Já dá para lançar <b>receitas recebidas em dinheiro</b>. O seletor <b>banco / dinheiro</b> passou a aparecer também nas receitas (diz <b>«Entra em»</b>), tal como já existia nas despesas - e o mesmo botão está no popover de cada célula.','O <b>Cofre</b> passou a contar as duas direções: o <b>Esperado</b> era <i>contado menos o que gastaste</i> e agora é <i>contado menos gastos mais recebimentos</i>. Sem isto, um recebimento em dinheiro faria o Esperado ficar abaixo do que realmente lá está. O aviso passa a dizer o que recebeste e o que gastaste desde a última contagem.','Como já acontecia nas despesas, o dinheiro <b>não mexe no Valete</b> (esse é o saldo do banco) - entra no Cofre, que é contado à mão. A receita conta na mesma nos totais do ano.']},
   {v:'v97',d:'25 ago',bul:['O gráfico <b>mês a mês, ano a ano</b> deixou de ser mudo: passa o rato por cima de qualquer mês e vês o <b>valor de cada ano</b> nesse mês e, ao lado, se pagaste <b>mais ou menos que no mesmo mês do ano anterior</b> (a vermelho quando subiu, a verde quando desceu). Uma linha vertical marca o mês em que estás.','Os anos na legenda passaram a ser <b>botões</b>: clica num ano para <b>tirar ou pôr</b> a linha dele no gráfico - útil para comparar só dois anos sem o ruído dos outros. A escala ajusta-se aos anos visíveis e tem de ficar sempre pelo menos um.']},
   {v:'v96',d:'25 ago',bul:['No PC, os botões de <b>despesa</b> e <b>receita</b> (as setas) passaram da barra da grelha para <b>ao lado do campo Valor</b>, no cartão de lançamento rápido: escolhes o valor e dizes logo ali o que é, sem saltar com o rato para o outro lado. No telemóvel ficam onde estavam, porque aí o Valor precisa da largura toda.']},
