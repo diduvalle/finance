@@ -2611,6 +2611,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v101',d:'11 set',bul:['Novo botão <b>Religar</b> no painel do banco. O aviso dizia «expira em N dias - religa», mas não havia botão nenhum para o fazer: só «Desligar banco», que é outra coisa. O botão leva-te <b>direto ao teu banco</b> (sem repetir a escolha da lista) e, como o consentimento é renovado, mantém as definições e retoma na última importação. Fica <b>destacado</b> quando faltam 14 dias ou menos, e diz <b>«Religar (expirado)»</b> se já passou.']},
   {v:'v100',d:'11 set',bul:['<b>Religar o banco</b> deixou de apagar as tuas definições. O consentimento do open banking expira a cada ~90 dias e tem de ser reautorizado; até agora, ao religar, a app repunha tudo de fábrica - o <b>«Importar a partir de» voltava ao dia de hoje</b> e os movimentos dos dias em que o consentimento esteve expirado ficavam por importar, sem aviso. Agora, ao religar o <b>mesmo</b> banco, retoma no dia da última importação e mantém o interruptor da importação automática, a hora e as contas que tinhas escolhido. Ligar um banco <b>novo</b> continua a começar do zero.','<b>Alertas só sobre o presente.</b> Deixam de aparecer avisos de categorias que já não usas este ano (eram comparações entre anos passados) e picos de meses antigos - um pico de Janeiro visto em Setembro não dá para corrigir. Os picos mensais passam a ser só do <b>mês corrente e do anterior</b>; as comparações do <b>ano até agora</b> mantêm-se, que essas são atuais.','O <b>visto para arquivar</b> um alerta passou a ser fiável: a marca dependia da posição do alerta na lista, por isso quando surgia um alerta novo os já arquivados voltavam a aparecer.']},
   {v:'v99',d:'8 set',bul:['Na <b>Contagem do Cofre</b>, a par da linha das moedas passa a haver uma linha das <b>notas</b>, com o número de notas e o respetivo valor. Assim vês de relance quanto do cofre é papel e quanto é moeda (e as duas linhas somam sempre o total contado).']},
   {v:'v98',d:'25 ago',bul:['Já dá para lançar <b>receitas recebidas em dinheiro</b>. O seletor <b>banco / dinheiro</b> passou a aparecer também nas receitas (diz <b>«Entra em»</b>), tal como já existia nas despesas - e o mesmo botão está no popover de cada célula.','O <b>Cofre</b> passou a contar as duas direções: o <b>Esperado</b> era <i>contado menos o que gastaste</i> e agora é <i>contado menos gastos mais recebimentos</i>. Sem isto, um recebimento em dinheiro faria o Esperado ficar abaixo do que realmente lá está. O aviso passa a dizer o que recebeste e o que gastaste desde a última contagem.','Como já acontecia nas despesas, o dinheiro <b>não mexe no Valete</b> (esse é o saldo do banco) - entra no Cofre, que é contado à mão. A receita conta na mesma nos totais do ano.']},
@@ -2817,6 +2818,7 @@ function vDefs(m){
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn primary sm" id="bankImport">${svg(I.repeat)}Importar movimentos</button>
+          ${(()=>{const dl=bankDaysLeft();const urg=dl!=null&&dl<=14;return `<button class="btn sm${urg?' primary':''}" id="bankRelink" title="Renovar a autorização no banco (o consentimento expira a cada ~90 dias). Mantém as tuas definições e retoma na última importação.">${svg(I.wallet)}Religar${urg&&dl<0?' (expirado)':''}</button>`;})()}
           <button class="btn sm" id="bankDisc">Desligar banco</button>
         </div>`
       :`
@@ -3157,6 +3159,7 @@ document.addEventListener('click',e=>{
   if(t.id==='saveMoeda'){state.settings.moeda=val('moedaIn')||'€';save();render();toast('Guardado');return;}
   if(t.id==='saveCodigo'){state.settings.codigo=(val('codigoIn')||'').trim();sessionStorage.setItem('casa-unlock','1');save();render();toast('Código guardado');return;}
   if(t.id==='bankConnect'){bankConnect();return;}
+  if(t.id==='bankRelink'){ const a=state.bank&&state.bank.aspsp; if(a)bankStartAuth(a); else bankConnect(); return; }
   if(d.bankpick){closeBack();bankStartAuth(d.bankpick);return;}
   if(t.id==='bankImport'){if(state.bank){const s=val('bankSince');if(s)state.bank.since=s;save();}bankImport();return;}
   if(t.id==='bankDisc'){bankDisconnect();return;}
