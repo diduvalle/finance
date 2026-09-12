@@ -1012,7 +1012,11 @@ function isDescontoCat(catId){let c=cat(catId);if(!c)return false;if(c.desconto)
 /* valor com sinal: descontos de receita (SS/IRS) entram como negativos; o resto positivo */
 function valorComSinal(catId,tipo,v){return (tipo==='receita'&&isDescontoCat(catId))?-Math.abs(v):Math.abs(v);}
 /* conta de poupança afetada por um lançamento: Coverflex (cat ligada) ou Valete (saldo real) */
-function contaDeMov(mv){return isCoverflexCat(mv.categoriaId)?coverflexConta():valeteConta();}
+function contaDeMov(mv){
+  if(mv.pgConta){ const p=state.poupancas[ultimoAnoPoup()]; const alvo=String(mv.pgConta).trim().toLowerCase();
+    const c=p&&(p.contas||[]).find(x=>(x.nome||'').trim().toLowerCase()===alvo); if(c)return c; }
+  return isCoverflexCat(mv.categoriaId)?coverflexConta():valeteConta();
+}
 /* lançamentos novos na app abatem/somam na conta certa; guardam vAdj+conta p/ reverter ao apagar.
    Movimentos em dinheiro (mv.cash) NÃO mexem no Valete - saem do / entram no Cofre (contado à mão; ver "Esperado" nas Poupanças). */
 function aplicaValete(mv){if(mv.cash)return;const c=contaDeMov(mv);if(!c)return;const delta=mv.tipo==='receita'?mv.valor:(mv.tipo==='despesa'?-mv.valor:0);if(!delta)return;c.valor=round2((parseFloat(c.valor)||0)+delta);mv.vAdj=delta;mv.vAdjConta=(c.nome||'').trim().toLowerCase();}
@@ -1916,7 +1920,11 @@ function vPoupancas(m){
 
 function openContaLedger(y,i){
   const c=state.poupancas[y].contas[i]; if(!c)return;
-  const mov=(c.mov||[]).slice().sort((a,b)=>b.data.localeCompare(a.data));
+  const _alvo=(c.nome||'').trim().toLowerCase();
+  // compras pagas com esta conta: vêm dos movimentos (não são duplicadas aqui) para o histórico nunca dessincronizar
+  const _compras=state.movimentos.filter(m=>m.pgConta&&String(m.pgConta).trim().toLowerCase()===_alvo)
+    .map(m=>({data:m.data,valor:-Math.abs(m.valor),nota:catName(m.categoriaId)+((m.nota||'').trim()?' · '+m.nota:''),_mid:m.id}));
+  const mov=[...(c.mov||[]).map((mo,idx)=>Object.assign({},mo,{_idx:idx})),..._compras].sort((a,b)=>b.data.localeCompare(a.data));
   const totJuros=round2((c.mov||[]).filter(m=>m.j).reduce((a,m)=>a+(+m.valor||0),0)); // rendimento acumulado desta conta
   const mm=String(new Date().getMonth()+1).padStart(2,'0');
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.repeat)} ${esc(c.nome)} · reforços e mobilizações <button class="close" data-close="1">&times;</button></h2>
@@ -1938,6 +1946,11 @@ function openContaLedger(y,i){
         <button class="btn sm" id="lgJuros" style="border-color:var(--acc);color:var(--acc)" title="Juros creditados pelo banco - aumentam o saldo mas não contam como reforço teu">${svg(I.trend)} Juros</button>
       </div>
       <input id="lgNota" placeholder="nota (opcional)" style="margin-top:8px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+        <select id="lgCat" style="flex:1;min-width:150px">${catOptions('despesa')}</select>
+        <button class="btn sm" id="lgGastar" style="border-color:var(--out);color:var(--out)" title="Usaste o saldo nesta compra: baixa o saldo, lança a despesa na categoria escolhida e não mexe no Valete">${svg(I.cash)} Gastar</button>
+      </div>
+      <p class="dsub" style="margin:6px 0 0"><b>Gastar</b> = usaste o saldo numa compra (baixa o saldo e entra nas despesas do mês). <b>Mobilizar</b> = tiraste o dinheiro de volta para a conta.</p>
     </div>
     <div style="border-top:1px solid var(--line);padding-top:10px">
       <label>Ou definir o saldo exato ${(c.nome||'').trim().toLowerCase()==='valete'?'(ex.: igualar ao banco)':''}</label>
@@ -1945,7 +1958,7 @@ function openContaLedger(y,i){
     </div>
     <div>
       <label>Histórico</label>
-      <div class="plist" style="max-height:200px">${mov.length?mov.map((mo,j)=>`<div class="pe"><span style="font-weight:700;color:${mo.j?'var(--acc)':(mo.valor>=0?'var(--in)':'var(--out)')}">${mo.valor>=0?'+':''}${fmt(mo.valor)}</span>${mo.j?`<span class="pill" style="background:var(--card2);color:var(--acc);font-size:10.5px">juros</span>`:''}<span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}/${mo.data.slice(0,4)}${mo.nota?' · '+esc(mo.nota):''}</span><button class="x" data-poupmovdel="${y}|${i}|${(c.mov||[]).indexOf(mo)}">✕</button></div>`).join(''):'<div class="pempty">Sem movimentos registados.</div>'}</div>
+      <div class="plist" style="max-height:200px">${mov.length?mov.map((mo,j)=>`<div class="pe"><span style="font-weight:700;color:${mo.j?'var(--acc)':(mo.valor>=0?'var(--in)':'var(--out)')}">${mo.valor>=0?'+':''}${fmt(mo.valor)}</span>${mo.j?`<span class="pill" style="background:var(--card2);color:var(--acc);font-size:10.5px">juros</span>`:''}${mo._mid?`<span class="pill" style="background:var(--card2);color:var(--out);font-size:10.5px">compra</span>`:''}<span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}/${mo.data.slice(0,4)}${mo.nota?' · '+esc(mo.nota):''}</span>${mo._mid?`<button class="x" data-poupdelcompra="${y}|${i}|${mo._mid}" title="Apagar a compra - repõe o saldo e tira a despesa da grelha">✕</button>`:`<button class="x" data-poupmovdel="${y}|${i}|${mo._idx}">✕</button>`}</div>`).join(''):'<div class="pempty">Sem movimentos registados.</div>'}</div>
     </div>
     <input type="hidden" id="lgY" value="${y}"><input type="hidden" id="lgI" value="${i}">
   </div>
@@ -1979,6 +1992,28 @@ function poupJurosAdd(){
   c.mov=c.mov||[]; c.mov.push({data:val('lgData')||isoToday(),valor:jv,nota:(val('lgNota')||'juros'),j:1});
   c.valor=round2((+c.valor||0)+jv);
   save(); render(); openContaLedger(y,i); toast('Juros lançados: '+fmt(jv));
+}
+/* Gastar: usaste o saldo da conta/cartão numa compra. Baixa o saldo e lança a despesa na grelha, mas NÃO mexe
+   no Valete - esse dinheiro já saiu de lá quando carregaste o cartão. Ao contrário de Mobilizar, não volta. */
+function poupGastar(){
+  const y=val('lgY'),i=+val('lgI'); const c=state.poupancas[y].contas[i]; if(!c)return;
+  const v=parseFloat(val('lgVal')); if(isNaN(v)||v<=0){document.getElementById('lgVal').focus();return;}
+  const catId=val('lgCat'); if(!catId){toast('Escolhe a categoria da compra');return;}
+  const data=val('lgData')||isoToday();
+  if(isFrozenYm(data.slice(0,7))){toast('Mês congelado - desbloqueia na grelha para lançar no passado');return;}
+  const gv=round2(Math.abs(v));
+  const mv={id:nid('m'),data,tipo:'despesa',categoriaId:catId,valor:gv,pagador:P()[0].id,split:{...state.settings.splitDefault},nota:val('lgNota')||'',pgConta:c.nome};
+  state.movimentos.push(mv); aplicaValete(mv); // contaDeMov encaminha para ESTA conta (não o Valete)
+  save(); render(); openContaLedger(y,i);
+  toast('Gasto '+fmt(gv)+' · '+catName(catId)+' ('+c.nome+')');
+}
+/* apagar uma compra a partir do histórico da conta: repõe o saldo e tira a despesa da grelha */
+function poupDelCompra(y,i,id){
+  const mv=state.movimentos.find(x=>x.id===id); if(!mv)return;
+  if(isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado - não pode ser apagado');return;}
+  confirmModal(catName(mv.categoriaId)+' · '+fmt(Math.abs(mv.valor))+' · '+mv.data+' - apaga a despesa da grelha e repõe o saldo da conta.',()=>{
+    reverteValete(mv); state.movimentos=state.movimentos.filter(x=>x.id!==id); save(); render(); openContaLedger(y,+i);
+  },{titulo:'Apagar esta compra?',okLabel:'Apagar'});
 }
 function poupSetSaldo(){
   const y=val('lgY'),i=+val('lgI'); const c=state.poupancas[y].contas[i];
@@ -2611,6 +2646,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v102',d:'12 set',bul:['Novo botão <b>Gastar</b> nas contas e cartões com saldo (ex.: o cartão Sonae). Escolhes a categoria, e a app <b>baixa o saldo do cartão</b>, <b>lança a despesa na grelha</b> (conta nos totais do ano, nos orçamentos e no Analytics) e <b>não mexe no Valete</b> - esse dinheiro já tinha saído de lá quando carregaste o cartão.','A diferença entre os dois botões: <b>Mobilizar</b> = tiraste o dinheiro do cartão e ele <b>volta</b> para a conta; <b>Gastar</b> = usaste o saldo numa compra e ele <b>não volta</b>. Até agora só havia Mobilizar, por isso registar uma compra fazia o Valete crescer indevidamente.','As compras aparecem no <b>histórico do cartão</b> com o selo <b>compra</b>. Apagar uma compra ali repõe o saldo e tira a despesa da grelha, tudo de uma vez - não é preciso corrigir nos dois sítios.']},
   {v:'v101',d:'11 set',bul:['Novo botão <b>Religar</b> no painel do banco. O aviso dizia «expira em N dias - religa», mas não havia botão nenhum para o fazer: só «Desligar banco», que é outra coisa. O botão leva-te <b>direto ao teu banco</b> (sem repetir a escolha da lista) e, como o consentimento é renovado, mantém as definições e retoma na última importação. Fica <b>destacado</b> quando faltam 14 dias ou menos, e diz <b>«Religar (expirado)»</b> se já passou.']},
   {v:'v100',d:'11 set',bul:['<b>Religar o banco</b> deixou de apagar as tuas definições. O consentimento do open banking expira a cada ~90 dias e tem de ser reautorizado; até agora, ao religar, a app repunha tudo de fábrica - o <b>«Importar a partir de» voltava ao dia de hoje</b> e os movimentos dos dias em que o consentimento esteve expirado ficavam por importar, sem aviso. Agora, ao religar o <b>mesmo</b> banco, retoma no dia da última importação e mantém o interruptor da importação automática, a hora e as contas que tinhas escolhido. Ligar um banco <b>novo</b> continua a começar do zero.','<b>Alertas só sobre o presente.</b> Deixam de aparecer avisos de categorias que já não usas este ano (eram comparações entre anos passados) e picos de meses antigos - um pico de Janeiro visto em Setembro não dá para corrigir. Os picos mensais passam a ser só do <b>mês corrente e do anterior</b>; as comparações do <b>ano até agora</b> mantêm-se, que essas são atuais.','O <b>visto para arquivar</b> um alerta passou a ser fiável: a marca dependia da posição do alerta na lista, por isso quando surgia um alerta novo os já arquivados voltavam a aparecer.']},
   {v:'v99',d:'8 set',bul:['Na <b>Contagem do Cofre</b>, a par da linha das moedas passa a haver uma linha das <b>notas</b>, com o número de notas e o respetivo valor. Assim vês de relance quanto do cofre é papel e quanto é moeda (e as duas linhas somam sempre o total contado).']},
@@ -3127,6 +3163,8 @@ document.addEventListener('click',e=>{
   if(t.id==='lgReforco'){ poupMovAdd(1); return; }
   if(t.id==='lgMob'){ poupMovAdd(-1); return; }
   if(t.id==='lgJuros'){ poupJurosAdd(); return; }
+  if(t.id==='lgGastar'){ poupGastar(); return; }
+  if(d.poupdelcompra){ const[y,i,id]=d.poupdelcompra.split('|'); poupDelCompra(y,i,id); return; }
   if(t.id==='lgAuto'){ poupAutoReforco(); return; }
   if(t.id==='lgSetBtn'){ poupSetSaldo(); return; }
   if(d.poupmovdel){ const[y,i,j]=d.poupmovdel.split('|'); const yp=state.poupancas[y]; const c=yp.contas[+i]; const mo=c.mov[+j]; if(mo){ confirmModal('Apagar este movimento de '+fmt(mo.valor)+'? O saldo da conta é reajustado.',()=>{ c.valor=round2((+c.valor||0)-mo.valor); c.mov.splice(+j,1); if(!c.real){ const ri=yp.contas.findIndex(x=>x.real); if(ri>=0&&ri!==+i){ yp.contas[ri].valor=round2((+yp.contas[ri].valor||0)+mo.valor); } } save(); render(); openContaLedger(y,+i); },{titulo:'Apagar movimento'});} return; }
