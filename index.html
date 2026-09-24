@@ -2706,6 +2706,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v104',d:'24 set',bul:['Na <b>Caixa de entrada</b>, uma transferência do banco para uma conta poupança já se trata ali mesmo: no seletor da categoria há agora um grupo <b>Poupança</b> com <b>«Reforço → conta»</b> (nos débitos) e <b>«Mobilização ← conta»</b> (nos créditos). Ao Adicionar, a poupança sobe e o Valete desce (ou o contrário), <b>sem entrar nas despesas nem nas receitas</b> - o mesmo que o botão Reforço/Mobilizar das Poupanças. Funciona também no «Adicionar todas».','Já não é preciso descartar a transferência e ir fazê-la à mão, e o banco <b>não volta a oferecer</b> a mesma transação, mesmo que a lista de movimentos vistos se perca numa sincronização.']},
   {v:'v103',d:'24 set',bul:['Nas <b>receitas</b> da grelha há uma coluna nova, <b>Total Host</b>, logo antes do QRT: soma tudo o que vem do empregador (salário, complementos, ajudas, subsídios, bónus, Coverflex) <b>já com o IRS e a SS</b>, ou seja o líquido que te entra. O <b>melhor mês</b> fica destacado. É uma coluna calculada: não se edita e não entra duas vezes no Total.','No <b>Analytics</b>, o cartão <b>Receitas · Host e independentes</b> mostra o ano todo: Host líquido e bruto, quanto vieram as independentes (QRT, Aulas, Outros, cada uma com o seu valor), o <b>peso da Host</b> no que recebeste e o <b>melhor mês</b> com a média ao lado.','A separação usa a classificação que as tuas receitas já tinham (as cores verde / roxo / laranja das colunas), por isso não é preciso reorganizar nada.']},
   {v:'v102',d:'12 set',bul:['Novo botão <b>Gastar</b> nas contas e cartões com saldo (ex.: o cartão Sonae). Escolhes a categoria, e a app <b>baixa o saldo do cartão</b>, <b>lança a despesa na grelha</b> (conta nos totais do ano, nos orçamentos e no Analytics) e <b>não mexe no Valete</b> - esse dinheiro já tinha saído de lá quando carregaste o cartão.','A diferença entre os dois botões: <b>Mobilizar</b> = tiraste o dinheiro do cartão e ele <b>volta</b> para a conta; <b>Gastar</b> = usaste o saldo numa compra e ele <b>não volta</b>. Até agora só havia Mobilizar, por isso registar uma compra fazia o Valete crescer indevidamente.','As compras aparecem no <b>histórico do cartão</b> com o selo <b>compra</b>. Apagar uma compra ali repõe o saldo e tira a despesa da grelha, tudo de uma vez - não é preciso corrigir nos dois sítios.']},
   {v:'v101',d:'11 set',bul:['Novo botão <b>Religar</b> no painel do banco. O aviso dizia «expira em N dias - religa», mas não havia botão nenhum para o fazer: só «Desligar banco», que é outra coisa. O botão leva-te <b>direto ao teu banco</b> (sem repetir a escolha da lista) e, como o consentimento é renovado, mantém as definições e retoma na última importação. Fica <b>destacado</b> quando faltam 14 dias ou menos, e diz <b>«Religar (expirado)»</b> se já passou.']},
@@ -4033,7 +4034,7 @@ function openInbox(){
         <button class="btn sm danger" data-ibdel="${it.id}">Descartar</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
-        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria (${tipo==='receita'?'receita':'despesa'})</label><select id="ibcat_${it.id}">${it.catId?'':'<option value="" selected>- escolher -</option>'}${catOptions(tipo,it.catId)}</select></div>
+        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria (${tipo==='receita'?'receita':'despesa'})</label><select id="ibcat_${it.id}">${it.catId?'':'<option value="" selected>- escolher -</option>'}${catOptions(tipo,it.catId)}${_poupOptions(it)}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Mês</label><select id="ibmes_${it.id}">${MESES.map((x,k)=>`<option value="${k}" ${k===ym?'selected':''}>${x.slice(0,3)}</option>`).join('')}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Ano</label><input id="ibano_${it.id}" type="number" step="1" value="${it.year||ano}" style="width:64px"></div>
         ${tipo==='despesa'?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut);height:38px" title="Pago em dinheiro (sai do Cofre, não do Valete)"><input type="checkbox" id="ibcash_${it.id}"><span class="eico">${svg(I.cash)}</span></label>`:''}
@@ -4055,6 +4056,7 @@ function inboxAdd(id){
   if(!catId){toast('Escolhe a categoria');return;}
   const mi=+((document.getElementById('ibmes_'+id)||{}).value)||0;
   const year=+((document.getElementById('ibano_'+id)||{}).value)||ano;
+  if(String(catId).indexOf('poup:')===0){ const rp=_commitPoupInbox(it,catId.slice(5),mi,year); if(rp.status!=='ok'){toast('Conta poupança não encontrada');return;} save(); render(); openInbox(); toast((rp.rf?'Reforço ':'Mobilização ')+fmt(Math.abs(it.total))+' · '+rp.conta+' (fora das despesas)'); return; }
   const cash=(it.tipo!=='receita') && !!(document.getElementById('ibcash_'+id)||{}).checked;
   const r=_commitInbox(it,catId,mi,year,cash,false);
   if(r.status==='frozen'){toast('Mês congelado - desbloqueia na grelha');return;}
@@ -4105,6 +4107,29 @@ function _commitInbox(it,catId,mi,year,cash,forceDupe){
   return {status:'ok',dia,futuro,tipo};
 }
 /* ação em massa: adiciona todos os itens que já têm categoria (salta os sem categoria e os repetidos) */
+/* Caixa de entrada -> POUPANÇA: uma transferência do banco para uma conta poupança não é despesa (nem a volta é
+   receita). Grava-se como Reforço/Mobilização pelo mesmo poupApplyMov do botão das Poupanças (a poupança sobe e o
+   Valete desce, ou o contrário) e NÃO entra na grelha. O txId fica no movimento da poupança para o banco não voltar
+   a oferecer a transação, mesmo que o bankSeen se perca num sync. */
+function _poupOptions(it){
+  if(it.source!=='bank'&&it.source!=='csv')return '';
+  const p=state.poupancas[ultimoAnoPoup()]; const cs=((p&&p.contas)||[]).filter(c=>!c.real&&(c.nome||'').trim());
+  if(!cs.length)return '';
+  const rf=it.tipo!=='receita';
+  return `<optgroup label="${rf?'Poupança - reforço (não é despesa)':'Poupança - mobilização (não é receita)'}">${cs.map(c=>`<option value="poup:${esc(c.nome)}">${rf?'Reforço → ':'Mobilização ← '}${esc(c.nome)}</option>`).join('')}</optgroup>`;
+}
+function _commitPoupInbox(it,nome,mi,year){
+  const y=ultimoAnoPoup(), yp=state.poupancas[y]; if(!yp)return {status:'semconta'};
+  const i=(yp.contas||[]).findIndex(c=>(c.nome||'')===nome); if(i<0)return {status:'semconta'};
+  const dim=new Date(year,mi+1,0).getDate(), dia=Math.min(Math.max(1,+it.dia||1),dim);
+  const data=year+'-'+String(mi+1).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
+  const rf=it.tipo!=='receita', delta=round2((rf?1:-1)*Math.abs(+it.total||0)); // débito no banco = reforço; crédito = mobilização
+  poupApplyMov(y,i,delta,data,(rf?'reforço':'mobilização')+' (banco)'+(it.desc?' · '+it.desc:''));
+  const mv=yp.contas[i].mov; const mo=mv[mv.length-1]; if(mo&&it.txId)mo.txId=it.txId;
+  state.inbox=state.inbox.filter(x=>x.id!==it.id);
+  return {status:'ok',conta:yp.contas[i].nome,rf};
+}
+function _txEmPoupanca(txId){ if(!txId)return false; return Object.values(state.poupancas||{}).some(p=>(p.contas||[]).some(c=>(c.mov||[]).some(m=>m.txId===txId))); }
 function inboxAddAll(){
   const items=(state.inbox||[]).slice();
   if(!items.length){toast('Caixa de entrada vazia');return;}
@@ -4114,6 +4139,7 @@ function inboxAddAll(){
     if(!catId){nocat++;return;}
     const mi=+((document.getElementById('ibmes_'+it.id)||{}).value)||0;
     const year=+((document.getElementById('ibano_'+it.id)||{}).value)||ano;
+    if(String(catId).indexOf('poup:')===0){ const rp=_commitPoupInbox(it,catId.slice(5),mi,year); if(rp.status==='ok')ok++; return; }
     const cash=(it.tipo!=='receita') && !!(document.getElementById('ibcash_'+it.id)||{}).checked;
     const r=_commitInbox(it,catId,mi,year,cash,false);
     if(r.status==='ok')ok++; else if(r.status==='dupe')dupe++; else if(r.status==='frozen')frozen++;
@@ -4674,6 +4700,8 @@ async function bankImport(silent){
           const it=bankTxToInbox(t);
           // já foi lançada como movimento (noutro dispositivo, ou antes de um sync ter reposto o bankSeen) → não reoferecer
           if(it.txId&&state.movimentos.some(m=>m.txId===it.txId)){mark(id);mark(alias);dup++;continue;}
+          // já foi lançada como reforço/mobilização de poupança a partir da Caixa de entrada → não reoferecer
+          if(it.txId&&_txEmPoupanca(it.txId)){mark(id);mark(alias);dup++;continue;}
           // já está na Caixa de entrada (estado antigo restaurado por sync) → não duplicar o item
           if((state.inbox||[]).some(x=>x.source==='bank'&&x.txId===it.txId)){mark(id);mark(alias);dup++;continue;}
           // é a versão liquidada de um movimento bank ainda AGENDADO com o mesmo desc+valor → liquida-o em vez de criar duplicado
