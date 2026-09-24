@@ -224,6 +224,10 @@ label{display:block;font-size:12px;color:var(--mut);margin-bottom:5px;font-weigh
 .orc-bar i{display:block;height:100%;background:var(--acc);border-radius:4px;min-width:2px}
 .orc-row.warn .orc-bar i{background:var(--warn)} .orc-row.over .orc-bar i{background:var(--out)}
 .consinp{width:84px;max-width:84px;text-align:right;padding:5px 7px;font-variant-numeric:tabular-nums}
+.grid thead th.hosttot{background:color-mix(in srgb,#34d399 14%,var(--card2));color:var(--txt);white-space:nowrap}
+.grid td.hosttot{background:color-mix(in srgb,#34d399 8%,transparent);font-weight:800}
+.grid .hosttot{border-right:2px solid color-mix(in srgb,#34d399 45%,var(--line))}
+.grid td.hosttot.best{color:var(--in);box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--in) 55%,transparent)}
 .anayr{display:inline-flex;align-items:center;gap:5px;margin-right:6px;background:none;border:0;color:var(--mut);font-weight:800;font-size:12px;cursor:pointer;padding:3px 7px;border-radius:8px;transition:background .15s,color .15s,opacity .15s}
 .anayr:hover{background:var(--card2);color:var(--txt)}
 .anayr span{width:12px;height:3px;border-radius:2px;display:inline-block;flex:none}
@@ -1355,6 +1359,13 @@ function vGrelha(m){
   const colTotV=col=>{let s=0;for(let i=0;i<12;i++)s+=colVal(col,i);return s;};
   const rowTot=i=>tops.reduce((a,c)=>a+cellSum(c.id,i),0);
   const grand=tops.reduce((a,c)=>{let s=0;for(let i=0;i<12;i++)s+=cellSum(c.id,i);return a+s;},0);
+  // RECEITAS: coluna calculada "Total Host" antes da 1.ª fonte independente (QRT). Soma o bloco do empregador já com
+  // IRS/SS (= o líquido que entra). Fica fora de cols, por isso o Total da linha e o geral não a contam duas vezes.
+  const _hk=gridTipo==='receita'?(()=>{const k=cols.findIndex(col=>col.top&&recFonte(col.c)==='indep');return k>=0?k:(tops.some(c=>recFonte(c)!=='indep')?cols.length:-1);})():-1;
+  const _hostVals=_hk>=0?MESES.map((_,i)=>round2(tops.filter(c=>recFonte(c)!=='indep').reduce((a,c)=>a+cellSum(c.id,i),0))):[];
+  const _hostMax=_hostVals.length?Math.max(..._hostVals):0;
+  const _hostIns=(arr,cell)=>{if(_hk<0)return arr.join('');const a=arr.slice();a.splice(_hk,0,cell);return a.join('');};
+  const _hostTd=i=>{const v=_hostVals[i]||0,best=v>0&&v===_hostMax;return `<td class="hosttot${best?' best':''}"${best?' title="Mês em que recebeste mais da Host"':''}>${v?fmtn(v):'·'}</td>`;};
   /* vista Lista (um cartão por mês, colapsável) - default em todo o lado; reusa o popover via data-cell */
   const view=gridView||'lista';
   if(!gmOpen)gmOpen=new Set([miv]);
@@ -1439,17 +1450,17 @@ function vGrelha(m){
   ${view==='lista'?gmHtml():`<div class="gridwrap">
     <table class="grid">
       <thead><tr><th data-droptop="1" title="Arrasta uma categoria para aqui para a tirar do grupo (passar a coluna principal)" style="text-align:left;left:0;position:sticky;z-index:3">Mês</th>
-        ${cols.map(col=>{const c=col.c;const canTog=col.top&&col.kids;const tog=canTog?`<span class="exptog">${col.exp?'▾':'▸'}</span>`:(col.top?'':'<span style="opacity:.4">└</span>');return `<th title="${canTog?(col.exp?'Fechar':'Abrir')+' - '+c.nome:c.nome} (arrasta p/ agrupar · 2 cliques p/ renomear)" draggable="true" data-cat="${c.id}" class="${col.top?'':'subcol'}${canTog?' thtog':''}" ${canTog?`data-toggle="${c.id}"`:''}><span style="display:inline-flex;align-items:center;gap:6px">${tog}${catIconHtml(c,17)}${c.nome}<button class="thedit" data-rencat="${c.id}" title="Renomear">${svg(I.edit)}</button></span></th>`;}).join('')}
+        ${_hostIns(cols.map(col=>{const c=col.c;const canTog=col.top&&col.kids;const tog=canTog?`<span class="exptog">${col.exp?'▾':'▸'}</span>`:(col.top?'':'<span style="opacity:.4">└</span>');return `<th title="${canTog?(col.exp?'Fechar':'Abrir')+' - '+c.nome:c.nome} (arrasta p/ agrupar · 2 cliques p/ renomear)" draggable="true" data-cat="${c.id}" class="${col.top?'':'subcol'}${canTog?' thtog':''}" ${canTog?`data-toggle="${c.id}"`:''}><span style="display:inline-flex;align-items:center;gap:6px">${tog}${catIconHtml(c,17)}${c.nome}<button class="thedit" data-rencat="${c.id}" title="Renomear">${svg(I.edit)}</button></span></th>`;}),`<th class="hosttot" title="Soma das colunas da Host (empregador), já com IRS e SS - o líquido que entra">Total Host</th>`)}
         <th class="addcol-th" data-newcat="${gridTipo}" title="Adicionar categoria">＋</th>
         <th class="tot">Total</th></tr></thead>
       <tbody>
         ${MESES.map((nm,i)=>`<tr class="${i===mi?'now':''}"><th>${MC[i]}</th>
-          ${cols.map(col=>{const v=colVal(col,i);let bc='';if(gridTipo==='despesa'&&col.top&&v>0){const lim=+state.orcamentos[col.c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}const pend=v&&cellHasPend(col.c.id,i,col.top);if(pend)bc+=' pend';const drag=v&&!isFrozenMi(ano,i);const ttl=drag?(pend?'Inclui débito agendado · arrasta para mover de mês/categoria':'Arrasta para mover para outro mês/categoria'):(pend?'Inclui débito agendado (ainda não cobrado)':'');return `<td class="cell ${v?'':'z'} ${col.top?'':'subcell'}${bc}" data-cell="${col.c.id}|${i}"${drag?' draggable="true"':''}${ttl?` title="${ttl}"`:''}>${v?fmtn(v):'·'}${pend?` <span class="eico">${svg(I.clock)}</span>`:''}</td>`;}).join('')}
+          ${_hostIns(cols.map(col=>{const v=colVal(col,i);let bc='';if(gridTipo==='despesa'&&col.top&&v>0){const lim=+state.orcamentos[col.c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}const pend=v&&cellHasPend(col.c.id,i,col.top);if(pend)bc+=' pend';const drag=v&&!isFrozenMi(ano,i);const ttl=drag?(pend?'Inclui débito agendado · arrasta para mover de mês/categoria':'Arrasta para mover para outro mês/categoria'):(pend?'Inclui débito agendado (ainda não cobrado)':'');return `<td class="cell ${v?'':'z'} ${col.top?'':'subcell'}${bc}" data-cell="${col.c.id}|${i}"${drag?' draggable="true"':''}${ttl?` title="${ttl}"`:''}>${v?fmtn(v):'·'}${pend?` <span class="eico">${svg(I.clock)}</span>`:''}</td>`;}),_hostTd(i))}
           <td></td>
           <td class="tot">${fmtn(rowTot(i))}</td></tr>`).join('')}
       </tbody>
       <tfoot><tr><th>Total</th>
-        ${cols.map(col=>`<td class="${col.top?'':'subcol'}">${fmtn(colTotV(col))}</td>`).join('')}
+        ${_hostIns(cols.map(col=>`<td class="${col.top?'':'subcol'}">${fmtn(colTotV(col))}</td>`),`<td class="hosttot">${fmtn(round2(_hostVals.reduce((a,v)=>a+v,0)))}</td>`)}
         <td></td><td class="tot">${fmtn(grand)}</td></tr></tfoot>
     </table>
   </div>`}
@@ -2551,6 +2562,54 @@ function gerarResumo(ym,force){
   const prompt='És o assistente da app de finanças pessoais CASA. Escreve um resumo simpático e curto (2 a 3 frases, em português de Portugal) do mês, com base APENAS nestes números - não inventes outros. Destaca o mais relevante e, se houver, o alerta principal. Tom encorajador mas honesto, sem repetir todos os números em lista.\n\n'+_resumoFactsTxt(f);
   askAI(prompt).then(a=>{ try{localStorage.setItem(_resumoKey(ym),a.trim());}catch(e){} _resumoBusy=''; if(tab==='analytics')render(); }).catch(e=>{ _resumoBusy=''; if(force&&tab==='analytics')render(); });
 }
+/* ===== Receitas por fonte: HOST (empregador) vs independentes =====
+   Usa a classificação que as receitas já têm (migração _recOrg2026): c.desconto = IRS/SS retidos pelo empregador,
+   c.independente = QRT/Aulas/Outros; o resto é o empregador. Os filhos herdam a classe do pai. */
+function recFonte(c){
+  if(!c)return 'host';
+  const p=c.parent?cat(c.parent):null;
+  if(c.desconto||(p&&p.desconto))return 'desc';
+  if(c.independente||(p&&p.independente))return 'indep';
+  return 'host';
+}
+function receitasFonteCard(){
+  const y=ano, recs=state.movimentos.filter(m=>m.tipo==='receita'&&+m.data.slice(0,4)===y);
+  if(!recs.length)return '';
+  const host=Array(12).fill(0), desc=Array(12).fill(0), indep=Array(12).fill(0), porIndep={};
+  recs.forEach(m=>{
+    const mi=+m.data.slice(5,7)-1, c=cat(m.categoriaId), f=recFonte(c), v=+m.valor||0;
+    if(f==='host')host[mi]+=v; else if(f==='desc')desc[mi]+=v;
+    else { indep[mi]+=v; const pc=c&&c.parent?cat(c.parent):null; const k=(pc&&pc.independente)?pc.nome:(c?c.nome:'Outros'); porIndep[k]=(porIndep[k]||0)+v; }
+  });
+  const liq=host.map((v,i)=>round2(v+desc[i]));   // o que a Host te pôs mesmo na conta (os descontos são negativos)
+  const tot=a=>round2(a.reduce((s,v)=>s+v,0));
+  const hB=tot(host), hL=tot(liq), iT=tot(indep), all=round2(hL+iT);
+  const meses=liq.map((v,i)=>({i,v})).filter(x=>host[x.i]>0);
+  const best=meses.length?meses.reduce((a,b)=>b.v>a.v?b:a):null;
+  const media=meses.length?round2(hL/meses.length):0;
+  const peso=all>0?Math.round(hL/all*100):0;
+  const indepTxt=Object.entries(porIndep).filter(([,v])=>Math.abs(v)>0.005).sort((a,b)=>b[1]-a[1]).map(([k,v])=>esc(k)+' '+fmt(round2(v))).join(' · ');
+  const dot=c=>`<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${c};margin-right:6px;vertical-align:1px"></span>`;
+  const rows=MC.map((mc,i)=>{ const temH=host[i]>0, temI=Math.abs(indep[i])>0.005; if(!temH&&!temI)return '';
+    const isBest=best&&best.i===i;
+    return `<tr${isBest?' style="background:color-mix(in srgb,var(--in) 9%,transparent)"':''}><td>${MESES[i]}${isBest?` <span class="pill" style="background:var(--card2);color:var(--in);font-size:10.5px"><span class="eico">${svg(I.star)}</span> melhor</span>`:''}</td><td class="num"><b>${temH?fmtn(liq[i]):'·'}</b></td><td class="num" style="color:var(--mut)">${temH?fmtn(round2(host[i])):'·'}</td><td class="num">${temI?fmtn(round2(indep[i])):'·'}</td><td class="num">${fmtn(round2(liq[i]+indep[i]))}</td></tr>`;
+  }).join('');
+  return `<div class="card" style="margin-bottom:14px">
+    <h3 class="dh" style="margin:0 0 4px">${svg(I.report)} Receitas ${y} · Host e independentes</h3>
+    <p class="dsub" style="margin:0 0 10px">A <b>Host</b> junta o que vem do empregador (salário, complementos, ajudas, subsídios, bónus, Coverflex), já descontados o IRS e a SS. <b>Independentes</b> são as outras três fontes.</p>
+    <div class="kstrip">
+      <div class="kbox"><div class="l">${dot('#34d399')}Host · líquido</div><div class="v">${fmt0(hL)}</div><div class="l">bruto ${fmt0(hB)}</div></div>
+      <div class="kbox"><div class="l">${dot('#f59e0b')}Independentes</div><div class="v">${fmt0(iT)}</div><div class="l">${indepTxt||'-'}</div></div>
+      <div class="kbox"><div class="l">Peso da Host</div><div class="v">${peso}%</div><div class="l">do total recebido</div></div>
+      ${best?`<div class="kbox"><div class="l">Melhor mês da Host</div><div class="v">${MESES[best.i]}</div><div class="l">${fmt(best.v)} · média ${fmt(media)}</div></div>`:''}
+    </div>
+    <div class="gridwrap" style="margin-top:12px"><table class="sumtable">
+      <thead><tr><th>Mês</th><th class="num">Host líquido</th><th class="num">Host bruto</th><th class="num">Independentes</th><th class="num">Total</th></tr></thead>
+      <tbody>${rows}</tbody>
+      <tfoot><tr><td>Total ${y}</td><td class="num"><b>${fmtn(hL)}</b></td><td class="num">${fmtn(hB)}</td><td class="num">${fmtn(iT)}</td><td class="num">${fmtn(all)}</td></tr></tfoot>
+    </table></div>
+  </div>`;
+}
 function resumoMesCard(){
   const ym=_resumoTargetYm(); if(!ym) return '';
   const f=_resumoMes(ym); if(f.desp===0&&f.rec===0) return '';
@@ -2608,6 +2667,7 @@ function vAnalytics(m){
   const hits=MC.map((mc,i)=>`<g class="anahit" data-anapt="${i}" data-anax="${(xx(i)/W).toFixed(4)}"><line class="anaguide" x1="${xx(i).toFixed(1)}" y1="${padT}" x2="${xx(i).toFixed(1)}" y2="${H-padB}" stroke="var(--acc)" stroke-width="1"/><rect x="${Math.max(0,xx(i)-_cw/2).toFixed(1)}" y="0" width="${_cw.toFixed(1)}" height="${H}" fill="transparent"/></g>`).join('');
   m.innerHTML=`
   ${resumoMesCard()}
+  ${receitasFonteCard()}
   ${anaUtilitiesPanel()}
   ${consumosCard()}
   ${glob.length?`<div class="card" style="margin-bottom:14px"><h3 class="dh">${svg(I.bell)} Alertas - todas as categorias</h3><p class="dsub" style="margin-top:-6px">Despesas que dispararam face a anos anteriores. Toca para analisar.</p>${glob.map(a=>`<div class="hint" data-anasel="${a.catId}" style="border-left:3px solid ${a.lvl==='high'?'var(--out)':'var(--warn)'};margin-bottom:8px;cursor:pointer"><b>${esc(a.cat)}</b> · ${a.txt}</div>`).join('')}</div>`:`<div class="hint" style="margin-bottom:14px;border-left:3px solid var(--in)">Sem alertas gerais - os consumos estão dentro do padrão dos anos anteriores ✓</div>`}
@@ -2646,6 +2706,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v103',d:'24 set',bul:['Nas <b>receitas</b> da grelha há uma coluna nova, <b>Total Host</b>, logo antes do QRT: soma tudo o que vem do empregador (salário, complementos, ajudas, subsídios, bónus, Coverflex) <b>já com o IRS e a SS</b>, ou seja o líquido que te entra. O <b>melhor mês</b> fica destacado. É uma coluna calculada: não se edita e não entra duas vezes no Total.','No <b>Analytics</b>, o cartão <b>Receitas · Host e independentes</b> mostra o ano todo: Host líquido e bruto, quanto vieram as independentes (QRT, Aulas, Outros, cada uma com o seu valor), o <b>peso da Host</b> no que recebeste e o <b>melhor mês</b> com a média ao lado.','A separação usa a classificação que as tuas receitas já tinham (as cores verde / roxo / laranja das colunas), por isso não é preciso reorganizar nada.']},
   {v:'v102',d:'12 set',bul:['Novo botão <b>Gastar</b> nas contas e cartões com saldo (ex.: o cartão Sonae). Escolhes a categoria, e a app <b>baixa o saldo do cartão</b>, <b>lança a despesa na grelha</b> (conta nos totais do ano, nos orçamentos e no Analytics) e <b>não mexe no Valete</b> - esse dinheiro já tinha saído de lá quando carregaste o cartão.','A diferença entre os dois botões: <b>Mobilizar</b> = tiraste o dinheiro do cartão e ele <b>volta</b> para a conta; <b>Gastar</b> = usaste o saldo numa compra e ele <b>não volta</b>. Até agora só havia Mobilizar, por isso registar uma compra fazia o Valete crescer indevidamente.','As compras aparecem no <b>histórico do cartão</b> com o selo <b>compra</b>. Apagar uma compra ali repõe o saldo e tira a despesa da grelha, tudo de uma vez - não é preciso corrigir nos dois sítios.']},
   {v:'v101',d:'11 set',bul:['Novo botão <b>Religar</b> no painel do banco. O aviso dizia «expira em N dias - religa», mas não havia botão nenhum para o fazer: só «Desligar banco», que é outra coisa. O botão leva-te <b>direto ao teu banco</b> (sem repetir a escolha da lista) e, como o consentimento é renovado, mantém as definições e retoma na última importação. Fica <b>destacado</b> quando faltam 14 dias ou menos, e diz <b>«Religar (expirado)»</b> se já passou.']},
   {v:'v100',d:'11 set',bul:['<b>Religar o banco</b> deixou de apagar as tuas definições. O consentimento do open banking expira a cada ~90 dias e tem de ser reautorizado; até agora, ao religar, a app repunha tudo de fábrica - o <b>«Importar a partir de» voltava ao dia de hoje</b> e os movimentos dos dias em que o consentimento esteve expirado ficavam por importar, sem aviso. Agora, ao religar o <b>mesmo</b> banco, retoma no dia da última importação e mantém o interruptor da importação automática, a hora e as contas que tinhas escolhido. Ligar um banco <b>novo</b> continua a começar do zero.','<b>Alertas só sobre o presente.</b> Deixam de aparecer avisos de categorias que já não usas este ano (eram comparações entre anos passados) e picos de meses antigos - um pico de Janeiro visto em Setembro não dá para corrigir. Os picos mensais passam a ser só do <b>mês corrente e do anterior</b>; as comparações do <b>ano até agora</b> mantêm-se, que essas são atuais.','O <b>visto para arquivar</b> um alerta passou a ser fiável: a marca dependia da posição do alerta na lista, por isso quando surgia um alerta novo os já arquivados voltavam a aparecer.']},
