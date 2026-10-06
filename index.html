@@ -1446,6 +1446,7 @@ function vGrelha(m){
       <div style="font-size:18px;color:var(--mut)">=</div>
       <div><span style="color:var(--mut);font-size:12px">Líquido ${ano}</span><div style="font-weight:800;color:var(--in)">${fmt(liq)}</div></div>
     </div>`;})():''}
+  ${gridTipo==='receita'?_recDupCard():''}
 
   ${view==='lista'?gmHtml():`<div class="gridwrap">
     <table class="grid">
@@ -2706,6 +2707,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v106',d:'6 out',bul:['Nas <b>receitas</b>, a app deteta quando o mesmo dinheiro está <b>contado duas vezes</b>: um líquido lançado à mão ou do banco (ex.: o subsídio que entrou por transferência) e as linhas do recibo que dão exatamente esse líquido. Aparece um aviso por cima da grelha com o botão <b>Corrigir</b>, que mostra antes o que vai mudar.','Ao corrigir, sai o líquido duplicado e o bruto do recibo passa para a coluna onde tinhas posto o líquido (no subsídio de Setembro: de Compl. salário para Subsídios). O Valete só muda se estivesse a contar o dinheiro duas vezes.']},
   {v:'v105',d:'6 out',bul:['Já dá para ter <b>dois recibos no mesmo mês</b> (ex.: vencimento + subsídio de férias). Na revisão do recibo há um campo <b>Tipo de recibo</b> - Vencimento, Subsídio de férias ou Subsídio de Natal - detetado sozinho a partir do PDF. O aviso de «recibo repetido» só aparece se carregares o <b>mesmo tipo</b> duas vezes.','Corrigido um caso em que se <b>perdiam linhas</b>: o filtro anti-duplicados comparava o segundo recibo com o primeiro e saltava, por exemplo, a SS do subsídio quando dava o mesmo valor que a do vencimento. Agora nunca compara recibos de tipos diferentes.','O subsídio de férias/Natal passa a ir para a coluna <b>Subsídios</b> (antes ia para Compl. salário), e só o recibo de vencimento substitui o provisório do salário.','Se o líquido do recibo <b>já estiver lançado</b> no mês (ex.: o subsídio que entrou por transferência e puseste em Subsídios), a revisão oferece-se para o <b>substituir</b> pelas linhas do recibo - senão o mesmo dinheiro contava duas vezes, uma pelo líquido e outra pelo bruto mais os descontos. O Valete não mexe.']},
   {v:'v104',d:'24 set',bul:['Na <b>Caixa de entrada</b>, uma transferência do banco para uma conta poupança já se trata ali mesmo: no seletor da categoria há agora um grupo <b>Poupança</b> com <b>«Reforço → conta»</b> (nos débitos) e <b>«Mobilização ← conta»</b> (nos créditos). Ao Adicionar, a poupança sobe e o Valete desce (ou o contrário), <b>sem entrar nas despesas nem nas receitas</b> - o mesmo que o botão Reforço/Mobilizar das Poupanças. Funciona também no «Adicionar todas».','Já não é preciso descartar a transferência e ir fazê-la à mão, e o banco <b>não volta a oferecer</b> a mesma transação, mesmo que a lista de movimentos vistos se perca numa sincronização.']},
   {v:'v103',d:'24 set',bul:['Nas <b>receitas</b> da grelha há uma coluna nova, <b>Total Host</b>, logo antes do QRT: soma tudo o que vem do empregador (salário, complementos, ajudas, subsídios, bónus, Coverflex) <b>já com o IRS e a SS</b>, ou seja o líquido que te entra. O <b>melhor mês</b> fica destacado. É uma coluna calculada: não se edita e não entra duas vezes no Total.','No <b>Analytics</b>, o cartão <b>Receitas · Host e independentes</b> mostra o ano todo: Host líquido e bruto, quanto vieram as independentes (QRT, Aulas, Outros, cada uma com o seu valor), o <b>peso da Host</b> no que recebeste e o <b>melhor mês</b> com a média ao lado.','A separação usa a classificação que as tuas receitas já tinham (as cores verde / roxo / laranja das colunas), por isso não é preciso reorganizar nada.']},
@@ -3251,6 +3253,9 @@ document.addEventListener('click',e=>{
   if(t.id==='consSave'){gravarConsumos();return;}
   if(t.id==='consFixDup'){ const cats=consumoCats(); const sel=(_consSel&&cats.some(c=>c.id===_consSel))?_consSel:(cats[0]&&cats[0].id); const arts=_consDupArtifacts(sel); if(!arts.length){toast('Nada a remover');return;} const lst=arts.map(m=>MC[+m.data.slice(5,7)-1]+' '+m.data.slice(2,4)+' · '+fmt(m.valor)).join('\n'); confirmModal('Remover '+arts.length+' lançamento'+(arts.length>1?'s':'')+' duplicado'+(arts.length>1?'s':'')+' da grelha?\n\n'+lst+'\n\nOs kWh mantêm-se e o valor removido passa a ser o € da fatura nesse mês (corrige a mensalidade e o €/unidade).',()=>{ const rm=new Set(arts.map(m=>m.id)); arts.forEach(m=>{ const ym=m.data.slice(0,7); const cc=state.consumos&&state.consumos[m.categoriaId]; if(cc&&cc[ym]&&typeof cc[ym]==='object'&&consK(cc[ym])>0&&consEur(cc[ym])==null){cc[ym].eur=round2(m.valor);} if(m.vAdj)reverteValete(m); }); state.movimentos=state.movimentos.filter(m=>!rm.has(m.id)); save(); render(); toast('Corrigido - '+arts.length+' duplicado'+(arts.length>1?'s':'')+' removido'+(arts.length>1?'s':'')); },{titulo:'Corrigir mensalidade',okLabel:'Remover e corrigir',danger:true}); return; }
   if(t.id==='recSave'){gravarRecibo();return;}
+  if(t.id==='recDupFix'){ const ds=_recDupNet(ano); if(!ds.length){toast('Nada a corrigir');return;}
+    const txt=ds.map(d=>MESES[d.mi]+': sai o líquido de '+fmt(d.x.valor)+' em '+catName(d.x.categoriaId)+(d.p.categoriaId!==d.x.categoriaId?' e o bruto do recibo ('+fmt(d.p.valor)+') passa de '+catName(d.p.categoriaId)+' para '+catName(d.x.categoriaId):'')+'. '+(d.p.vAdj?'O Valete perde o valor que estava a contar duas vezes.':'O Valete não muda.')).join('\n');
+    confirmModal(txt,()=>{ const n=_recDupFix(ano); save(); render(); toast('Corrigido: '+n+' mês'+(n>1?'es':'')+' - cada valor conta agora uma vez'); },{titulo:'Corrigir receita contada duas vezes',okLabel:'Corrigir',danger:false}); return; }
   if(t.id==='fbSave'){gravarFaturasBatch();return;}
   if(t.id==='mmSave'){doMoveMov();return;}
   if(d.movmov){openMoveMov(d.movmov);return;}
@@ -4383,6 +4388,54 @@ function findOrCreateReceitaCat(nome,opts){
   c={id:nid('c'),nome:nome,tipo:'receita',parent:null,fixa:false,cor:opts.cor||(opts.desconto?'#a78bfa':opts.independente?'#f59e0b':'#34d399')};
   if(opts.desconto)c.desconto=true; if(opts.coverflex)c.coverflex=true; if(opts.independente)c.independente=true;
   state.categorias.push(c); return c.id;
+}
+/* ===== Receita contada duas vezes: líquido lançado + recibo =====
+   Antes da v105 o recibo não reconhecia um líquido já lançado no mês (ex.: o subsídio que entrou por transferência e
+   foi posto em Subsídios), e somava por cima o bruto e os descontos -> o mesmo dinheiro contava duas vezes. Deteta:
+   um lançamento da Host à mão/do banco X e uma linha bruta do recibo P cujo valor menos ALGUNS descontos do recibo
+   dá X ao cêntimo. Corrigir: sai X; P vai para a coluna onde estava X (é onde o Diogo quer ver esse dinheiro).
+   Valete: se as linhas do recibo entraram no Valete (P tem vAdj), o Valete tinha o dinheiro 2x e X é revertido;
+   se não entraram (recibo de mês já fechado), o Valete só tem X e fica como está. */
+function _recDupNet(year){
+  const out=[];
+  for(let mi=0;mi<12;mi++){
+    const ym=year+'-'+String(mi+1).padStart(2,'0');
+    const ms=state.movimentos.filter(m=>m.tipo==='receita'&&m.data.slice(0,7)===ym);
+    const X=ms.filter(m=>m.nota!=='recibo'&&!m.provisorio&&m.valor>0&&recFonte(cat(m.categoriaId))==='host');
+    if(!X.length)continue;
+    const P=ms.filter(m=>m.nota==='recibo'&&m.valor>0&&recFonte(cat(m.categoriaId))==='host'&&!isCoverflexCat(m.categoriaId));
+    const N=ms.filter(m=>m.nota==='recibo'&&m.valor<0&&recFonte(cat(m.categoriaId))==='desc').slice(0,12);
+    const usados=new Set();
+    X.forEach(x=>{
+      for(const p of P){
+        if(usados.has(p.id)||p.valor<=x.valor)continue;
+        const alvo=round2(x.valor-p.valor);              // soma (negativa) dos descontos que faltam
+        let achou=null;
+        for(let mask=1;mask<(1<<N.length)&&!achou;mask++){
+          let sm=0,ids=[],ok=true;
+          for(let k=0;k<N.length;k++)if(mask&(1<<k)){ if(usados.has(N[k].id)){ok=false;break;} sm+=N[k].valor; ids.push(N[k].id); }
+          if(ok&&Math.abs(sm-alvo)<0.02)achou=ids;
+        }
+        if(achou){ usados.add(p.id); achou.forEach(i=>usados.add(i)); out.push({ym,mi,x,p,descIds:achou}); break; }
+      }
+    });
+  }
+  return out;
+}
+function _recDupFix(year){
+  const ds=_recDupNet(year);
+  ds.forEach(d=>{
+    if(d.p.vAdj)reverteValete(d.x);                       // as linhas do recibo já contavam no Valete -> tira o duplicado
+    if(d.p.categoriaId!==d.x.categoriaId)d.p.categoriaId=d.x.categoriaId;
+    const sub=cat(d.x.categoriaId)&&/^subs[ií]dios$/i.test((cat(d.x.categoriaId).nome||'').trim());
+    if(sub){ const t=d.mi>=10?'natal':'ferias'; d.p.recTipo=t; state.movimentos.forEach(m=>{ if(d.descIds.includes(m.id))m.recTipo=t; }); }
+    state.movimentos=state.movimentos.filter(m=>m.id!==d.x.id);
+  });
+  return ds.length;
+}
+function _recDupCard(){
+  const ds=_recDupNet(ano); if(!ds.length)return '';
+  return `<div class="hint" style="border-left:3px solid var(--warn);margin-bottom:10px"><b><span class="eico" style="color:var(--warn)">${svg(I.warn)}</span> Receita contada duas vezes</b> - ${ds.map(d=>`em <b>${MESES[d.mi]}</b>, os <b>${fmt(d.x.valor)}</b> em ${esc(catName(d.x.categoriaId))} e o recibo (${esc(catName(d.p.categoriaId))} ${fmt(d.p.valor)} menos os descontos) são o mesmo dinheiro`).join('; ')}.<br><button class="btn sm" id="recDupFix" style="margin-top:8px">Corrigir</button></div>`;
 }
 /* ===== Tipos de recibo: vencimento, subsídio de férias, subsídio de Natal =====
    No mesmo mês podem chegar dois recibos (ex.: vencimento + subsídio de férias). Cada movimento guarda o tipo
