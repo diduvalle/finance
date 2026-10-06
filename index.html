@@ -2706,6 +2706,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v105',d:'6 out',bul:['Já dá para ter <b>dois recibos no mesmo mês</b> (ex.: vencimento + subsídio de férias). Na revisão do recibo há um campo <b>Tipo de recibo</b> - Vencimento, Subsídio de férias ou Subsídio de Natal - detetado sozinho a partir do PDF. O aviso de «recibo repetido» só aparece se carregares o <b>mesmo tipo</b> duas vezes.','Corrigido um caso em que se <b>perdiam linhas</b>: o filtro anti-duplicados comparava o segundo recibo com o primeiro e saltava, por exemplo, a SS do subsídio quando dava o mesmo valor que a do vencimento. Agora nunca compara recibos de tipos diferentes.','O subsídio de férias/Natal passa a ir para a coluna <b>Subsídios</b> (antes ia para Compl. salário), e só o recibo de vencimento substitui o provisório do salário.','Se o líquido do recibo <b>já estiver lançado</b> no mês (ex.: o subsídio que entrou por transferência e puseste em Subsídios), a revisão oferece-se para o <b>substituir</b> pelas linhas do recibo - senão o mesmo dinheiro contava duas vezes, uma pelo líquido e outra pelo bruto mais os descontos. O Valete não mexe.']},
   {v:'v104',d:'24 set',bul:['Na <b>Caixa de entrada</b>, uma transferência do banco para uma conta poupança já se trata ali mesmo: no seletor da categoria há agora um grupo <b>Poupança</b> com <b>«Reforço → conta»</b> (nos débitos) e <b>«Mobilização ← conta»</b> (nos créditos). Ao Adicionar, a poupança sobe e o Valete desce (ou o contrário), <b>sem entrar nas despesas nem nas receitas</b> - o mesmo que o botão Reforço/Mobilizar das Poupanças. Funciona também no «Adicionar todas».','Já não é preciso descartar a transferência e ir fazê-la à mão, e o banco <b>não volta a oferecer</b> a mesma transação, mesmo que a lista de movimentos vistos se perca numa sincronização.']},
   {v:'v103',d:'24 set',bul:['Nas <b>receitas</b> da grelha há uma coluna nova, <b>Total Host</b>, logo antes do QRT: soma tudo o que vem do empregador (salário, complementos, ajudas, subsídios, bónus, Coverflex) <b>já com o IRS e a SS</b>, ou seja o líquido que te entra. O <b>melhor mês</b> fica destacado. É uma coluna calculada: não se edita e não entra duas vezes no Total.','No <b>Analytics</b>, o cartão <b>Receitas · Host e independentes</b> mostra o ano todo: Host líquido e bruto, quanto vieram as independentes (QRT, Aulas, Outros, cada uma com o seu valor), o <b>peso da Host</b> no que recebeste e o <b>melhor mês</b> com a média ao lado.','A separação usa a classificação que as tuas receitas já tinham (as cores verde / roxo / laranja das colunas), por isso não é preciso reorganizar nada.']},
   {v:'v102',d:'12 set',bul:['Novo botão <b>Gastar</b> nas contas e cartões com saldo (ex.: o cartão Sonae). Escolhes a categoria, e a app <b>baixa o saldo do cartão</b>, <b>lança a despesa na grelha</b> (conta nos totais do ano, nos orçamentos e no Analytics) e <b>não mexe no Valete</b> - esse dinheiro já tinha saído de lá quando carregaste o cartão.','A diferença entre os dois botões: <b>Mobilizar</b> = tiraste o dinheiro do cartão e ele <b>volta</b> para a conta; <b>Gastar</b> = usaste o saldo numa compra e ele <b>não volta</b>. Até agora só havia Mobilizar, por isso registar uma compra fazia o Valete crescer indevidamente.','As compras aparecem no <b>histórico do cartão</b> com o selo <b>compra</b>. Apagar uma compra ali repõe o saldo e tira a despesa da grelha, tudo de uma vez - não é preciso corrigir nos dois sítios.']},
@@ -3312,6 +3313,8 @@ document.addEventListener('change',e=>{
   if(e.target.id==='fotoIn'&&e.target.files[0]){processFotoFatura(e.target.files[0]);e.target.value='';}
   if(e.target.dataset&&(e.target.dataset.recchk!=null||e.target.dataset.reccat!=null)){recLiveSync();return;}
   if(e.target.id==='recMes'||e.target.id==='recAno'){recProvUpdate();return;}
+  if(e.target.id==='recTipo'){_recTipo=e.target.value;recProvUpdate();return;}
+  if(e.target.id==='recSubstChk'){_recSubstOn=!!e.target.checked;return;}
   if(e.target.dataset&&e.target.dataset.catname!=null){const c=cat(e.target.dataset.catname);if(c){c.nome=e.target.value.trim()||c.nome;save();}}
   if(e.target.id==='catColPick'){const c=cat(e.target.dataset.cat);if(c){c.cor=e.target.value;save();render();openCatIcon(e.target.dataset.cat);}return;}
   if(e.target.id==='catColHex'){const v=e.target.value.trim();if(/^#?[0-9a-fA-F]{6}$/.test(v)){const c=cat(e.target.dataset.cat);if(c){c.cor=(v[0]==='#'?v:'#'+v);save();render();openCatIcon(e.target.dataset.cat);}}else{toast('Cor inválida (usa #RRGGBB)');}return;}
@@ -4381,6 +4384,38 @@ function findOrCreateReceitaCat(nome,opts){
   if(opts.desconto)c.desconto=true; if(opts.coverflex)c.coverflex=true; if(opts.independente)c.independente=true;
   state.categorias.push(c); return c.id;
 }
+/* ===== Tipos de recibo: vencimento, subsídio de férias, subsídio de Natal =====
+   No mesmo mês podem chegar dois recibos (ex.: vencimento + subsídio de férias). Cada movimento guarda o tipo
+   (mv.recTipo) para: o aviso de "repetido" só disparar com o MESMO tipo; o filtro anti-duplicados não comparar um
+   recibo com outro de tipo diferente (perdia a SS/IRS do subsídio quando davam o mesmo valor que as do vencimento);
+   e só o recibo de vencimento substituir o provisório do salário. Movimentos antigos sem tipo contam como vencimento. */
+const REC_TIPOS={venc:'Vencimento',ferias:'Subsídio de férias',natal:'Subsídio de Natal'};
+let _recTipo='venc', _recSubstOn=true, _recSubstIds=[];
+/* um recibo de vencimento tem uma linha de vencimento/ordenado/salário base que NÃO é de subsídio (mesmo que traga
+   duodécimos); sem ela, é o recibo do subsídio. Em último caso, o cabeçalho ("processamento: subsídio de ..."). */
+function reciboTipoDetect(p){
+  const n=s=>(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const R=(p.linhas||[]).filter(l=>l.tipo==='R').map(l=>n(l.desc));
+  if(R.some(d=>/vencimento|ordenado|salario|remuneracao\s*base/.test(d)&&!/ferias|natal/.test(d)))return 'venc';
+  if(R.some(d=>/natal/.test(d)))return 'natal';
+  if(R.some(d=>/ferias/.test(d)))return 'ferias';
+  const t=n(p.text);
+  if(/(processamento|tipo)[^\n]{0,40}natal/.test(t))return 'natal';
+  if(/(processamento|tipo)[^\n]{0,40}ferias/.test(t))return 'ferias';
+  return 'venc';
+}
+/* o líquido deste recibo JÁ está lançado no mês (ex.: o subsídio entrou por transferência e foi posto em Subsídios,
+   ou o salário foi categorizado à mão sem ser provisório)? Oferece-se para o substituir pelas linhas do recibo,
+   senão o mesmo dinheiro conta duas vezes (uma pelo líquido, outra pelo bruto + descontos). */
+function recSubstUpdate(ym){
+  const net=recTotais().banco;
+  const m=net>0?state.movimentos.find(x=>x.tipo==='receita'&&x.data.slice(0,7)===ym&&x.nota!=='recibo'&&!x.provisorio&&recFonte(cat(x.categoriaId))==='host'&&Math.abs(x.valor-net)<0.02):null;
+  _recSubstIds=m?[m.id]:[];
+  const el=document.getElementById('recSubst'); if(!el)return;
+  if(!m){el.style.display='none';el.innerHTML='';return;}
+  el.style.display=''; el.style.borderLeft='3px solid var(--warn)';
+  el.innerHTML='Já tens <b>'+fmt(m.valor)+'</b> em <b>'+esc(catName(m.categoriaId))+'</b> em '+MESES[+ym.slice(5,7)-1]+' (lançado à mão ou do banco) - é o líquido deste recibo.<label style="display:flex;align-items:center;gap:8px;margin-top:6px;cursor:pointer"><input type="checkbox" id="recSubstChk" '+(_recSubstOn?'checked':'')+'> Substituir pelas linhas do recibo (senão conta duas vezes)</label>';
+}
 /* mapeia a descrição de uma linha do recibo -> categoria de receita da app */
 function mapReciboLinha(desc,tipo){ // tipo: 'R' remuneração / 'D' desconto
   const d=desc.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
@@ -4392,6 +4427,7 @@ function mapReciboLinha(desc,tipo){ // tipo: 'R' remuneração / 'D' desconto
     return {catId:findOrCreateReceitaCat('Outros descontos',{desconto:true}),label:'Outros descontos'};
   }
   // remunerações
+  if(/ferias|natal/.test(d))return {catId:findOrCreateReceitaCat('Subsídios'),label:'Subsídios'}; // subsídio de férias/Natal -> coluna Subsídios
   if(/alimenta|generos|géneros/.test(d)&&/generos|géneros|especie/.test(d))return {catId:findOrCreateReceitaCat('Coverflex',{coverflex:true}),label:'Coverflex'};
   if(/alimenta/.test(d))return {catId:findOrCreateReceitaCat('Subsídios'),label:'Subsídios'};
   if(/vencimento|ordenado|salario/.test(d))return {catId:findOrCreateReceitaCat('Salário'),label:'Salário'};
@@ -4445,6 +4481,7 @@ function openReciboReview(p){
   _recDiaVal=(p.dia!=null&&p.dia>=1&&p.dia<=31)?p.dia:null; _recTotalPago=p.totalPago;
   // preparar linhas com mapeamento sugerido
   _recLinhas=p.linhas.map((l,i)=>{const mp=mapReciboLinha(l.desc,l.tipo);return {...l,catId:mp.catId,sug:mp.label,skip:!!mp.skip,i};});
+  _recTipo=reciboTipoDetect(p); _recSubstOn=true; _recSubstIds=[];
   const tot=recTotais();
   const rowHtml=(l)=>{
     const neg=l.catId&&isDescontoCat(l.catId);
@@ -4459,6 +4496,7 @@ function openReciboReview(p){
   document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.scan)} Recibo importado <button class="close" data-close="1">&times;</button></h2>
   <div class="body">
     <div class="hint" style="border-left:3px solid var(--acc)">Período detetado: <b>${MESES[mi]} ${year}</b>. O subsídio em géneros vai para o <b>Coverflex</b> (cartão) e o "Desconto Espécie" fica ignorado (anula-se com o subsídio). Confere e grava.</div>
+    <div><label>Tipo de recibo</label><select id="recTipo">${Object.entries(REC_TIPOS).map(([k,v])=>`<option value="${k}" ${k===_recTipo?'selected':''}>${v}</option>`).join('')}</select></div>
     <div class="f2">
       <div><label>Mês</label><select id="recMes">${MESES.map((x,i)=>`<option value="${i}" ${i===mi?'selected':''}>${x}</option>`).join('')}</select></div>
       <div><label>Ano</label><input id="recAno" type="number" step="1" value="${year}"></div>
@@ -4478,6 +4516,7 @@ function openReciboReview(p){
     </div>
     ${p.totalPago!=null?`<div class="hint" id="recChk" style="margin-top:6px;${Math.abs(tot.banco-p.totalPago)<0.02?'border-left:3px solid var(--acc)':'border-left:3px solid var(--warn)'}">Total Pago no recibo: <b>${fmt(p.totalPago)}</b> ${Math.abs(tot.banco-p.totalPago)<0.02?'✓ bate certo com o líquido para a conta':'- confere as linhas.'}</div>`:''}
     <div class="hint" id="recProv" style="margin-top:6px;display:none"></div>
+    <div class="hint" id="recSubst" style="margin-top:6px;display:none"></div>
     <details><summary style="cursor:pointer;color:var(--mut);font-size:12px">Ver texto lido do PDF</summary><pre style="white-space:pre-wrap;max-height:150px;overflow:auto;font-size:11px;color:var(--mut);margin-top:6px">${esc(p.text.slice(0,2500))}</pre></details>
   </div>
   <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Cancelar</button><button class="btn primary" id="recSave">${svg(I.check)}Gravar recibo</button></div></div>`;
@@ -4490,8 +4529,10 @@ function recProvUpdate(){
   const miEl=document.getElementById('recMes'), anoEl=document.getElementById('recAno');
   const mi=miEl?+miEl.value:new Date().getMonth(), year=anoEl?(+val('recAno')||ano):ano;
   const ym=`${year}-${String(mi+1).padStart(2,'0')}`;
+  recSubstUpdate(ym);
   const prov=round2(state.movimentos.filter(m=>m.provisorio&&m.tipo==='receita'&&m.data.slice(0,7)===ym).reduce((a,m)=>a+m.valor,0));
   if(!prov){el.style.display='none';return;}
+  if(_recTipo!=='venc'){ el.style.display=''; el.style.borderLeft='3px solid var(--acc)'; el.innerHTML='Recibo de <b>'+REC_TIPOS[_recTipo].toLowerCase()+'</b>: o provisório do salário em <b>'+MESES[mi]+'</b> ('+fmt(prov)+') fica como está - é substituído pelo recibo de vencimento.'; return; }
   const t=recTotais(), ok=Math.abs(t.banco-prov)<0.02;
   el.style.display=''; el.style.borderLeft='3px solid '+(ok?'var(--acc)':'var(--warn)');
   el.innerHTML='Provisório lançado em <b>'+MESES[mi]+'</b>: <b>'+fmt(prov)+'</b> - será substituído por estas linhas. '+(ok?'✓ bate certo com o líquido':'- diferença de '+fmt(Math.abs(t.banco-prov)));
@@ -4505,31 +4546,40 @@ function gravarRecibo(){
   document.querySelectorAll('[data-reccat]').forEach(s=>{const i=+s.dataset.reccat;const l=_recLinhas.find(x=>x.i===i);if(l)l.catId=s.value;});
   const dia=Math.min(p_recDia(),28);
   const ymR=`${year}-${String(mi+1).padStart(2,'0')}`;
-  if(state.movimentos.some(m=>m.nota==='recibo'&&m.data.slice(0,7)===ymR)){
-    confirmModal('Já importaste um recibo em '+MESES[mi]+' '+year+'.\nGravar à mesma?',()=>_gravarReciboCommit(mi,year,dia,ymR),{titulo:'Recibo repetido',okLabel:'Gravar à mesma',danger:false});
+  const tipo=((document.getElementById('recTipo')||{}).value)||_recTipo||'venc';
+  recSubstUpdate(ymR); // fixa o que vai ser substituído com as linhas finais
+  if(state.movimentos.some(m=>m.nota==='recibo'&&m.data.slice(0,7)===ymR&&(m.recTipo||'venc')===tipo)){
+    confirmModal('Já importaste um recibo de '+REC_TIPOS[tipo].toLowerCase()+' em '+MESES[mi]+' '+year+'.\nGravar à mesma?',()=>_gravarReciboCommit(mi,year,dia,ymR,tipo),{titulo:'Recibo repetido',okLabel:'Gravar à mesma',danger:false});
     return;
   }
-  _gravarReciboCommit(mi,year,dia,ymR);
+  _gravarReciboCommit(mi,year,dia,ymR,tipo);
 }
-function _gravarReciboCommit(mi,year,dia,ymR){
+function _gravarReciboCommit(mi,year,dia,ymR,tipo){
+  tipo=tipo||'venc';
   const dataStr=`${year}-${String(mi+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
   if(!isPastMonth(year,mi)&&_recLinhas.some(l=>!l.skip&&l.catId&&isCoverflexCat(l.catId)))ensureCoverflexConta();
   // Fase 1->2: remover o(s) provisório(s) do mês - são substituídos pela distribuição do recibo
   let provN=0,provV=0;
+  if(tipo==='venc'){ // só o recibo de vencimento substitui o provisório do salário (um de subsídio não)
   state.movimentos.filter(m=>m.provisorio&&m.tipo==='receita'&&m.data.slice(0,7)===ymR).forEach(m=>{ if(!isPastMonth(year,mi))reverteValete(m); provV+=m.valor; provN++; });
   state.movimentos=state.movimentos.filter(m=>!(m.provisorio&&m.tipo==='receita'&&m.data.slice(0,7)===ymR));
+  }
+  // líquido já lançado à mão/do banco: sai e dá lugar às linhas do recibo (mesma regra do provisório para o Valete:
+  // num mês já passado nada se reverte nem se aplica - o Valete já reflete o dinheiro que entrou)
+  let substV=0;
+  if(_recSubstOn&&_recSubstIds.length){ state.movimentos.filter(m=>_recSubstIds.includes(m.id)).forEach(m=>{ if(!isPastMonth(year,mi))reverteValete(m); substV+=m.valor; }); state.movimentos=state.movimentos.filter(m=>!_recSubstIds.includes(m.id)); }
   let n=0,liq=0,skipDup=0,skipNames=[];
   // não duplicar linhas já lançadas à mão (ex.: carregamento do Coverflex registado no fim do mês e que o recibo traz outra vez)
   const pre=new Set(state.movimentos.map(m=>m.id)); // só compara com o que existia ANTES desta gravação (linhas iguais dentro do mesmo recibo continuam a entrar)
   _recLinhas.filter(l=>!l.skip&&l.catId).forEach(l=>{
     const v=valorComSinal(l.catId,'receita',l.valor);
-    const dupe=state.movimentos.find(m=>pre.has(m.id)&&m.tipo==='receita'&&m.categoriaId===l.catId&&Math.abs(Math.abs(m.valor)-Math.abs(v))<0.005&&m.data.slice(0,7)===ymR);
+    const dupe=state.movimentos.find(m=>pre.has(m.id)&&m.tipo==='receita'&&m.categoriaId===l.catId&&Math.abs(Math.abs(m.valor)-Math.abs(v))<0.005&&m.data.slice(0,7)===ymR&&(m.nota!=='recibo'||(m.recTipo||'venc')===tipo)); // nunca contra um recibo de OUTRO tipo
     if(dupe){skipDup++;skipNames.push(catName(l.catId)+' '+fmt(Math.abs(v)));return;}
-    const mv={id:nid('m'),data:dataStr,tipo:'receita',categoriaId:l.catId,valor:v,pagador:P()[0].id,split:{...state.settings.splitDefault},nota:'recibo'};
+    const mv={id:nid('m'),data:dataStr,tipo:'receita',categoriaId:l.catId,valor:v,pagador:P()[0].id,split:{...state.settings.splitDefault},nota:'recibo',recTipo:tipo};
     state.movimentos.push(mv); if(!isPastMonth(year,mi))aplicaValete(mv); n++; liq+=v;
   });
-  ano=year; save(); closeBack(); render(); toast('Recibo gravado: '+n+' linhas · líquido '+fmt(round2(liq))+(provN?' · substituiu provisório de '+fmt(round2(provV)):'')+(skipDup?' · já lançada(s), não duplicada(s): '+skipNames.join(', '):''));
-  _recLinhas=null;
+  ano=year; save(); closeBack(); render(); toast('Recibo de '+REC_TIPOS[tipo].toLowerCase()+' gravado: '+n+' linhas · líquido '+fmt(round2(liq))+(provN?' · substituiu provisório de '+fmt(round2(provV)):'')+(substV?' · substituiu '+fmt(round2(substV))+' já lançado':'')+(skipDup?' · já lançada(s), não duplicada(s): '+skipNames.join(', '):''));
+  _recLinhas=null; _recSubstIds=[];
 }
 let _recDiaVal=null,_recTotalPago=null; function p_recDia(){return _recDiaVal!=null?_recDiaVal:(+state.settings.diaSalario||23);}
 function recTotais(){
