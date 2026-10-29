@@ -2716,6 +2716,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v109',d:'29 out',bul:['O assistente passou a aguentar muito melhor os <b>limites do nível gratuito</b> do Gemini (a Google cortou-os para pouquíssimos pedidos por dia). Os números do mês vão já calculados com a pergunta, por isso a maioria das perguntas gasta <b>1 pedido</b> em vez de 2 ou 3.','Quando um modelo esgota a quota, está sobrecarregado ou demora mais de 20 segundos, passa <b>sozinho ao seguinte</b> (3 Flash, 2.5 Flash-Lite, 2.0 Flash...) - cada um tem a sua quota, o que multiplica as perguntas por dia.','Mensagens de erro claras (limite do minuto, com o tempo de espera, ou limite do dia) e um botão <b>Tentar outra vez</b>. Nas Definições fica explicado como acabar de vez com os limites: ativar a faturação no AI Studio, que com este uso custa cêntimos por mês.']},
   {v:'v108',d:'29 out',bul:['<b>Assistente CASA novo.</b> A barra de perguntas do topo deu lugar a um <b>botão redondo no canto</b> (no PC) que abre uma <b>conversa</b>; no telemóvel abre pelo botão do rodapé, como antes. O assistente lembra-se do que foi dito (podes perguntar «e no ano passado?») e traz perguntas prontas a carregar.','Ferramentas novas de <b>previsão do mês</b>: quanto vais gastar até ao fim do mês, o que ainda <b>falta pagar</b> (fixas e débitos agendados, com dia e valor), com quanto fica o <b>Valete no fim do mês</b>, se estás a gastar mais do que no <b>mesmo período do ano passado</b> e quanto ainda podes gastar em <b>lazer</b>. Os números são calculados pela app - a IA só os explica.','Mais <b>rápido e fiável</b>: passa a usar só o Gemini (saiu o OpenRouter, cujos modelos grátis estavam sempre ocupados), escolhe sozinho o melhor modelo Flash da tua chave e responde sem o modo «pensar». Se a Google retirar um modelo, a app deteta e passa ao seguinte sem dares por isso.','A subscrição Gemini Plus não dá acesso à API: o assistente usa a <b>chave gratuita do Google AI Studio</b>, que se põe em Definições → Assistente IA e fica só no teu dispositivo.']},
   {v:'v107',d:'6 out',bul:['Nos recibos, as linhas de <b>Bónus</b> passam a ir para a coluna <b>Bonus</b> (antes iam para Compl. salário). O <b>prémio</b> continua em Compl. salário, e o subsídio de férias/Natal continua em Subsídios.']},
   {v:'v106',d:'6 out',bul:['Nas <b>receitas</b>, a app deteta quando o mesmo dinheiro está <b>contado duas vezes</b>: um líquido lançado à mão ou do banco (ex.: o subsídio que entrou por transferência) e as linhas do recibo que dão exatamente esse líquido. Aparece um aviso por cima da grelha com o botão <b>Corrigir</b>, que mostra antes o que vai mudar.','Ao corrigir, sai o líquido duplicado e o bruto do recibo passa para a coluna onde tinhas posto o líquido (no subsídio de Setembro: de Compl. salário para Subsídios). O Valete só muda se estivesse a contar o dinheiro duas vezes.']},
@@ -3094,7 +3095,7 @@ function vDefs(m){
       <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aiKey" type="password" autocomplete="off" value="${esc(aiKey())}" placeholder="cola a tua chave (AIza…)" style="flex:1 1 220px;min-width:0"><button class="btn sm primary" id="aiKeySave">${svg(I.check)}Guardar</button>${aiKey()?`<button class="btn sm" id="aiKeyDel">Remover</button>`:''}</div>
       <div style="margin-top:12px"><label>Modelo ${hlp('Por defeito a app escolhe sozinha o melhor modelo Flash que a tua chave tem - rápido e gratuito. Só mudes se tiveres um motivo.')}</label>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="aiModel" style="max-width:320px;min-width:0;flex:1 1 220px"><option value="" ${_aiModelFixo()?'':'selected'}>Automático (${esc(_aiPickModel(aiDetectedModels())||AI_DEF_MODEL)})</option>${aiDetectedModels().filter(m=>/^gemini-/.test(m)&&!/image|tts|audio|live|embedding|aqa/i.test(m)).map(m=>`<option ${m===_aiModelFixo()?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="btn sm" id="aiDetect">${svg(I.repeat)}Detetar modelos</button></div></div>
-      <p class="dsub" style="margin-top:10px">Chave <b>gratuita</b> em <b>${esc(AI_ONDE)}</b> - a subscrição Gemini Plus não serve aqui, a API é à parte. Fica só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. ${aiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
+      <p class="dsub" style="margin-top:10px">Chave <b>gratuita</b> em <b>${esc(AI_ONDE)}</b> - a subscrição Gemini Plus não serve aqui, a API é à parte. Fica só neste dispositivo (localStorage), nunca no código nem na cópia de segurança.</p><p class="dsub" style="margin-top:6px">Se aparecerem muitos <b>erros de limite</b>, é o nível gratuito da Google, que é muito curto. Ativar a <b>faturação</b> no AI Studio resolve e, com este uso, custa cêntimos por mês (define um teto de gastos para ficares descansado). ${aiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
     </div>
   </div></details>
   <details class="defgroup" data-dg="perigo" ${defGroupsOpen.has('perigo')?'open':''}><summary>${svg(I.trash)} Zona perigosa</summary>
@@ -3172,6 +3173,7 @@ document.addEventListener('click',e=>{
   if(t.id==='aiFab'){ aiSheetToggle(); return; }
   if(t.id==='aiNew'){ aiChatReset(); return; }
   if(d.aiq){ aiSend(d.aiq); return; }
+  if(d.airetry){ aiRetry(); return; }
   if(d.tab){tab=d.tab;closePop();render();return;}
   if(d.year){ano+=+d.year;render();return;}
   if(d.gt){gridTipo=d.gt;qCashMode=false;render();return;}
@@ -5273,42 +5275,82 @@ const AI_FNS=[
 ];
 function _aiSystemPrompt(){
   const cats=topCats('despesa').map(c=>c.nome).concat(catsOf('receita').filter(c=>!c.parent).map(c=>c.nome)).join(', ');
-  return `És o assistente da app de finanças pessoais "CASA" (português de Portugal, moeda €). Hoje é ${isoToday()}. Responde curto e direto, em pt-PT. NUNCA inventes ou estimes números de cabeça - usa SEMPRE as ferramentas e usa os valores que devolvem tal e qual. Resolve datas relativas ("mês passado", "próximo mês", "este ano", "ano passado") a partir da data de hoje. Categorias disponíveis: ${cats}. Se a categoria pedida não existir, diz quais existem. Se a pergunta não for sobre as finanças da CASA, diz que só ajudas com isso.
+  return `És o assistente da app de finanças pessoais "CASA" (português de Portugal, moeda €). Hoje é ${isoToday()}. Responde curto e direto, em pt-PT. NUNCA inventes ou estimes números de cabeça - usa SEMPRE os DADOS DO MÊS que vêm no fim (para o mês corrente) ou as ferramentas (para outros meses, anos, categorias ou detalhes), e usa os valores tal e qual. Resolve datas relativas ("mês passado", "próximo mês", "este ano", "ano passado") a partir da data de hoje. Categorias disponíveis: ${cats}. Se a categoria pedida não existir, diz quais existem. Se a pergunta não for sobre as finanças da CASA, diz que só ajudas com isso.
 
 As perguntas são SEMPRE sobre valores, por isso EXPLICA SEMPRE a origem de cada número: primeiro o resultado em €, depois 1-2 linhas a dizer de onde vem. Usa os campos que a ferramenta devolve - em especial "metodo" (a fórmula/regra usada), "n_lancamentos" (quantos movimentos foram somados) e, nas previsões, "meses_usados" (os meses e valores que entraram na média) e "meses_excluidos" (outliers retirados). Se a conta for uma média de vários meses, resume em vez de listar todos (ex.: "média ponderada de 8 meses, entre 1.980 € e 2.510 €, com mais peso nos recentes"). Reproduz o "metodo" por palavras tuas, de forma clara.
 
 Isto é uma CONVERSA: aproveita o que já foi dito (ex.: "e no ano passado?" continua a pergunta anterior). Para perguntas sobre ESTE mês - quanto vou gastar, o que falta pagar, com quanto fico no fim do mês, se estou a gastar mais do que é costume, quanto posso gastar em lazer - usa previsao_mes_atual, por_pagar, comparar_mes e para_mimos. Escreve frases curtas; podes usar listas com "- " e **negrito** só nos valores principais; não uses tabelas nem títulos. Usa sempre o hífen simples (-), nunca travessões. Escreve os valores como na app (ex.: 1 234,56 €).`;
 }
 function _aiExec(name,args){ let res; try{ const fn=AI_TOOLS[name]; res=fn?fn(args||{}):{erro:'ferramenta desconhecida'}; }catch(e){ res={erro:String(e.message||e)}; } return res; }
-/* --- motor: uma ida ao Gemini com ferramentas (a app calcula, a IA redige) --- */
-const AI_TIMEOUT=45000;
-/* 2.5 Flash sem "pensar": muito mais rápido, e estas perguntas são de consulta (os números vêm das ferramentas) */
+/* --- motor: uma ida ao Gemini com ferramentas (a app calcula, a IA redige) ---
+   O nível GRATUITO da API é curto (a Google cortou-o muito no fim de 2025: ~20 pedidos/dia e ~10/min por modelo).
+   Por isso: (1) os números do mês vão já calculados com a pergunta, para a maioria das perguntas gastar 1 pedido em vez
+   de 2-3; (2) se um modelo esgota a quota, está sobrecarregado ou demora, passa ao modelo Flash seguinte - cada modelo
+   tem a SUA quota; (3) cada tentativa tem no máximo 20 s e o total 50 s. */
+const AI_TRY_MS=20000, AI_TOTAL_MS=50000;
+let _aiSessModel=null; // o modelo que respondeu por último nesta sessão: se o principal esgotou, não se insiste nele
+const _AI_FLASH=/^gemini-(\d+(?:\.\d+)?)-flash(-lite)?(?:-(preview|latest)[\w-]*)?$/;
+/* modelos a experimentar, por ordem: o da sessão, o escolhido e depois os Flash detetados do MAIS RECENTE para o mais antigo
+   (normal antes de lite na mesma versão) - os antigos (2.0) ficam para o fim; por último uns conhecidos */
+function _aiCandidatos(){
+  const rank=n=>{ const m=_AI_FLASH.exec(n); return m?[-parseFloat(m[1]),m[2]?1:0,m[3]==='preview'?1:0]:[0,9,9]; };
+  const det=aiDetectedModels().filter(n=>_AI_FLASH.test(n)).sort((a,b)=>{ const x=rank(a),y=rank(b); return (x[0]-y[0])||(x[1]-y[1])||(x[2]-y[2]); });
+  return [...new Set([_aiSessModel,aiModel(),...det,'gemini-2.5-flash','gemini-2.5-flash-lite','gemini-2.0-flash','gemini-2.0-flash-lite'].filter(Boolean))].slice(0,6);
+}
+/* 2.5 Flash sem "pensar": muito mais rápido, e estas perguntas são de consulta (os números vêm da app) */
 function _aiThinkCfg(model){ return /2\.5-flash/.test(model)?{thinkingConfig:{thinkingBudget:0}}:{}; }
-async function _geminiCall(model,contents,noThink){
+/* números do mês JÁ calculados, enviados com a pergunta - a maioria das respostas não precisa de pedir ferramentas */
+function _aiSnapshot(){
+  const ok=f=>{ try{ return f(); }catch(e){ return null; } }; const d=new Date(), y=d.getFullYear(), m=d.getMonth()+1;
+  return {hoje:isoToday(), previsao_mes_atual:ok(()=>AI_TOOLS.previsao_mes_atual()), por_pagar:ok(()=>AI_TOOLS.por_pagar()), comparar_mes:ok(()=>AI_TOOLS.comparar_mes({})),
+    para_mimos:ok(()=>AI_TOOLS.para_mimos()), top_categorias_mes:ok(()=>AI_TOOLS.top_categorias({ano:y,mes:m,n:6})), total_ano:ok(()=>AI_TOOLS.total_ano({ano:y}))};
+}
+async function _geminiCall(model,contents,noThink,ms){
   const key=aiKey(); if(!key)throw new Error('SEM_CHAVE');
-  const ctl=new AbortController(); const tm=setTimeout(()=>ctl.abort(),AI_TIMEOUT);
-  const body={systemInstruction:{parts:[{text:_aiSystemPrompt()}]},contents,tools:[{functionDeclarations:AI_FNS}],generationConfig:Object.assign({temperature:0.3},noThink?{}:_aiThinkCfg(model))};
+  const ctl=new AbortController(); const tm=setTimeout(()=>ctl.abort(),ms||AI_TRY_MS);
+  const sys=_aiSystemPrompt()+'\n\nDADOS DO MÊS - calculados pela app agora mesmo (usa-os tal e qual; para este mês responde com eles sem chamar ferramentas):\n'+JSON.stringify(_aiSnapshot());
+  const body={systemInstruction:{parts:[{text:sys}]},contents,tools:[{functionDeclarations:AI_FNS}],generationConfig:Object.assign({temperature:0.3},noThink?{}:_aiThinkCfg(model))};
   try{
     const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctl.signal});
     const d=await r.json().catch(()=>({}));
-    if(!r.ok){ const e=new Error((d&&d.error&&d.error.message)||('HTTP '+r.status)); e.status=r.status; throw e; }
+    if(!r.ok){ const e=new Error((d&&d.error&&d.error.message)||('HTTP '+r.status)); e.status=r.status; e.details=(d&&d.error&&d.error.details)||[]; e.model=model; throw e; }
     return d;
-  }catch(e){ if(e&&e.name==='AbortError'){ const t=new Error('A IA demorou demasiado a responder'); t.status=408; throw t; } throw e; }
+  }catch(e){ if(e&&e.name==='AbortError'){ const t=new Error('A IA demorou demasiado a responder'); t.status=408; t.model=model; throw t; } throw e; }
   finally{ clearTimeout(tm); }
 }
-/* corre a conversa (com as chamadas às ferramentas) até haver texto. Recupera sozinho, uma vez cada, de:
-   modelo inexistente na chave (deteta os modelos e passa ao melhor Flash) e modelo que recusa a opção de "pensar" */
+/* classifica o erro da API */
+function _aiErrInfo(e){
+  const msg=String((e&&e.message)||''), det=JSON.stringify((e&&e.details)||[]), st=e&&e.status;
+  const rd=/"retryDelay":"(\d+)(?:\.\d+)?s"/.exec(det);
+  return {
+    chave:st===403||/API key not valid|API_KEY_INVALID|PERMISSION_DENIED/i.test(msg),
+    quota:st===429||/RESOURCE_EXHAUSTED|quota|rate limit/i.test(msg),
+    dia:/PerDay/i.test(det+' '+msg),
+    espera:rd?+rd[1]:null,
+    sobrecarga:st===503||st===500||/overloaded|UNAVAILABLE|try again later|internal error/i.test(msg),
+    tempo:st===408,
+    modelo:st===404||/not found|NOT_FOUND|is not supported/i.test(msg),
+    thinking:/thinking|budget/i.test(msg)
+  };
+}
+/* corre a conversa (com as chamadas às ferramentas) até haver texto; troca de modelo quando um falha */
 async function _geminiRun(contents){
-  let model=aiModel(), noThink=false, trocou=false;
-  contents=contents.slice();
+  const t0=Date.now(); contents=contents.slice();
+  const tentados=new Set(); let detetou=false, ultimo=null;
+  const proximo=()=>{ const c=_aiCandidatos().find(x=>!tentados.has(x)); if(c)tentados.add(c); return c||null; };
+  let model=proximo(), noThink=false;
   for(let passo=0;passo<6;){
+    const resta=AI_TOTAL_MS-(Date.now()-t0);
+    if(resta<1500||!model) throw ultimo||Object.assign(new Error('A IA demorou demasiado a responder'),{status:408});
     let d;
-    try{ d=await _geminiCall(model,contents,noThink); }
+    try{ d=await _geminiCall(model,contents,noThink,Math.min(AI_TRY_MS,resta)); }
     catch(e){
-      const msg=String((e&&e.message)||'');
-      if(!noThink&&/thinking|budget/i.test(msg)){ noThink=true; continue; }
-      if(!trocou&&(e.status===404||/not found|not supported|NOT_FOUND/i.test(msg))){ trocou=true;
-        try{ await _aiFetchModels(); const fixo=_aiModelFixo(); if(fixo&&!aiDetectedModels().includes(fixo))setAiModel(''); const m2=aiModel(); if(m2&&m2!==model){ model=m2; noThink=false; continue; } }catch(_){} }
+      ultimo=e; const k=_aiErrInfo(e);
+      if(k.chave||e.message==='SEM_CHAVE') throw e;                       // chave inválida: trocar de modelo não ajuda
+      if(k.thinking&&!noThink){ noThink=true; continue; }
+      if(model===_aiSessModel)_aiSessModel=null;
+      if(k.modelo&&!detetou){ detetou=true; try{ await _aiFetchModels(); }catch(_){} }
+      if(k.quota||k.sobrecarga||k.tempo||k.modelo){ const nx=proximo(); if(nx){ model=nx; noThink=false; continue; } }
       throw e;
     }
     passo++;
@@ -5319,6 +5361,7 @@ async function _geminiRun(contents){
       contents.push({role:'user',parts:calls.map(p=>({functionResponse:{name:p.functionCall.name,response:{result:_aiExec(p.functionCall.name,p.functionCall.args)}}}))});
       continue;
     }
+    _aiSessModel=model;
     return parts.filter(p=>p.text&&!p.thought).map(p=>p.text).join('').trim()||'(sem resposta)';
   }
   return 'Não consegui responder (demasiados passos).';
@@ -5328,12 +5371,15 @@ function askAI(q){ return _geminiRun([{role:'user',parts:[{text:q}]}]); }
 function _aiNoKeyHtml(){ return 'Para usar o assistente falta a <b>chave gratuita do Gemini</b>. Cria-a em <b>'+esc(AI_ONDE)+'</b> e cola-a em <b>Definições → Assistente IA</b> - fica só neste dispositivo.'; }
 function _aiErrHtml(e){
   const raw=(e&&e.message)||'erro'; if(raw==='SEM_CHAVE')return _aiNoKeyHtml();
-  let hint='';
-  if(/API key not valid|API_KEY_INVALID|PERMISSION_DENIED/i.test(raw)||(e&&e.status===403))hint='A chave parece inválida - confirma-a em Definições → Assistente IA.';
-  else if(/quota|rate|429|RESOURCE_EXHAUSTED/i.test(raw)||(e&&e.status===429))hint='Chegaste ao limite gratuito por agora - tenta daqui a um minuto.';
-  else if(/demorou|Failed to fetch|NetworkError/i.test(raw))hint='Sem ligação ou a IA está lenta - tenta outra vez.';
-  else if(/not found|NOT_FOUND|not supported/i.test(raw))hint='O modelo '+esc(aiModel())+' não está disponível - em Definições carrega em Detetar modelos.';
-  return 'Não consegui responder: '+esc(raw).slice(0,240)+(hint?'<br><b>'+hint+'</b>':'');
+  const k=_aiErrInfo(e); let txt;
+  if(k.chave) txt='A chave parece inválida - confirma-a em <b>Definições → Assistente IA</b>.';
+  else if(k.quota&&k.dia) txt='Esgotaste o <b>limite gratuito diário</b> dos modelos Gemini da tua chave (a Google deixa muito poucos pedidos por dia). Volta amanhã, ou ativa a faturação no AI Studio - com este uso custa cêntimos por mês (ver <b>Definições → Assistente IA</b>).';
+  else if(k.quota) txt='Muitas perguntas seguidas: o <b>limite gratuito por minuto</b> esgotou em todos os modelos. Tenta outra vez daqui a '+(k.espera?k.espera+' s':'um minuto')+'.';
+  else if(k.sobrecarga||k.tempo) txt='Os servidores do Gemini estão sobrecarregados ou lentos (acontece muito no nível gratuito). Tenta outra vez daqui a pouco.';
+  else if(k.modelo) txt='Nenhum modelo Gemini respondeu nesta chave - em Definições carrega em <b>Detetar modelos</b>.';
+  else if(/Failed to fetch|NetworkError|Load failed/i.test(raw)) txt='Sem ligação à internet.';
+  else txt='Não consegui responder: '+esc(raw).slice(0,200);
+  return txt+'<div style="margin-top:8px"><button class="btn sm" data-airetry="1">Tentar outra vez</button></div>';
 }
 /* --- conversa (só nesta sessão, nunca gravada) --- */
 let _aiChat=[], _aiBusy=false; // [{role:'user'|'model', text, err?}]
@@ -5364,6 +5410,8 @@ async function aiSend(q){
   _aiBusy=false; aiChatRender();
 }
 function aiAskM(){ const el=document.getElementById('aiQm'); const q=el?el.value:''; if(el)el.value=''; aiSend(q); }
+/* "Tentar outra vez": tira a resposta de erro e repete a última pergunta */
+function aiRetry(){ if(_aiBusy)return; let i=_aiChat.length-1; if(i>=0&&_aiChat[i].err){ _aiChat.splice(i,1); i--; } if(i>=0&&_aiChat[i].role==='user'){ const q=_aiChat[i].text; _aiChat.splice(i,1); aiSend(q); } }
 function aiChatReset(){ if(_aiBusy)return; _aiChat=[]; aiChatRender(); const i=document.getElementById('aiQm'); if(i)i.focus(); }
 function aiSheetOpen(){ const s=document.getElementById('aiSheet'); if(!s)return; s.classList.add('on'); s.setAttribute('aria-hidden','false'); aiChatRender(); setTimeout(()=>{const i=document.getElementById('aiQm'); if(i)i.focus();},80); }
 function aiSheetClose(){ const s=document.getElementById('aiSheet'); if(s){ s.classList.remove('on'); s.setAttribute('aria-hidden','true'); } }
