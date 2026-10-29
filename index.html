@@ -77,7 +77,7 @@ body{background:
 .yearnav .y{font-weight:800;font-size:15px;min-width:54px;text-align:center}
 .topbar .tabs .yearnav{background:none;border:0;padding:0;height:auto} /* ano dentro da barra dos menus: sem caixa própria */
 .tabsep{width:1px;align-self:stretch;background:var(--line);margin:0 3px;flex:none}
-#aiNav{display:none} /* só no mobile (linha 2 do header) - no desktop a IA é a barra #aiBar */
+#aiNav{display:none} /* só no mobile (rodapé) - no desktop é o botão flutuante #aiFab */
 #botnav{display:none} /* barra de navegação inferior - só no mobile */
 .btn{background:var(--card2);color:var(--txt);border:1px solid transparent;padding:9px 15px;border-radius:12px;cursor:pointer;font-size:13px;font-weight:600;display:inline-flex;align-items:center;gap:7px;white-space:nowrap;transition:background .16s,color .16s,transform .1s,box-shadow .16s;box-shadow:var(--sh-sm)}
 .btn:hover{background:color-mix(in srgb,var(--card2) 82%,var(--acc));transform:translateY(-1px);box-shadow:var(--sh)}
@@ -542,11 +542,6 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .bal.cativo{color:var(--cativo);cursor:pointer} .bal.cativo b{color:var(--cativo)} .bal.cativo .bdot{background:var(--cativo)}
 .bsep{width:1px;height:15px;background:var(--line);margin:0 11px;flex:none}
 /* a barra da IA parte para a 2ª linha (não cabe ao lado dos saldos) e cresce p/ encher a esquerda; os ícones ficam à direita da mesma linha - sem espaço morto */
-#aiBar{flex:1 1 320px;min-width:200px;display:flex;align-items:center}
-#aiBar input{width:100%;height:34px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:0 12px;color:var(--txt);font-size:13px}
-#aiBar input::placeholder{color:var(--mut)}
-#aiBar input:focus{border-color:var(--acc);outline:none;background:var(--card2)}
-@media(max-width:720px){#aiBar{display:none}}
 /* ----- Folha de chat da IA (aberta pelo botão #aiNav no header, mobile) ----- */
 #aiSheet{display:none;position:fixed;inset:0;z-index:9001;background:rgba(0,0,0,.42);align-items:flex-end;justify-content:center}
 #aiSheet.on{display:flex}
@@ -565,10 +560,24 @@ h2 svg{width:18px;height:18px;vertical-align:middle}
 .aiSheet-input input:focus{border-color:var(--acc);outline:none}
 .aiSheet-input button{flex:none;width:42px;height:42px;border-radius:12px;border:0;background:var(--acc);color:#fff;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}
 .aiSheet-input button svg{width:18px;height:18px}
-#aiPanel{position:fixed;z-index:10002;background:var(--card2);border:1px solid var(--line);border-radius:12px;box-shadow:var(--sh);padding:13px 15px;width:min(420px,calc(100vw - 20px));font-size:13.5px;line-height:1.5;color:var(--txt)}
-#aiPanel.err{border-color:var(--out)}
-#aiPanel .aiq{color:var(--mut);font-size:11.5px;margin-bottom:7px;display:flex;align-items:center;gap:5px}
-#aiPanel .aiq svg{width:13px;height:13px}
+/* Assistente CASA: botão flutuante no PC + painel de conversa no canto; no telemóvel é a folha de baixo aberta pelo rodapé */
+#aiFab{position:fixed;right:22px;bottom:22px;z-index:8500;width:54px;height:54px;border-radius:50%;border:0;background:var(--acc);color:#fff;box-shadow:var(--sh-lg);cursor:pointer;display:grid;place-items:center;transition:transform .15s,filter .15s}
+#aiFab:hover{transform:translateY(-2px);filter:brightness(1.07)}
+#aiFab svg{width:24px;height:24px}
+@media(max-width:720px){#aiFab{display:none}}
+@media(min-width:721px){
+  #aiSheet{inset:auto;right:22px;bottom:88px;background:none;align-items:stretch}
+  #aiSheet .aiSheet-card{width:410px;max-width:calc(100vw - 44px);height:min(640px,calc(100vh - 120px));max-height:none;border-radius:16px;border:1px solid var(--line)}
+}
+#aiNew+#aiSheetClose{margin-left:0}
+#aiNew svg{width:17px;height:17px}
+.aim{display:block;width:fit-content;max-width:88%;padding:9px 12px;border-radius:14px;margin:0 0 9px;line-height:1.5;font-size:13.5px;overflow-wrap:anywhere}
+.aim.u{margin-left:auto;background:var(--acc);color:#fff;border-bottom-right-radius:5px}
+.aim.m{background:var(--card2);border:1px solid var(--line);border-bottom-left-radius:5px}
+.aim.err{border-color:var(--out);color:var(--out)}
+.aichips{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px}
+.aichip{border:1px solid var(--line);background:var(--card2);color:var(--txt);border-radius:999px;padding:7px 12px;font-size:12.5px;cursor:pointer;text-align:left}
+.aichip:hover{border-color:var(--acc);color:var(--acc)}
 .aidots{color:var(--mut)}
 @media(max-width:720px){.bal .vlbl{display:none} .bal .bdot{display:none} .balchip{padding:0 9px} .bsep{margin:0 5px}}
 @media(max-width:360px){.bal.vb,.bal.cativo{display:none}} /* ecrãs muito estreitos: esconde o Δ e o cativo (Valete+Coverflex inteiros) */
@@ -697,7 +706,6 @@ html:has(#lock),html:has(#splash){overflow:hidden}
     <div class="tabs" id="tabs"></div>
     <div class="spacer"></div>
     <div id="valeteHead"></div>
-    <div id="aiBar"><input id="aiQ" type="text" autocomplete="off" spellcheck="false" placeholder="Pergunta à IA: ex. quanto gastei em super no mês passado?"></div>
     <button id="searchBtn" title="Pesquisar movimentos"></button>
     <button id="inboxTop" title="Caixa de entrada (por classificar)"></button>
     <button id="refreshBtn" title="Atualizar - limpar cache e recarregar"></button>
@@ -714,14 +722,15 @@ html:has(#lock),html:has(#splash){overflow:hidden}
 <div class="back" id="back"></div>
 <div class="toast" id="toast"></div>
 
-<!-- Folha de chat da IA (mobile): aberta pelo botão #aiNav na 2ª linha do header; usa o mesmo motor da barra de IA do PC -->
+<!-- Assistente CASA: no PC abre pelo botão flutuante #aiFab (painel no canto); no telemóvel pelo #aiNav do rodapé (folha de baixo) -->
 <div id="aiSheet" aria-hidden="true">
   <div class="aiSheet-card">
-    <div class="aiSheet-h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4 4 1.7-4 1.7L12 14l-1.7-4-4-1.7 4-1.7z"/></svg><b>Assistente CASA</b><button id="aiSheetClose" class="aiSheet-x" aria-label="Fechar">&times;</button></div>
-    <div class="aiSheet-body" id="aiSheetAns"><div class="aiSheet-empty">Pergunta o que quiseres sobre as tuas finanças.<br><span style="opacity:.65">ex.: «quanto gastei em super no mês passado?» · «previsão de despesa de agosto» · «saldo de maio»</span></div></div>
-    <div class="aiSheet-input"><input id="aiQm" type="text" autocomplete="off" spellcheck="false" placeholder="Escreve a tua pergunta…"><button id="aiSendM" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button></div>
+    <div class="aiSheet-h"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4 4 1.7-4 1.7L12 14l-1.7-4-4-1.7 4-1.7z"/></svg><b>Assistente CASA</b><button id="aiNew" class="aiSheet-x" title="Nova conversa" aria-label="Nova conversa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></button><button id="aiSheetClose" class="aiSheet-x" aria-label="Fechar">&times;</button></div>
+    <div class="aiSheet-body" id="aiSheetAns"></div>
+    <div class="aiSheet-input"><input id="aiQm" type="text" autocomplete="off" spellcheck="false" placeholder="Pergunta sobre as tuas finanças…"><button id="aiSendM" aria-label="Enviar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg></button></div>
   </div>
 </div>
+<button id="aiFab" title="Assistente CASA" aria-label="Assistente CASA"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-9 8.4 8.6 8.6 0 0 1-3.8-.9L3 21l2-5.2A8.4 8.4 0 0 1 12 3a8.4 8.4 0 0 1 9 8.5z"/></svg></button>
 
 <script>
 "use strict";
@@ -2707,6 +2716,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v108',d:'29 out',bul:['<b>Assistente CASA novo.</b> A barra de perguntas do topo deu lugar a um <b>botão redondo no canto</b> (no PC) que abre uma <b>conversa</b>; no telemóvel abre pelo botão do rodapé, como antes. O assistente lembra-se do que foi dito (podes perguntar «e no ano passado?») e traz perguntas prontas a carregar.','Ferramentas novas de <b>previsão do mês</b>: quanto vais gastar até ao fim do mês, o que ainda <b>falta pagar</b> (fixas e débitos agendados, com dia e valor), com quanto fica o <b>Valete no fim do mês</b>, se estás a gastar mais do que no <b>mesmo período do ano passado</b> e quanto ainda podes gastar em <b>lazer</b>. Os números são calculados pela app - a IA só os explica.','Mais <b>rápido e fiável</b>: passa a usar só o Gemini (saiu o OpenRouter, cujos modelos grátis estavam sempre ocupados), escolhe sozinho o melhor modelo Flash da tua chave e responde sem o modo «pensar». Se a Google retirar um modelo, a app deteta e passa ao seguinte sem dares por isso.','A subscrição Gemini Plus não dá acesso à API: o assistente usa a <b>chave gratuita do Google AI Studio</b>, que se põe em Definições → Assistente IA e fica só no teu dispositivo.']},
   {v:'v107',d:'6 out',bul:['Nos recibos, as linhas de <b>Bónus</b> passam a ir para a coluna <b>Bonus</b> (antes iam para Compl. salário). O <b>prémio</b> continua em Compl. salário, e o subsídio de férias/Natal continua em Subsídios.']},
   {v:'v106',d:'6 out',bul:['Nas <b>receitas</b>, a app deteta quando o mesmo dinheiro está <b>contado duas vezes</b>: um líquido lançado à mão ou do banco (ex.: o subsídio que entrou por transferência) e as linhas do recibo que dão exatamente esse líquido. Aparece um aviso por cima da grelha com o botão <b>Corrigir</b>, que mostra antes o que vai mudar.','Ao corrigir, sai o líquido duplicado e o bruto do recibo passa para a coluna onde tinhas posto o líquido (no subsídio de Setembro: de Compl. salário para Subsídios). O Valete só muda se estivesse a contar o dinheiro duas vezes.']},
   {v:'v105',d:'6 out',bul:['Já dá para ter <b>dois recibos no mesmo mês</b> (ex.: vencimento + subsídio de férias). Na revisão do recibo há um campo <b>Tipo de recibo</b> - Vencimento, Subsídio de férias ou Subsídio de Natal - detetado sozinho a partir do PDF. O aviso de «recibo repetido» só aparece se carregares o <b>mesmo tipo</b> duas vezes.','Corrigido um caso em que se <b>perdiam linhas</b>: o filtro anti-duplicados comparava o segundo recibo com o primeiro e saltava, por exemplo, a SS do subsídio quando dava o mesmo valor que a do vencimento. Agora nunca compara recibos de tipos diferentes.','O subsídio de férias/Natal passa a ir para a coluna <b>Subsídios</b> (antes ia para Compl. salário), e só o recibo de vencimento substitui o provisório do salário.','Se o líquido do recibo <b>já estiver lançado</b> no mês (ex.: o subsídio que entrou por transferência e puseste em Subsídios), a revisão oferece-se para o <b>substituir</b> pelas linhas do recibo - senão o mesmo dinheiro contava duas vezes, uma pelo líquido e outra pelo bruto mais os descontos. O Valete não mexe.']},
@@ -3079,15 +3089,12 @@ function vDefs(m){
   </div></details>
   <details class="defgroup" data-dg="ia" ${defGroupsOpen.has('ia')?'open':''}><summary>${svg(I.bell)} Assistente IA</summary>
   <div class="defs-grid">
-    <div class="card span2">${dh(I.bell,'Barra de perguntas (só no PC)','No computador, a barra no topo deixa-te perguntar em linguagem natural (ex.: "quanto gastei em super no mês passado?"). A IA entende a pergunta e a app calcula os números - só a pergunta e os resultados saem do dispositivo; os movimentos e a dívida ficam locais.')}
-      <label style="margin-top:4px">Fornecedor de IA</label>
-      <div class="seg" style="max-width:340px">${Object.keys(AI_PROVIDERS).map(p=>`<button data-aiprov="${p}" class="${aiProvider()===p?'on':''}">${esc(AI_PROVIDERS[p].nome)}</button>`).join('')}</div>
-      <label style="margin-top:12px">Chave da API (${esc(AI_PROVIDERS[aiProvider()].nome)})</label>
-      <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aiKey" type="password" autocomplete="off" value="${esc(aiKey())}" placeholder="${esc(AI_PROVIDERS[aiProvider()].placeholder)}" style="flex:1 1 220px;min-width:0"><button class="btn sm primary" id="aiKeySave">${svg(I.check)}Guardar</button>${aiKey()?`<button class="btn sm" id="aiKeyDel">Remover</button>`:''}</div>
-      <div style="margin-top:12px"><label>Modelo ${hlp('Carrega em "Detetar modelos" para ver os que a tua chave suporta. Se der erro de modelo/quota, escolhe outro ou troca de fornecedor.')}</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="aiModel" style="max-width:320px;min-width:0;flex:1 1 220px">${[...new Set([aiModel(),...(aiDetectedModels().length?aiDetectedModels():AI_PROVIDERS[aiProvider()].presets)])].map(m=>`<option ${m===aiModel()?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="btn sm" id="aiDetect">${svg(I.repeat)}Detetar modelos</button></div>
-        ${aiDetectedModels().length?`<p class="dsub" style="margin-top:6px">${aiDetectedModels().length} modelo(s) detetado(s). Se um estiver ocupado, a app tenta os outros automaticamente.</p>`:''}</div>
-      <p class="dsub" style="margin-top:10px">Chave grátis em <b>${esc(AI_PROVIDERS[aiProvider()].onde)}</b>. Fica só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. ${aiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
+    <div class="card span2">${dh(I.bell,'Assistente CASA (Gemini)','O botão redondo no canto (no PC) ou o do rodapé (no telemóvel) abre uma conversa com o assistente: previsões do mês, o que falta pagar, comparações com o ano passado, quanto podes gastar em lazer. A IA entende a pergunta e a app calcula os números - só a pergunta e os resultados saem do dispositivo; os movimentos e a dívida ficam locais.')}
+      <label style="margin-top:4px">Chave da API do Gemini</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><input id="aiKey" type="password" autocomplete="off" value="${esc(aiKey())}" placeholder="cola a tua chave (AIza…)" style="flex:1 1 220px;min-width:0"><button class="btn sm primary" id="aiKeySave">${svg(I.check)}Guardar</button>${aiKey()?`<button class="btn sm" id="aiKeyDel">Remover</button>`:''}</div>
+      <div style="margin-top:12px"><label>Modelo ${hlp('Por defeito a app escolhe sozinha o melhor modelo Flash que a tua chave tem - rápido e gratuito. Só mudes se tiveres um motivo.')}</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select id="aiModel" style="max-width:320px;min-width:0;flex:1 1 220px"><option value="" ${_aiModelFixo()?'':'selected'}>Automático (${esc(_aiPickModel(aiDetectedModels())||AI_DEF_MODEL)})</option>${aiDetectedModels().filter(m=>/^gemini-/.test(m)&&!/image|tts|audio|live|embedding|aqa/i.test(m)).map(m=>`<option ${m===_aiModelFixo()?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="btn sm" id="aiDetect">${svg(I.repeat)}Detetar modelos</button></div></div>
+      <p class="dsub" style="margin-top:10px">Chave <b>gratuita</b> em <b>${esc(AI_ONDE)}</b> - a subscrição Gemini Plus não serve aqui, a API é à parte. Fica só neste dispositivo (localStorage), nunca no código nem na cópia de segurança. ${aiKey()?'<span class="pos">● Configurada</span>':'<span style="color:var(--mut)">Por configurar</span>'}</p>
     </div>
   </div></details>
   <details class="defgroup" data-dg="perigo" ${defGroupsOpen.has('perigo')?'open':''}><summary>${svg(I.trash)} Zona perigosa</summary>
@@ -3162,6 +3169,9 @@ document.addEventListener('click',e=>{
   if(t.id==='aiNav'){ aiSheetOpen(); return; }
   if(t.id==='aiSheetClose'){ aiSheetClose(); return; }
   if(t.id==='aiSendM'){ aiAskM(); return; }
+  if(t.id==='aiFab'){ aiSheetToggle(); return; }
+  if(t.id==='aiNew'){ aiChatReset(); return; }
+  if(d.aiq){ aiSend(d.aiq); return; }
   if(d.tab){tab=d.tab;closePop();render();return;}
   if(d.year){ano+=+d.year;render();return;}
   if(d.gt){gridTipo=d.gt;qCashMode=false;render();return;}
@@ -3215,11 +3225,9 @@ document.addEventListener('click',e=>{
   if(d.acertoflag){ const c=cat(d.acertoflag); if(c){c.acerto=!c.acerto; save(); render();} return; }
   if(d.descflag){ const c=cat(d.descflag); if(c){c.desconto=!c.desconto; save(); render();} return; }
   if(t.id==='saveMargem'){ state.settings.valeteMargem=Math.max(0,parseFloat(val('valeteMargem'))||0); state.settings.poupancaMensal=Math.max(0,parseFloat(val('poupancaMensal'))||0); state.settings.diaSalario=Math.min(28,Math.max(1,parseInt(val('diaSalario'))||23)); state.settings.salarioMatch=(val('salarioMatch')||'').trim(); const _vcc=valeteConta(); if(_vcc){ const cv=Math.max(0,parseFloat(String(val('valeteCativo')||'').replace(/\s/g,'').replace(',','.'))||0); _vcc.cativo=cv||undefined; } save(); render(); toast('Guardado'); return; }
-  if(d.aiprov){ setAiProvider(d.aiprov); _aiModels=[]; render(); return; }
   if(t.id==='aiKeySave'){ setAiKey((val('aiKey')||'').trim()); toast(aiKey()?'Chave guardada (só neste dispositivo)':'Chave removida'); render(); return; }
   if(t.id==='aiKeyDel'){ setAiKey(''); toast('Chave removida'); render(); return; }
   if(t.id==='aiDetect'){ aiListModels(); return; }
-  if(d.aiclose){ aiHide(); return; }
   if(d.alertread!=null){ const it=_panelAlerts[+d.alertread]; if(it){ markAlertRead(it); render(); renderAlertPanel(); } return; }
   if(d.alertreadall){ _panelAlerts.slice().forEach(it=>markAlertRead(it)); render(); renderAlertPanel(); return; }
   if(d.alertlogclear){ if((state.alertLog||[]).length){ confirmModal('Limpar o arquivo de alertas?',()=>{state.alertLog=[];state.alertReads={};save();render();},{titulo:'Limpar arquivo',okLabel:'Limpar'}); } return; }
@@ -3309,7 +3317,7 @@ document.addEventListener('keydown',e=>{
 });
 document.addEventListener('input',e=>{ if(e.target.id==='arqFilter'){ const q=e.target.value.trim().toLowerCase(); document.querySelectorAll('#arqList .pe').forEach(r=>{ r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none'; }); } });
 document.addEventListener('change',e=>{
-  if(e.target.id==='aiModel'){setAiModel(e.target.value);toast('Modelo IA: '+e.target.value);return;}
+  if(e.target.id==='aiModel'){setAiModel(e.target.value);toast('Modelo IA: '+(e.target.value||'automático ('+aiModel()+')'));return;}
   if(e.target.id==='anaCatSel'){anaCat=e.target.value;render();return;}
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
   if(e.target.id==='pdfIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
@@ -3351,11 +3359,8 @@ document.addEventListener('change',e=>{
   if(e.target.id==='fcMetaA'){state.forecast.meta.ano=e.target.value.trim();save();render();}
 });
 // close popover when clicking outside
-document.addEventListener('mousedown',e=>{ if(popCell && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); const ap=document.getElementById('alertPanel'); if(ap&&ap.classList.contains('on')&&!e.target.closest('#alertPanel')&&!e.target.closest('#bell')) ap.classList.remove('on'); const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none'&&!e.target.closest('#aiPanel')&&!e.target.closest('#aiBar')) aiHide(); });
-document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='aiQ'&&e.key==='Enter'){ e.preventDefault(); aiAsk(); } else if(e.target&&e.target.id==='aiQm'&&e.key==='Enter'){ e.preventDefault(); aiAskM(); } else if(e.key==='Escape'){ const sh=document.getElementById('aiSheet'); if(sh&&sh.classList.contains('on')){ aiSheetClose(); return; } const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); } });
-/* fechar a resposta da IA quando se faz scroll (deixaria de estar junto à barra) ou ao minimizar/trocar de app */
-window.addEventListener('scroll',()=>{ const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); }, true);
-document.addEventListener('visibilitychange',()=>{ if(document.hidden){ const aip=document.getElementById('aiPanel'); if(aip&&aip.style.display!=='none') aiHide(); } });
+document.addEventListener('mousedown',e=>{ if(popCell && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); const ap=document.getElementById('alertPanel'); if(ap&&ap.classList.contains('on')&&!e.target.closest('#alertPanel')&&!e.target.closest('#bell')) ap.classList.remove('on'); });
+document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='aiQm'&&e.key==='Enter'){ e.preventDefault(); aiAskM(); } else if(e.key==='Escape'){ const sh=document.getElementById('aiSheet'); if(sh&&sh.classList.contains('on')){ aiSheetClose(); return; } } });
 /* fechar popover ao redimensionar - só quando muda a LARGURA (rotação/janela);
    ignora mudanças só de altura (teclado virtual no telemóvel, que senão fechava o popover ao focar o input) */
 let _popWinW=window.innerWidth;
@@ -5157,40 +5162,43 @@ async function bioUnlock(silent){
   finally{ _bioBusy=false; }
 }
 
-/* ===== Pergunta à IA (Gemini) - só no PC. A IA entende a pergunta e REDIGE; a APP calcula os números (function-calling).
-   Só a pergunta + os resultados calculados saem do dispositivo; os movimentos, notas e a dívida ficam locais. Chave: localStorage 'casa-gemini'. ===== */
-const AI_PROVIDERS={
-  gemini:{nome:'Google Gemini', onde:'aistudio.google.com → Get API key', placeholder:'cola a tua chave (AIza… ou AQ…)', defModel:'gemini-2.0-flash', presets:['gemini-2.0-flash','gemini-2.0-flash-lite','gemini-2.5-flash','gemini-2.5-flash-lite']},
-  openrouter:{nome:'OpenRouter (modelos grátis)', onde:'openrouter.ai → Keys (cria conta grátis)', placeholder:'cola a tua chave (sk-or-…)', defModel:'meta-llama/llama-3.3-70b-instruct:free', presets:['meta-llama/llama-3.3-70b-instruct:free','google/gemini-2.0-flash-exp:free','mistralai/mistral-small-3.2-24b-instruct:free','deepseek/deepseek-chat-v3-0324:free']}
-};
-function aiProvider(){ try{return AI_PROVIDERS[localStorage.getItem('casa-ai-provider')]?localStorage.getItem('casa-ai-provider'):'gemini';}catch(e){return 'gemini';} }
-function setAiProvider(p){ try{localStorage.setItem('casa-ai-provider',p);}catch(e){} }
-function _aiKeyName(){ return aiProvider()==='openrouter'?'casa-openrouter':'casa-gemini'; }
-function aiKey(){ try{return localStorage.getItem(_aiKeyName())||'';}catch(e){return '';} }
-function setAiKey(k){ try{ if(k)localStorage.setItem(_aiKeyName(),k); else localStorage.removeItem(_aiKeyName()); }catch(e){} }
-function aiModel(){ try{return localStorage.getItem('casa-ai-model-'+aiProvider())||AI_PROVIDERS[aiProvider()].defModel;}catch(e){return AI_PROVIDERS[aiProvider()].defModel;} }
-function setAiModel(m){ try{ if(m)localStorage.setItem('casa-ai-model-'+aiProvider(),m); else localStorage.removeItem('casa-ai-model-'+aiProvider()); }catch(e){} }
-function aiDetectedModels(){ try{return JSON.parse(localStorage.getItem('casa-ai-models-'+aiProvider())||'[]');}catch(e){return [];} }
+/* ===== Assistente CASA (Gemini) - uma CONVERSA, aberta pelo botão flutuante (PC) ou pelo botão do rodapé (telemóvel).
+   A IA entende a pergunta e REDIGE; a APP calcula os números (function-calling): só a pergunta e os resultados calculados
+   saem do dispositivo - os movimentos, notas e a dívida ficam locais. Chave: localStorage 'casa-gemini'.
+   NOTA: a subscrição Gemini (Plus/Pro) NÃO dá acesso à API - a chave é a gratuita do Google AI Studio. O OpenRouter
+   (modelos grátis que rodavam quando estavam ocupados) saiu: era daí a lentidão e a pouca fiabilidade. ===== */
+const AI_DEF_MODEL='gemini-2.5-flash';
+const AI_ONDE='aistudio.google.com → Get API key';
+function aiKey(){ try{return localStorage.getItem('casa-gemini')||'';}catch(e){return '';} }
+function setAiKey(k){ try{ if(k)localStorage.setItem('casa-gemini',k); else localStorage.removeItem('casa-gemini'); }catch(e){} }
+/* modelos antigos (1.x / 2.0) e a escolha de fornecedor saem uma vez: passa a escolher sozinho o melhor Flash */
+(function(){ try{ const m=localStorage.getItem('casa-ai-model-gemini')||''; if(/^gemini-(1\.|2\.0)/.test(m))localStorage.removeItem('casa-ai-model-gemini'); localStorage.removeItem('casa-ai-provider'); }catch(e){} })();
+function aiDetectedModels(){ try{return JSON.parse(localStorage.getItem('casa-ai-models-gemini')||'[]');}catch(e){return [];} }
+/* o melhor Flash da chave: normal antes de lite, estável antes de preview, versão mais alta; sem os de imagem/voz/tempo real */
+function _aiPickModel(list){
+  const c=(list||[]).map(n=>{ const m=/^gemini-(\d+(?:\.\d+)?)-flash(-lite)?(?:-(preview|latest)[\w-]*)?$/.exec(n); return m?{n,v:parseFloat(m[1]),lite:m[2]?1:0,pre:m[3]==='preview'?1:0}:null; }).filter(Boolean);
+  c.sort((a,b)=>(a.lite-b.lite)||(a.pre-b.pre)||(b.v-a.v));
+  return c.length?c[0].n:null;
+}
+function _aiModelFixo(){ try{return localStorage.getItem('casa-ai-model-gemini')||'';}catch(e){return '';} }
+function aiModel(){ return _aiModelFixo()||_aiPickModel(aiDetectedModels())||AI_DEF_MODEL; }
+function setAiModel(m){ try{ if(m)localStorage.setItem('casa-ai-model-gemini',m); else localStorage.removeItem('casa-ai-model-gemini'); }catch(e){} }
 let _aiModels=[];
-/* pergunta à API quais os modelos que a chave suporta (resolve "not found"/quota por modelo errado) */
+async function _aiFetchModels(){
+  const key=aiKey(); if(!key)throw new Error('SEM_CHAVE');
+  const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(key));
+  const d=await r.json().catch(()=>({})); if(!r.ok) throw new Error((d&&d.error&&d.error.message)||('HTTP '+r.status));
+  const ms=(d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>(m.name||'').replace(/^models\//,'')).filter(Boolean);
+  _aiModels=ms; try{localStorage.setItem('casa-ai-models-gemini',JSON.stringify(ms));}catch(e){}
+  return ms;
+}
+/* botão "Detetar modelos" das Definições */
 async function aiListModels(){
-  const key=aiKey(); if(!key){toast('Adiciona a chave primeiro');return;}
+  if(!aiKey()){toast('Adiciona a chave primeiro');return;}
   toast('A detetar modelos…');
-  try{
-    let ms=[];
-    if(aiProvider()==='openrouter'){
-      const r=await fetch('https://openrouter.ai/api/v1/models',{headers:{'Authorization':'Bearer '+key}});
-      const d=await r.json(); if(!r.ok) throw new Error((d&&d.error&&(d.error.message||d.error))||('HTTP '+r.status));
-      ms=(d.data||[]).filter(m=>{const p=m.pricing||{}; return (p.prompt==='0'&&p.completion==='0')&&(m.supported_parameters||[]).includes('tools');}).map(m=>m.id);
-    } else {
-      const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200&key='+encodeURIComponent(key));
-      const d=await r.json(); if(!r.ok) throw new Error((d&&d.error&&d.error.message)||('HTTP '+r.status));
-      ms=(d.models||[]).filter(m=>(m.supportedGenerationMethods||[]).includes('generateContent')).map(m=>(m.name||'').replace(/^models\//,'')).filter(Boolean);
-    }
-    if(!ms.length){toast('Nenhum modelo compatível (com ferramentas) nesta chave');return;}
-    _aiModels=ms; try{localStorage.setItem('casa-ai-models-'+aiProvider(),JSON.stringify(ms));}catch(e){}
-    if(!ms.includes(aiModel())){ const pick=ms.find(m=>/flash|llama|mistral/i.test(m)&&!/thinking|preview|vision/i.test(m))||ms[0]; setAiModel(pick); }
-    render(); toast(ms.length+' modelo(s) detetado(s) ✓');
+  try{ const ms=await _aiFetchModels(); if(!ms.length){toast('Nenhum modelo compatível nesta chave');return;}
+    if(_aiModelFixo()&&!ms.includes(_aiModelFixo()))setAiModel(''); // o escolhido já não existe: volta ao automático
+    render(); toast(ms.length+' modelo(s) · a usar '+aiModel());
   }catch(e){ toast('Falha a detetar: '+(e.message||e)); }
 }
 function _aiNorm(s){return (s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').trim().toLowerCase();}
@@ -5218,7 +5226,34 @@ const AI_TOOLS={
   valete:()=>{ const F=valeteForecast(); return {saldo_atual:valeteAtual(), saldo_minimo_previsto_mes:F.minSaldo, dia_do_minimo:F.minDia, dia_em_que_falta_dinheiro:F.faltaDia, ainda_vai_entrar:F.restReceita, ainda_vai_sair:F.need, metodo:'saldo atual real da conta; a previsão do mês usa o histórico (mediana) das fixas e do gasto variável'}; },
   divida:({com_juros})=>{ const led=acertoLedger(); const mensal=led.length?led[led.length-1].acc:0, extras=acertoExtrasTotal(), total=round2(mensal+extras); const o={divida_total:total, registo_mensal:mensal, acertos_pontuais:extras, metodo:'dívida = acerto mensal acumulado (50/50) + acertos pontuais'}; if(com_juros){const j=computeJuros(); o.juros_mora=j.juros; o.total_com_juros=round2(total+j.juros); o.metodo+='; juros de mora = valor × 4%/ano × dias em atraso ÷ 365 (taxa civil, juros simples)';} return o; },
   patrimonio:()=>{ const y=ultimoAnoPoup(); return {patrimonio_total:round2(patrimonioDe(y)), ano:+y, metodo:'soma das poupanças/contas registadas no ano '+y}; },
-  top_categorias:({ano,mes,n})=>({ano,mes:mes||null,top:topCats('despesa').map(c=>({categoria:c.nome,total:_aiSum('despesa',ano,mes,_aiCatIds(c))})).filter(x=>x.total>0).sort((a,b)=>b.total-a.total).slice(0,n||5), metodo:'soma da despesa por categoria'+(mes?' no mês '+mes+'/'+ano:' em '+ano)+', ordenada de maior para menor'})
+  top_categorias:({ano,mes,n})=>({ano,mes:mes||null,top:topCats('despesa').map(c=>({categoria:c.nome,total:_aiSum('despesa',ano,mes,_aiCatIds(c))})).filter(x=>x.total>0).sort((a,b)=>b.total-a.total).slice(0,n||5), metodo:'soma da despesa por categoria'+(mes?' no mês '+mes+'/'+ano:' em '+ano)+', ordenada de maior para menor'}),
+  /* --- previsões do MÊS CORRENTE: reaproveitam a previsão do Valete (a mesma do painel do sino) --- */
+  previsao_mes_atual:()=>{ const F=valeteForecast(); const d=new Date();
+    return {ano:d.getFullYear(), mes:d.getMonth()+1, dia_hoje:F.today, dias_que_faltam:F.dim-F.today,
+      ja_gasto:F.gastoMes, por_pagar_fixas_e_agendados:F.fixoFut, variavel_estimado_que_falta:F.varRest,
+      despesa_prevista_mes:round2(F.gastoMes+F.need), estimativa_historica_mes:F.estMensal,
+      receita_prevista_mes:F.estReceita, ja_recebido:F.recebidoMes, ainda_vai_entrar:F.restReceita, dia_previsto_da_entrada:F.diaChegada,
+      valete_hoje:F.v, valete_previsto_fim_do_mes:(F.v==null?null:round2(F.v-F.need+F.restReceita)),
+      valete_minimo_previsto:F.minSaldo, dia_do_minimo:F.minDia, margem_definida:F.margem,
+      dia_em_que_desce_abaixo_da_margem:F.faltaDia, quanto_falta_nesse_dia:F.faltaValor||0,
+      metodo:'despesa prevista = já gasto + fixas e agendados ainda por pagar (valor típico de cada fixa, valor exato dos agendados) + variável que falta (estimativa do mês pelo histórico, menos o que já saiu e as fixas, espalhado pelos dias que faltam). Valete no fim do mês = saldo de hoje - o que ainda falta sair + a receita que ainda vai entrar.'};
+  },
+  por_pagar:()=>{ const F=valeteForecast(); const d=new Date();
+    return {ano:d.getFullYear(), mes:d.getMonth()+1, itens:F.fixas.map(f=>({nome:f.nome, dia:f.dia, valor:round2(f.valor), tipo:f.exato?'débito agendado (valor exato)':'despesa fixa (valor típico)'})), total:F.fixoFut,
+      metodo:'despesas fixas deste mês ainda não lançadas (valor típico pela mediana dos últimos meses) e débitos agendados, com data de hoje em diante'};
+  },
+  comparar_mes:({ano,mes})=>{ const d=new Date(); ano=ano||d.getFullYear(); mes=mes||(d.getMonth()+1);
+    const atual=(ano===d.getFullYear()&&mes===d.getMonth()+1), ate=atual?d.getDate():null;
+    const soma=(y,m,ids,lim)=>round2(state.movimentos.filter(x=>x.tipo==='despesa'&&+x.data.slice(0,4)===y&&+x.data.slice(5,7)===m&&(!ids||ids.has(x.categoriaId))&&(!lim||+x.data.slice(8,10)<=lim)).reduce((a,x)=>a+x.valor,0));
+    const por=topCats('despesa').map(c=>{ const ids=_aiCatIds(c); return {categoria:c.nome, este_mes:soma(ano,mes,ids,ate), ano_passado_mesmo_periodo:soma(ano-1,mes,ids,ate), ano_passado_mes_inteiro:soma(ano-1,mes,ids,null)}; })
+      .filter(x=>x.este_mes>0||x.ano_passado_mes_inteiro>0).sort((a,b)=>b.este_mes-a.este_mes).slice(0,8);
+    return {ano, mes, ate_ao_dia:ate, total_este_mes:soma(ano,mes,null,ate), total_ano_passado_mesmo_periodo:soma(ano-1,mes,null,ate), total_ano_passado_mes_inteiro:soma(ano-1,mes,null,null), por_categoria:por,
+      metodo:atual?'soma do que gastaste do dia 1 até hoje, comparada com o mesmo período (do dia 1 ao mesmo dia) do mesmo mês do ano passado; mostra também o mês inteiro do ano passado':'despesa do mês comparada com o mesmo mês do ano anterior'};
+  },
+  para_mimos:()=>{ const hoje=new Date(), mi=hoje.getMonth(); const a0=ano; let D; try{ ano=hoje.getFullYear(); D=disponivelMimos(mi); }finally{ ano=a0; }
+    return {mes:mi+1, receita_do_mes:D.receita, receita_e_estimada:!!D.receitaEstimada, despesas_essenciais:D.essenciais, poupanca_do_mes:D.poup, orcamento_de_lazer:D.orcamento, ja_gasto_em_lazer:D.mimosGasto, ainda_disponivel_para_lazer:D.resta, sem_categorias_de_lazer_marcadas:!!D.semSuper,
+      metodo:'disponível para lazer = receita do mês - despesas essenciais - poupança do mês - o que já gastaste nas categorias de lazer (marcadas com estrela)'};
+  }
 };
 const AI_FNS=[
   {name:'gasto',description:'Total de DESPESA de uma categoria (inclui sub-categorias) num mês ou no ano todo. Omite "mes" para o ano inteiro. Usa categoria="todas" para o total de despesa.',parameters:{type:'OBJECT',properties:{categoria:{type:'STRING'},ano:{type:'INTEGER'},mes:{type:'INTEGER',description:'1 a 12; omite para o ano inteiro'}},required:['ano']}},
@@ -5230,25 +5265,53 @@ const AI_FNS=[
   {name:'valete',description:'Saldo atual da conta Valete (conta real do banco) e previsão do saldo ao longo do mês.',parameters:{type:'OBJECT',properties:{}}},
   {name:'divida',description:'Dívida acumulada atual. com_juros=true inclui os juros de mora.',parameters:{type:'OBJECT',properties:{com_juros:{type:'BOOLEAN'}}}},
   {name:'patrimonio',description:'Património total atual (poupanças + cofre).',parameters:{type:'OBJECT',properties:{}}},
-  {name:'top_categorias',description:'As maiores categorias de despesa de um mês (ou do ano se omitires mes).',parameters:{type:'OBJECT',properties:{ano:{type:'INTEGER'},mes:{type:'INTEGER'},n:{type:'INTEGER'}},required:['ano']}}
+  {name:'top_categorias',description:'As maiores categorias de despesa de um mês (ou do ano se omitires mes).',parameters:{type:'OBJECT',properties:{ano:{type:'INTEGER'},mes:{type:'INTEGER'},n:{type:'INTEGER'}},required:['ano']}},
+  {name:'previsao_mes_atual',description:'PREVISÃO DO MÊS CORRENTE - usa para "quanto vou gastar este mês", "como vai acabar o mês", "chego ao fim do mês com quanto". Devolve o que já gastaste, as fixas e agendados que faltam, o variável que ainda deve sair, a despesa prevista total, a receita que falta entrar e o saldo do Valete previsto no fim do mês e o mínimo.',parameters:{type:'OBJECT',properties:{}}},
+  {name:'por_pagar',description:'Lista das despesas fixas e débitos agendados que AINDA FALTAM sair este mês, com dia e valor.',parameters:{type:'OBJECT',properties:{}}},
+  {name:'comparar_mes',description:'Compara a despesa de um mês (por defeito o atual, até ao dia de hoje) com o MESMO período do mesmo mês do ano passado, no total e por categoria. Usa para "estou a gastar mais do que no ano passado?" e "onde estou a gastar mais?".',parameters:{type:'OBJECT',properties:{ano:{type:'INTEGER'},mes:{type:'INTEGER'}}}},
+  {name:'para_mimos',description:'Quanto ainda podes gastar em lazer este mês: receita - despesas essenciais - poupança - o que já gastaste em lazer.',parameters:{type:'OBJECT',properties:{}}}
 ];
 function _aiSystemPrompt(){
   const cats=topCats('despesa').map(c=>c.nome).concat(catsOf('receita').filter(c=>!c.parent).map(c=>c.nome)).join(', ');
   return `És o assistente da app de finanças pessoais "CASA" (português de Portugal, moeda €). Hoje é ${isoToday()}. Responde curto e direto, em pt-PT. NUNCA inventes ou estimes números de cabeça - usa SEMPRE as ferramentas e usa os valores que devolvem tal e qual. Resolve datas relativas ("mês passado", "próximo mês", "este ano", "ano passado") a partir da data de hoje. Categorias disponíveis: ${cats}. Se a categoria pedida não existir, diz quais existem. Se a pergunta não for sobre as finanças da CASA, diz que só ajudas com isso.
 
-As perguntas são SEMPRE sobre valores, por isso EXPLICA SEMPRE a origem de cada número: primeiro o resultado em €, depois 1-2 linhas a dizer de onde vem. Usa os campos que a ferramenta devolve - em especial "metodo" (a fórmula/regra usada), "n_lancamentos" (quantos movimentos foram somados) e, nas previsões, "meses_usados" (os meses e valores que entraram na média) e "meses_excluidos" (outliers retirados). Se a conta for uma média de vários meses, resume em vez de listar todos (ex.: "média ponderada de 8 meses, entre 1.980 € e 2.510 €, com mais peso nos recentes"). Reproduz o "metodo" por palavras tuas, de forma clara.`;
+As perguntas são SEMPRE sobre valores, por isso EXPLICA SEMPRE a origem de cada número: primeiro o resultado em €, depois 1-2 linhas a dizer de onde vem. Usa os campos que a ferramenta devolve - em especial "metodo" (a fórmula/regra usada), "n_lancamentos" (quantos movimentos foram somados) e, nas previsões, "meses_usados" (os meses e valores que entraram na média) e "meses_excluidos" (outliers retirados). Se a conta for uma média de vários meses, resume em vez de listar todos (ex.: "média ponderada de 8 meses, entre 1.980 € e 2.510 €, com mais peso nos recentes"). Reproduz o "metodo" por palavras tuas, de forma clara.
+
+Isto é uma CONVERSA: aproveita o que já foi dito (ex.: "e no ano passado?" continua a pergunta anterior). Para perguntas sobre ESTE mês - quanto vou gastar, o que falta pagar, com quanto fico no fim do mês, se estou a gastar mais do que é costume, quanto posso gastar em lazer - usa previsao_mes_atual, por_pagar, comparar_mes e para_mimos. Escreve frases curtas; podes usar listas com "- " e **negrito** só nos valores principais; não uses tabelas nem títulos. Usa sempre o hífen simples (-), nunca travessões. Escreve os valores como na app (ex.: 1 234,56 €).`;
 }
 function _aiExec(name,args){ let res; try{ const fn=AI_TOOLS[name]; res=fn?fn(args||{}):{erro:'ferramenta desconhecida'}; }catch(e){ res={erro:String(e.message||e)}; } return res; }
-function _lc(s){ if(!s||typeof s!=='object')return s; const o=Array.isArray(s)?[]:{}; for(const k in s){ o[k]=(k==='type'&&typeof s[k]==='string')?s[k].toLowerCase():_lc(s[k]); } return o; }
-function _aiFnsOpenAI(){ return AI_FNS.map(f=>({type:'function',function:{name:f.name,description:f.description,parameters:_lc(f.parameters)}})); }
-function askAI(q){ return aiProvider()==='openrouter'?askOpenRouter(q):askGemini(q); }
-async function askGemini(question){
-  const key=aiKey(); if(!key) throw new Error('SEM_CHAVE');
-  let contents=[{role:'user',parts:[{text:question}]}];
-  for(let i=0;i<5;i++){
-    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiModel()}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systemInstruction:{parts:[{text:_aiSystemPrompt()}]},contents,tools:[{functionDeclarations:AI_FNS}]})});
-    const d=await r.json();
-    if(!r.ok) throw new Error((d&&d.error&&d.error.message)||('HTTP '+r.status));
+/* --- motor: uma ida ao Gemini com ferramentas (a app calcula, a IA redige) --- */
+const AI_TIMEOUT=45000;
+/* 2.5 Flash sem "pensar": muito mais rápido, e estas perguntas são de consulta (os números vêm das ferramentas) */
+function _aiThinkCfg(model){ return /2\.5-flash/.test(model)?{thinkingConfig:{thinkingBudget:0}}:{}; }
+async function _geminiCall(model,contents,noThink){
+  const key=aiKey(); if(!key)throw new Error('SEM_CHAVE');
+  const ctl=new AbortController(); const tm=setTimeout(()=>ctl.abort(),AI_TIMEOUT);
+  const body={systemInstruction:{parts:[{text:_aiSystemPrompt()}]},contents,tools:[{functionDeclarations:AI_FNS}],generationConfig:Object.assign({temperature:0.3},noThink?{}:_aiThinkCfg(model))};
+  try{
+    const r=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(key)}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body),signal:ctl.signal});
+    const d=await r.json().catch(()=>({}));
+    if(!r.ok){ const e=new Error((d&&d.error&&d.error.message)||('HTTP '+r.status)); e.status=r.status; throw e; }
+    return d;
+  }catch(e){ if(e&&e.name==='AbortError'){ const t=new Error('A IA demorou demasiado a responder'); t.status=408; throw t; } throw e; }
+  finally{ clearTimeout(tm); }
+}
+/* corre a conversa (com as chamadas às ferramentas) até haver texto. Recupera sozinho, uma vez cada, de:
+   modelo inexistente na chave (deteta os modelos e passa ao melhor Flash) e modelo que recusa a opção de "pensar" */
+async function _geminiRun(contents){
+  let model=aiModel(), noThink=false, trocou=false;
+  contents=contents.slice();
+  for(let passo=0;passo<6;){
+    let d;
+    try{ d=await _geminiCall(model,contents,noThink); }
+    catch(e){
+      const msg=String((e&&e.message)||'');
+      if(!noThink&&/thinking|budget/i.test(msg)){ noThink=true; continue; }
+      if(!trocou&&(e.status===404||/not found|not supported|NOT_FOUND/i.test(msg))){ trocou=true;
+        try{ await _aiFetchModels(); const fixo=_aiModelFixo(); if(fixo&&!aiDetectedModels().includes(fixo))setAiModel(''); const m2=aiModel(); if(m2&&m2!==model){ model=m2; noThink=false; continue; } }catch(_){} }
+      throw e;
+    }
+    passo++;
     const parts=(((d.candidates||[])[0]||{}).content||{}).parts||[];
     const calls=parts.filter(p=>p.functionCall);
     if(calls.length){
@@ -5256,75 +5319,56 @@ async function askGemini(question){
       contents.push({role:'user',parts:calls.map(p=>({functionResponse:{name:p.functionCall.name,response:{result:_aiExec(p.functionCall.name,p.functionCall.args)}}}))});
       continue;
     }
-    return parts.filter(p=>p.text).map(p=>p.text).join('').trim()||'(sem resposta)';
+    return parts.filter(p=>p.text&&!p.thought).map(p=>p.text).join('').trim()||'(sem resposta)';
   }
   return 'Não consegui responder (demasiados passos).';
 }
-/* resumo compacto dos dados (totais por mês, ~18 meses) p/ o fallback sem ferramentas - exclui o detalhe da dívida */
-function _aiContext(){
-  const yN=new Date().getFullYear(); const d=new Date(); d.setMonth(d.getMonth()-18); const cut=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
-  const lines=['RESUMO DOS DADOS (totais em €, por mês AAAA-MM - usa SÓ estes valores, não inventes; se faltar um mês, não houve gasto):'];
-  topCats('despesa').forEach(c=>{ const ids=_aiCatIds(c); const r=[]; for(let y=yN-1;y<=yN;y++)for(let mo=1;mo<=12;mo++){const ym=y+'-'+String(mo).padStart(2,'0'); if(ym<cut)continue; const v=_aiSum('despesa',y,mo,ids); if(v>0)r.push(ym+'='+v);} if(r.length)lines.push('Despesa '+c.nome+': '+r.join(' ')); });
-  const rr=[]; for(let y=yN-1;y<=yN;y++)for(let mo=1;mo<=12;mo++){const ym=y+'-'+String(mo).padStart(2,'0'); if(ym<cut)continue; const v=_aiSum('receita',y,mo); if(v)rr.push(ym+'='+v);} if(rr.length)lines.push('Receita líquida total: '+rr.join(' '));
-  lines.push('Saldos atuais: Valete='+valeteAtual()+', Coverflex='+(coverflexConta()?round2(parseFloat(coverflexConta().valor)||0):0)+', Património='+round2(patrimonioDe(ultimoAnoPoup())));
-  return lines.join('\n');
+/* pergunta única - usada pelo "Resumo do mês" */
+function askAI(q){ return _geminiRun([{role:'user',parts:[{text:q}]}]); }
+function _aiNoKeyHtml(){ return 'Para usar o assistente falta a <b>chave gratuita do Gemini</b>. Cria-a em <b>'+esc(AI_ONDE)+'</b> e cola-a em <b>Definições → Assistente IA</b> - fica só neste dispositivo.'; }
+function _aiErrHtml(e){
+  const raw=(e&&e.message)||'erro'; if(raw==='SEM_CHAVE')return _aiNoKeyHtml();
+  let hint='';
+  if(/API key not valid|API_KEY_INVALID|PERMISSION_DENIED/i.test(raw)||(e&&e.status===403))hint='A chave parece inválida - confirma-a em Definições → Assistente IA.';
+  else if(/quota|rate|429|RESOURCE_EXHAUSTED/i.test(raw)||(e&&e.status===429))hint='Chegaste ao limite gratuito por agora - tenta daqui a um minuto.';
+  else if(/demorou|Failed to fetch|NetworkError/i.test(raw))hint='Sem ligação ou a IA está lenta - tenta outra vez.';
+  else if(/not found|NOT_FOUND|not supported/i.test(raw))hint='O modelo '+esc(aiModel())+' não está disponível - em Definições carrega em Detetar modelos.';
+  return 'Não consegui responder: '+esc(raw).slice(0,240)+(hint?'<br><b>'+hint+'</b>':'');
 }
-async function askOpenRouter(question){
-  const key=aiKey(); if(!key) throw new Error('SEM_CHAVE');
-  // tenta o modelo escolhido e, se estiver ocupado (rate-limit), roda pelos outros modelos grátis detetados
-  // junta SEMPRE o modelo escolhido + detetados + presets (dedup): se os detetados estiverem desatualizados, ainda assim experimenta os grátis conhecidos
-  const list=[...new Set([aiModel(),...aiDetectedModels(),...AI_PROVIDERS.openrouter.presets])].filter(Boolean).slice(0,8); let lastErr;
-  for(let mi=0;mi<list.length;mi++){ const model=list[mi];
-    try{ const a=await _orChat(question,true,model); if(mi>0)setAiModel(model); return a; }
-    catch(e){ lastErr=e; if(/rate|temporar|429|busy|overload|capacity|unavailable for free|not found|404|RESOURCE_EXHAUSTED|requires more credits|insufficient/i.test(String(e.message||''))) continue; // modelo morto/ocupado → próximo (não vale a pena tentar sem ferramentas)
-      try{ const a=await _orChat(question,false,model); if(mi>0)setAiModel(model); return a; }catch(e2){ continue; } } // outro erro → tenta sem ferramentas; senão próximo
+/* --- conversa (só nesta sessão, nunca gravada) --- */
+let _aiChat=[], _aiBusy=false; // [{role:'user'|'model', text, err?}]
+const AI_SUGEST=['Quanto vou gastar este mês?','O que ainda falta pagar?','Com quanto fico no Valete no fim do mês?','Estou a gastar mais do que no ano passado?','Quanto ainda posso gastar em lazer?'];
+/* texto da IA -> HTML seguro: **negrito**, listas "- " e quebras de linha */
+function _aiFmt(s){ return esc(s).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').replace(/^[ \t]*[-*][ \t]+/gm,'• ').replace(/\n/g,'<br>'); }
+function aiChatRender(){
+  const a=document.getElementById('aiSheetAns'); if(!a)return;
+  if(!aiKey()){ a.innerHTML='<div class="aiSheet-empty">'+_aiNoKeyHtml()+'</div>'; return; }
+  if(!_aiChat.length&&!_aiBusy){
+    a.innerHTML='<div class="aiSheet-empty">Olá! Pergunta o que quiseres sobre as tuas finanças - sobretudo o que vem aí este mês.</div><div class="aichips">'+AI_SUGEST.map(q=>'<button class="aichip" data-aiq="'+esc(q)+'">'+esc(q)+'</button>').join('')+'</div>';
+    return;
   }
-  throw lastErr||new Error('Sem modelos disponíveis');
+  a.innerHTML=_aiChat.map(m=>'<div class="aim '+(m.role==='user'?'u':'m')+(m.err?' err':'')+'">'+(m.role==='user'?esc(m.text):(m.err?m.text:_aiFmt(m.text)))+'</div>').join('')+(_aiBusy?'<div class="aim m"><span class="aidots">A pensar…</span></div>':'');
+  a.scrollTop=a.scrollHeight;
 }
-async function _orChat(question,useTools,model){
-  const key=aiKey();
-  const sys=_aiSystemPrompt()+(useTools?'':('\n\n(Não tens ferramentas - responde apenas a partir deste resumo.)\n'+_aiContext()));
-  let messages=[{role:'system',content:sys},{role:'user',content:question}];
-  const base={model:model||aiModel(),messages}; if(useTools){ base.tools=_aiFnsOpenAI(); base.tool_choice='auto'; }
-  for(let i=0;i<(useTools?5:1);i++){
-    const r=await fetch('https://openrouter.ai/api/v1/chat/completions',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+key,'HTTP-Referer':location.origin,'X-Title':'CASA'},body:JSON.stringify(base)});
-    const d=await r.json();
-    if(!r.ok){ let em=(d&&d.error&&(d.error.message||(typeof d.error==='string'?d.error:'')))||('HTTP '+r.status); const meta=d&&d.error&&d.error.metadata; if(meta)em+=' - '+String(meta.raw||meta.provider_name||JSON.stringify(meta)).slice(0,180); throw new Error(em); }
-    const msg=((d.choices||[])[0]||{}).message||{};
-    const calls=msg.tool_calls||[];
-    if(useTools&&calls.length){ messages.push(msg); calls.forEach(tc=>{ let args={}; try{args=JSON.parse(tc.function.arguments||'{}');}catch(e){} messages.push({role:'tool',tool_call_id:tc.id,content:JSON.stringify(_aiExec(tc.function.name,args))}); }); continue; }
-    return (msg.content||'').trim()||'(sem resposta)';
-  }
-  return 'Não consegui responder (demasiados passos).';
+/* histórico que vai para a IA: sem as respostas de erro nem a pergunta que as originou; começa sempre por "user" */
+function _aiHist(){
+  const h=[]; _aiChat.forEach((m,i)=>{ if(m.err)return; const nx=_aiChat[i+1]; if(m.role==='user'&&nx&&nx.err)return; h.push({role:m.role,parts:[{text:m.text}]}); });
+  const ult=h.slice(-12); while(ult.length&&ult[0].role!=='user')ult.shift(); return ult;
 }
-let _aiLastQ='',_aiClosed=false;
-function _aiNoKeyHtml(){ return 'Falta a chave de '+esc(AI_PROVIDERS[aiProvider()].nome)+'. Adiciona-a em <b>Definições → Assistente IA</b> - fica só neste dispositivo.'; }
-function _aiErrHtml(e){ const raw=(e&&e.message)||'erro'; let m,hint=''; if(raw==='SEM_CHAVE'){m='falta a chave (Definições → Assistente IA)';} else {m=raw; if(/not found|not supported|no endpoints|NOT_FOUND|tool/i.test(raw))hint='<br><br><b>Dica:</b> o modelo <b>'+esc(aiModel())+'</b> não existe ou não suporta ferramentas nesta chave. Em <b>Definições → Assistente IA</b> carrega em <b>Detetar modelos</b> e escolhe outro.'; else if(/quota|limit|rate|429|RESOURCE_EXHAUSTED|credit/i.test(raw))hint='<br><br><b>Dica:</b> sem quota grátis para <b>'+esc(aiModel())+'</b>. Tenta outro modelo (botão <b>Detetar modelos</b>) ou troca de fornecedor (Gemini ↔ OpenRouter) nas Definições.'; } return 'Não consegui responder: '+esc(m).slice(0,300)+hint; }
-function aiAsk(){
-  const q=(val('aiQ')||'').trim(); if(!q)return; _aiLastQ=q; _aiClosed=false;
-  if(!aiKey()){ aiShow(_aiNoKeyHtml(),'err'); return; }
-  aiShow('A pensar…','loading');
-  askAI(q).then(a=>{ if(_aiClosed)return; aiShow(esc(a).replace(/\n/g,'<br>'),''); }).catch(e=>{ if(_aiClosed)return; aiShow(_aiErrHtml(e),'err'); });
+async function aiSend(q){
+  q=String(q||'').trim(); if(!q||_aiBusy)return;
+  if(!aiKey()){ aiChatRender(); return; }
+  _aiChat.push({role:'user',text:q}); _aiBusy=true; aiChatRender();
+  try{ const a=await _geminiRun(_aiHist()); _aiChat.push({role:'model',text:a}); }
+  catch(e){ _aiChat.push({role:'model',text:_aiErrHtml(e),err:true}); }
+  _aiBusy=false; aiChatRender();
 }
-/* ===== Chat flutuante (mobile) - botão no canto + folha com o mesmo motor da barra do PC ===== */
-function aiSheetOpen(){ const s=document.getElementById('aiSheet'); if(!s)return; s.classList.add('on'); setTimeout(()=>{const i=document.getElementById('aiQm'); if(i)i.focus();},80); }
-function aiSheetClose(){ const s=document.getElementById('aiSheet'); if(s)s.classList.remove('on'); }
-function aiSheetShow(html,kind){ const a=document.getElementById('aiSheetAns'); if(!a)return; a.className='aiSheet-body'+(kind?' '+kind:''); a.innerHTML=(kind==='loading')?'<span class="aidots">A pensar…</span>':html; a.scrollTop=a.scrollHeight; }
-function aiAskM(){
-  const q=(val('aiQm')||'').trim(); if(!q)return; _aiLastQ=q;
-  if(!aiKey()){ aiSheetShow(_aiNoKeyHtml(),'err'); return; }
-  aiSheetShow('A pensar…','loading');
-  const el=document.getElementById('aiQm'); if(el)el.value='';
-  askAI(q).then(a=>aiSheetShow('<div class="aiSheet-q">'+esc(q)+'</div>'+esc(a).replace(/\n/g,'<br>'),'')).catch(e=>aiSheetShow('<div class="aiSheet-q">'+esc(q)+'</div>'+_aiErrHtml(e),'err'));
-}
-function aiShow(html,kind){
-  let p=document.getElementById('aiPanel'); if(!p){p=document.createElement('div');p.id='aiPanel';document.body.appendChild(p);}
-  p.className=kind||'';
-  p.innerHTML=`<div class="aiq">${svg(I.bell)} ${esc(_aiLastQ||'')}</div><div class="aia">${kind==='loading'?'<span class="aidots">A pensar…</span>':html}</div>${kind==='loading'?'':'<div style="text-align:right;margin-top:8px"><button class="btn sm" data-aiclose="1">Fechar</button></div>'}`;
-  const a=document.getElementById('aiQ'); const r=a?a.getBoundingClientRect():{left:20,bottom:54};
-  p.style.left=Math.max(10,Math.min(r.left, window.innerWidth-430))+'px'; p.style.top=(r.bottom+8)+'px'; p.style.display='';
-}
-function aiHide(){_aiClosed=true;const p=document.getElementById('aiPanel');if(p)p.style.display='none';}
+function aiAskM(){ const el=document.getElementById('aiQm'); const q=el?el.value:''; if(el)el.value=''; aiSend(q); }
+function aiChatReset(){ if(_aiBusy)return; _aiChat=[]; aiChatRender(); const i=document.getElementById('aiQm'); if(i)i.focus(); }
+function aiSheetOpen(){ const s=document.getElementById('aiSheet'); if(!s)return; s.classList.add('on'); s.setAttribute('aria-hidden','false'); aiChatRender(); setTimeout(()=>{const i=document.getElementById('aiQm'); if(i)i.focus();},80); }
+function aiSheetClose(){ const s=document.getElementById('aiSheet'); if(s){ s.classList.remove('on'); s.setAttribute('aria-hidden','true'); } }
+function aiSheetToggle(){ const s=document.getElementById('aiSheet'); if(s&&s.classList.contains('on'))aiSheetClose(); else aiSheetOpen(); }
+function aiHide(){ aiSheetClose(); } // o ecrã de bloqueio chama-o: não deixar a conversa por cima
 /* ===== Bloqueio de acesso (código simples) ===== */
 function isUnlocked(){ return !state.settings.codigo || sessionStorage.getItem('casa-unlock')==='1'; }
 let _pinEntry='';
