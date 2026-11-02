@@ -697,14 +697,52 @@ html:has(#lock),html:has(#splash){overflow:hidden}
 #lock .pad button.k-bio svg{width:30px;height:30px}
 #lockBox.shake{animation:lockShake .42s}
 @keyframes lockShake{0%,100%{transform:none}20%,60%{transform:translateX(-9px)}40%,80%{transform:translateX(9px)}}
+/* ===== barra lateral (PC largo, body.has-side posto pelo render a partir de 1100px) - abaixo disso fica o header de sempre ===== */
+#side,#pageTitle{display:none}
+body.has-side .app{display:grid;grid-template-columns:236px minmax(0,1fr);grid-template-rows:auto 1fr;align-items:start}
+body.has-side #side{display:flex;flex-direction:column;gap:18px;grid-column:1;grid-row:1/3;position:sticky;top:0;height:100vh;overflow-y:auto;background:var(--bg2);border-right:1px solid var(--line);padding:16px 12px}
+body.has-side .topbar{grid-column:2;grid-row:1}
+body.has-side .main{grid-column:2;grid-row:2}
+body.has-side .topbar .brand,body.has-side .topbar .tabs,body.has-side #valeteHead,body.has-side #inboxTop,body.has-side #refreshBtn,body.has-side #lockNow,body.has-side #topright{display:none!important}
+body.has-side .topbar-inner{padding:12px 20px;min-height:58px}
+body.has-side #pageTitle{display:block;font-size:17px;font-weight:800}
+.side-brand{display:flex;align-items:center;gap:8px;padding:0 4px}
+.side-brand .brand span{font-size:16px}
+.side-brand .yearnav{margin-left:auto;background:none;border:0;padding:0}
+.side-brand .yearnav button{width:24px;height:28px}
+.side-brand .yearnav .y{min-width:42px;font-size:14px}
+.side-nav{display:flex;flex-direction:column;gap:2px}
+.side-nav button{display:flex;align-items:center;gap:11px;width:100%;padding:9px 11px;border:0;background:none;border-radius:10px;color:var(--mut);font-weight:600;font-size:13.5px;cursor:pointer;text-align:left;transition:background .16s,color .16s}
+.side-nav button svg{width:18px;height:18px;flex:none}
+.side-nav button:hover:not(.on){color:var(--txt);background:var(--card)}
+.side-nav button.on{color:#fff;background:linear-gradient(135deg,var(--acc),var(--accd));box-shadow:0 1px 0 rgba(255,255,255,.12) inset,0 6px 14px -8px var(--acc)}
+.side-n{margin-left:auto;font-size:10.5px;font-weight:800;background:var(--out);color:#fff;border-radius:8px;padding:1px 6px}
+.side-grp{font-size:10.5px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:0 11px;margin-bottom:6px}
+.side-bal{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:9px}
+.sb-row{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.sb-l{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--mut);font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.sb-l i{width:7px;height:7px;border-radius:50%;display:inline-block}
+.sb-row b{font-weight:800;font-size:14px}
+.sb-warn{color:var(--out);cursor:pointer}.sb-warn .sb-l{color:var(--out)}
+.sb-warn.expl,.sb-warn.expl .sb-l{color:var(--mut);cursor:default}
+.sb-alert{display:flex;align-items:center;gap:8px;border:1px solid var(--out);color:var(--out);background:none;border-radius:11px;padding:7px 9px;font-size:12px;font-weight:600;cursor:pointer;text-align:left;font-family:inherit}
+.sb-alert svg{width:15px;height:15px;flex:none}
+.side-foot{margin-top:auto;display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:10px}
+.side-foot button{width:36px;height:36px;border:0;background:none;color:var(--mut);border-radius:10px;cursor:pointer;display:grid;place-items:center}
+.side-foot button svg{width:18px;height:18px}
+.side-foot button:hover{color:var(--txt);background:var(--card)}
+.side-foot button.on{color:var(--acc);background:var(--card)}
+#sideLock:hover{color:var(--out)}
 </style>
 </head>
 <body data-theme="dark">
 <div id="splash"><div class="splash-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path class="house" pathLength="1" d="M12 4l8 6.5V20H4v-9.5z"/></svg></div></div>
 <div class="app">
+  <aside id="side" aria-label="Navegação"></aside>
   <div class="topbar"><div class="topbar-inner">
     <div class="brand" data-home="1" style="cursor:pointer" title="Início (Grelha)"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div></div>
     <div class="tabs" id="tabs"></div>
+    <div id="pageTitle"></div>
     <div class="spacer"></div>
     <div id="valeteHead"></div>
     <button id="searchBtn" title="Pesquisar movimentos"></button>
@@ -1375,6 +1413,9 @@ function valeteSpark(F){
 /* ---------------- render root ---------------- */
 function render(){
   document.body.setAttribute('data-theme',state.settings.tema||'dark');
+  // PC largo: barra lateral; abaixo de 1100px fica o header de sempre (e o telemóvel a #botnav). Volta a desenhar ao mudar de largura.
+  if(!window._sideMQ){ window._sideMQ=window.matchMedia('(min-width:1100px)'); window._sideMQ.addEventListener('change',()=>render()); }
+  const _desk=window._sideMQ.matches; document.body.classList.toggle('has-side',_desk);
   const _tabDefs=[['grelha','Grelha',I.grid],['acerto','Dívida',I.scale],['poup','Poupanças',I.wallet],['previsao','Previsão',I.trend],['analytics','Analytics',I.report],['defs','Definições',I.gear]];
   const _tabBtns=_tabDefs.map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('');
   const _aiNav=`<button id="aiNav" title="Perguntar à IA" aria-label="Perguntar à IA"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.7 4 4 1.7-4 1.7L12 14l-1.7-4-4-1.7 4-1.7z"/><path d="M18.5 13.5l.8 1.9 1.9.8-1.9.8-.8 1.9-.8-1.9-1.9-.8 1.9-.8z"/></svg></button>`;
@@ -1400,10 +1441,30 @@ function render(){
     _vChip += `<div class="chip warn${_vbExplained?' expl':''}" id="vbWarn" style="cursor:${_vbExplained?'default':'pointer'}" title="${_vbExplained?`Diferença explicada por ${fmt(vbPendenteSum())} agendado(s) - ainda não cobrado(s) pelo banco.`:`O Valete não bate certo com o banco. Diferença ${fmt(_vb.diff)}. Clica para acertar.`}"><span class="bdot" style="background:currentColor"></span><b>Δ&nbsp;${fmt(_vb.diff)}</b></div>`;
   }
   if(_alerta){ _vChip += `<div class="chip warn" title="Mesmo sem lazer, por volta do dia ${_vf.faltaDia} o saldo do Valete desce abaixo da ${_vf.margem>0?'margem ('+fmt(_vf.margem)+')':'linha 0'} - faltam ~${fmt(_vf.faltaValor)}. Os Mimos ficam a 0 até lá. Detalhe no sino.">${svg(I.bell)}<b>Dia ${_vf.faltaDia}</b><span class="ctx">${_vf.margem>0?'abaixo da margem':'saldo negativo'}</span></div>`; }
-  document.getElementById('valeteHead').innerHTML = _vChip;
+  document.getElementById('valeteHead').innerHTML = _desk?'':_vChip;
+  /* barra lateral (PC largo): menus, caixa de entrada, saldos COM NOME e o alerta junto ao Valete; o topo fica só com título, pesquisa e sino.
+     Os saldos vão para UM sítio de cada vez (aqui ou no #valeteHead), para não haver ids repetidos (#vCativo, #vbWarn). */
+  const _ibn=(state.inbox||[]).length;
+  const _sideEl=document.getElementById('side');
+  if(_desk){
+    const _row=(cor,nome,val,extra)=>`<div class="sb-row"${extra||''}><span class="sb-l"><i style="background:${cor}"></i>${nome}</span><b>${val}</b></div>`;
+    let _bal='';
+    if(_va!=null) _bal+=_row('var(--nb)','Valete',fmt(_va),' title="Saldo real da conta (novobanco)"');
+    if(_cativo>0) _bal+=_row('var(--cativo)','Cativo',fmt(_cativo),` id="vCativo" style="cursor:pointer" title="Cativo (não disponível) · Contabilístico ${fmt(_va!=null?_va:0)} · Disponível ${fmt(_disp!=null?_disp:0)} - clica para editar"`);
+    if(_cfv!=null) _bal+=_row('var(--cflex)','Coverflex',fmt(_cfv),' title="Saldo do cartão de benefícios"');
+    if(_vbWarn) _bal+=`<div class="sb-row sb-warn${_vbExplained?' expl':''}" id="vbWarn" title="${_vbExplained?`Diferença explicada por ${fmt(vbPendenteSum())} agendado(s) - ainda não cobrado(s) pelo banco.`:`O Valete (${fmt(_vb.valete)}) não bate certo com o banco (${fmt(_vb.banco)}). Clica para acertar o Valete ao banco.`}"><span class="sb-l"><i style="background:currentColor"></i>Dif. banco</span><b>${fmt(_vb.diff)}</b></div>`;
+    if(_alerta) _bal+=`<button class="sb-alert" data-openalerts="1" title="Mesmo sem lazer, por volta do dia ${_vf.faltaDia} o saldo do Valete desce abaixo da ${_vf.margem>0?'margem ('+fmt(_vf.margem)+')':'linha 0'} - faltam ~${fmt(_vf.faltaValor)}. Os Mimos ficam a 0 até lá.">${svg(I.warn)}<span><b>Dia ${_vf.faltaDia}</b> ${_vf.margem>0?'abaixo da margem':'saldo negativo'}</span></button>`;
+    const _nav=_tabDefs.filter(([k])=>k!=='defs').map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}">${svg(ic)}<span>${n}</span></button>`).join('');
+    _sideEl.innerHTML=`<div class="side-brand"><div class="brand" data-home="1" style="cursor:pointer" title="Início (Grelha)"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div><span>CASA</span></div><div class="yearnav"><button data-year="-1" aria-label="Ano anterior">‹</button><span class="y">${ano}</span><button data-year="1" aria-label="Ano seguinte">›</button></div></div>
+      <nav class="side-nav">${_nav}<button id="sideInbox">${svg(I.inbox)}<span>Caixa de entrada</span>${_ibn?`<span class="side-n">${_ibn}</span>`:''}</button></nav>
+      ${_bal?`<div><div class="side-grp">Saldos</div><div class="side-bal">${_bal}</div></div>`:''}
+      <div class="side-foot"><button data-tab="defs" class="${tab==='defs'?'on':''}" title="Definições" aria-label="Definições">${svg(I.gear)}</button><button id="sideRefresh" title="Atualizar - limpar cache e recarregar" aria-label="Atualizar">${svg(I.repeat)}</button>${state.settings.codigo?`<button id="sideLock" title="Bloquear (sair)" aria-label="Bloquear">${svg(I.logout)}</button>`:''}</div>`;
+    const _tn=(_tabDefs.find(([k])=>k===tab)||[])[1]||'';
+    document.getElementById('pageTitle').textContent=_tn+(tab==='defs'?'':' · '+ano);
+  } else { _sideEl.innerHTML=''; }
   const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
   document.getElementById('searchBtn').innerHTML=svg(I.search);
-  const _ibn=(state.inbox||[]).length; document.getElementById('inboxTop').innerHTML=`${svg(I.inbox)}${_ibn?`<span class="bell-badge">${_ibn}</span>`:''}`;
+  document.getElementById('inboxTop').innerHTML=`${svg(I.inbox)}${_ibn?`<span class="bell-badge">${_ibn}</span>`:''}`;
   document.getElementById('refreshBtn').innerHTML=svg(I.repeat);
   const _ln=document.getElementById('lockNow'); _ln.innerHTML=svg(I.logout); _ln.style.display=state.settings.codigo?'inline-flex':'none';
   const _main=document.getElementById('main');
@@ -2788,6 +2849,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v112',d:'2 nov',bul:['<b>Navegação nova no PC:</b> os menus passaram para uma <b>barra à esquerda</b>, que aproveita o espaço que sobrava dos lados num ecrã largo. Lá ficam também a <b>Caixa de entrada</b> (com o contador), o ano e, em baixo, Definições, atualizar e bloquear.','Os saldos têm agora <b>nome</b> (Valete, Cativo, Coverflex) num bloco próprio, com a diferença ao banco e o alerta do saldo logo por baixo - carregar no alerta abre o detalhe do sino.','O topo do conteúdo fica só com o título da página, a pesquisa e o sino. Em ecrãs mais estreitos (abaixo de 1100 px) e no telemóvel fica tudo como antes.']},
   {v:'v111',d:'2 nov',bul:['Contas e cartões com saldo têm a opção <b>«O saldo vem da empresa»</b> (ex.: o cartão de bónus). Nessas contas o botão Reforço dá lugar a <b>Carregar</b>: o bónus entra nas <b>receitas, coluna Bonus</b> (e no Total Host), sobe o saldo do cartão e <b>não mexe no Valete</b> - antes, o Reforço tirava esse valor ao Valete como se fosse uma transferência tua.','Os carregamentos não contam como poupança transferida nem entram no alerta do saldo, e aparecem no histórico do cartão com o selo <b>carregamento</b> (apagar ali tira a receita e baixa o saldo).','A opção fica ligada à conta e não ao nome: se o fornecedor mudar, basta mudar o nome da conta - as compras e carregamentos já lançados acompanham o nome novo.']},
   {v:'v110',d:'2 nov',bul:['<b>Mimos e alerta do saldo passam a bater certo.</b> Antes, os Mimos olhavam para o mês inteiro (contavam o salário que só entra ~dia 23) e o alerta olhava para o dinheiro dia a dia - podiam dizer «tens 1 035 € para mimos» e «vais ficar abaixo da margem» ao mesmo tempo.','Agora os <b>Mimos são o menor de dois limites</b>: o que resta no orçamento do mês e a <b>folga do Valete</b> - quanto podes gastar hoje sem que o saldo desça abaixo da margem antes de o salário entrar. O cartão diz qual dos dois está a limitar e, quando é o saldo, quanto passas a ter depois do salário.','O <b>alerta</b> usa a mesma projeção, <b>só com o obrigatório</b> (fixas, agendados, gasto essencial típico e a poupança do mês por transferir) e com o salário no dia em que entra. Só aparece quando, mesmo sem lazer nenhum, o saldo desce abaixo da margem - e aí os Mimos mostram 0 €.','A projeção do Valete deixou de contar o que se paga pelo <b>Coverflex</b>, por outros cartões ou em dinheiro (não sai do Valete), e os débitos agendados entram no dia em que o banco <b>realmente cobra</b>.','O chip do topo diz o que é («Dia 22 · abaixo da margem») em vez de um número negativo solto, que parecia o saldo.']},
   {v:'v109',d:'29 out',bul:['O assistente passou a aguentar muito melhor os <b>limites do nível gratuito</b> do Gemini (a Google cortou-os para pouquíssimos pedidos por dia). Os números do mês vão já calculados com a pergunta, por isso a maioria das perguntas gasta <b>1 pedido</b> em vez de 2 ou 3.','Quando um modelo esgota a quota, está sobrecarregado ou demora mais de 20 segundos, passa <b>sozinho ao seguinte</b> (3 Flash, 2.5 Flash-Lite, 2.0 Flash...) - cada um tem a sua quota, o que multiplica as perguntas por dia.','Mensagens de erro claras (limite do minuto, com o tempo de espera, ou limite do dia) e um botão <b>Tentar outra vez</b>. Nas Definições fica explicado como acabar de vez com os limites: ativar a faturação no AI Studio, que com este uso custa cêntimos por mês.']},
@@ -3308,6 +3370,7 @@ document.addEventListener('click',e=>{
   if(d.alertreadall){ _panelAlerts.slice().forEach(it=>markAlertRead(it)); render(); renderAlertPanel(); return; }
   if(d.alertlogclear){ if((state.alertLog||[]).length){ confirmModal('Limpar o arquivo de alertas?',()=>{state.alertLog=[];state.alertReads={};save();render();},{titulo:'Limpar arquivo',okLabel:'Limpar'}); } return; }
   if(d.utilread){ markAlertRead({_key:d.utilread,_v:+d.utilv||0,_txt:decodeURIComponent(d.utiltxt||'')}); render(); return; }
+  if(t.dataset&&t.dataset.openalerts){ document.getElementById('bell').click(); return; } // alerta da barra lateral abre o painel do sino
   if(t.id==='bell'){ const p=document.getElementById('alertPanel'); if(p.classList.contains('on')){p.classList.remove('on');} else { renderAlertPanel(); const r=t.getBoundingClientRect(); p.style.top=(r.bottom+8)+'px'; p.style.left=Math.max(10,r.right-340)+'px'; p.classList.add('on'); } return; }
   if(d.poupledger){ const[y,i]=d.poupledger.split('|'); openContaLedger(y,+i); return; }
   if(t.id==='lgReforco'){ poupMovAdd(1); return; }
@@ -3329,7 +3392,7 @@ document.addEventListener('click',e=>{
   if(t.id==='consImpFat'){const f=document.getElementById('consFatIn');if(f)f.click();return;}
   if(t.id==='impRecibo'){const f=document.getElementById('reciboIn');if(f)f.click();return;}
   if(t.id==='impFoto'){const f=document.getElementById('fotoIn');if(f)f.click();return;}
-  if(t.id==='inboxBtn'||t.id==='inboxTop'){openInbox();return;}
+  if(t.id==='inboxBtn'||t.id==='inboxTop'||t.id==='sideInbox'){openInbox();return;}
   if(d.ibadd){inboxAdd(d.ibadd);return;}
   if(d.ibaddall){inboxAddAll();return;}
   if(d.ibdel){inboxDiscard(d.ibdel);return;}
@@ -3368,8 +3431,8 @@ document.addEventListener('click',e=>{
   if(t.id==='recAdd'){openRec();return;}
   if(d.recdel){const _r=(state.recorrencias||[]).find(r=>r.id===d.recdel); confirmModal('Eliminar esta despesa fixa'+(_r?' ('+catName(_r.categoriaId)+' · '+fmt(_r.valor)+')':'')+'? Os lançamentos já feitos mantêm-se.',()=>{ state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render(); },{titulo:'Eliminar despesa fixa'});return;}
   if(t.id==='searchBtn'){openSearch();return;}
-  if(t.id==='refreshBtn'){hardRefresh();return;}
-  if(t.id==='lockNow'){ if(!state.settings.codigo){toast('Define um código em Definições primeiro');return;} sessionStorage.removeItem('casa-unlock'); closePop(); showLock(); return; }
+  if(t.id==='refreshBtn'||t.id==='sideRefresh'){hardRefresh();return;}
+  if(t.id==='lockNow'||t.id==='sideLock'){ if(!state.settings.codigo){toast('Define um código em Definições primeiro');return;} sessionStorage.removeItem('casa-unlock'); closePop(); showLock(); return; }
   if(t.id==='notifToggle'){notifToggle();return;}
   if(t.id==='bioReg'){bioRegister();return;}
   if(t.id==='bioRem'){bioRemove();return;}
