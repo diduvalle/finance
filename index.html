@@ -1283,12 +1283,13 @@ function medValorFixa(r){
    é a folga desta curva que diz quanto há para mimos, por isso o alerta e os Mimos nunca se contradizem.
    O que é pago pelo Coverflex, por outro cartão (pgConta) ou em dinheiro não sai do Valete e não entra na curva.
    estMensal/gastoMes/varRest/need são a previsão de despesa TOTAL do mês (todas as contas, com lazer) - só para o assistente. */
-function _naValete(m){ if(m.cash)return false; if(m.pgConta){ const c=contaDeMov(m); return !!c&&(c.nome||'').trim().toLowerCase()==='valete'; } return !isCoverflexCat(m.categoriaId); }
+function _naValete(m){ if(m.cash)return false; if(m.pgConta)return String(m.pgConta).trim().toLowerCase()==='valete'; return !isCoverflexCat(m.categoriaId); }
 /* poupança do mês que ainda falta transferir: Poupança mensal (Definições) - o que já foi transferido do Valete este mês */
 function poupPendenteMes(ymCur){
   const meta=Math.max(0,+state.settings.poupancaMensal||0); if(!meta)return 0;
   const yp=state.poupancas[ultimoAnoPoup()]; const rc=yp&&(yp.contas||[]).find(x=>x.real);
-  const feito=rc?round2((rc.mov||[]).filter(x=>x.data&&x.data.slice(0,7)===ymCur&&/^[→←] /.test(x.nota||'')).reduce((a,x)=>a-(+x.valor||0),0)):0;
+  const ext=new Set(((yp&&yp.contas)||[]).filter(c=>c.externo).map(c=>(c.nome||'').trim().toLowerCase())); // cartões da empresa: não é poupança
+  const feito=rc?round2((rc.mov||[]).filter(x=>{ const t=/^[→←] (.*)$/.exec(x.nota||''); return x.data&&x.data.slice(0,7)===ymCur&&t&&!ext.has(t[1].trim().toLowerCase()); }).reduce((a,x)=>a-(+x.valor||0),0)):0;
   return Math.max(0,round2(meta-feito));
 }
 function valeteForecast(){
@@ -1998,7 +1999,7 @@ function openContaLedger(y,i){
   const _alvo=(c.nome||'').trim().toLowerCase();
   // compras pagas com esta conta: vêm dos movimentos (não são duplicadas aqui) para o histórico nunca dessincronizar
   const _compras=state.movimentos.filter(m=>m.pgConta&&String(m.pgConta).trim().toLowerCase()===_alvo)
-    .map(m=>({data:m.data,valor:-Math.abs(m.valor),nota:catName(m.categoriaId)+((m.nota||'').trim()?' · '+m.nota:''),_mid:m.id}));
+    .map(m=>({data:m.data,valor:(m.tipo==='receita'?1:-1)*Math.abs(m.valor),nota:catName(m.categoriaId)+((m.nota||'').trim()?' · '+m.nota:''),_mid:m.id,_rec:m.tipo==='receita'}));
   const mov=[...(c.mov||[]).map((mo,idx)=>Object.assign({},mo,{_idx:idx})),..._compras].sort((a,b)=>b.data.localeCompare(a.data));
   const totJuros=round2((c.mov||[]).filter(m=>m.j).reduce((a,m)=>a+(+m.valor||0),0)); // rendimento acumulado desta conta
   const mm=String(new Date().getMonth()+1).padStart(2,'0');
@@ -2016,16 +2017,17 @@ function openContaLedger(y,i){
         <input id="lgData" type="date" value="${isoToday()}" style="width:auto">
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
-        <button class="btn sm" id="lgReforco" style="border-color:var(--in);color:var(--in)">${svg(I.up)} Reforço</button>
+        ${c.externo?`<button class="btn sm" id="lgCarregar" style="border-color:var(--in);color:var(--in)" title="A empresa carregou o cartão: sobe o saldo e entra como receita na coluna Bonus - não mexe no Valete">${svg(I.up)} Carregar</button>`:`<button class="btn sm" id="lgReforco" style="border-color:var(--in);color:var(--in)">${svg(I.up)} Reforço</button>`}
         <button class="btn sm" id="lgMob" style="border-color:var(--out);color:var(--out)">${svg(I.down)} Mobilizar</button>
-        <button class="btn sm" id="lgJuros" style="border-color:var(--acc);color:var(--acc)" title="Juros creditados pelo banco - aumentam o saldo mas não contam como reforço teu">${svg(I.trend)} Juros</button>
+        ${c.externo?'':`<button class="btn sm" id="lgJuros" style="border-color:var(--acc);color:var(--acc)" title="Juros creditados pelo banco - aumentam o saldo mas não contam como reforço teu">${svg(I.trend)} Juros</button>`}
       </div>
       <input id="lgNota" placeholder="nota (opcional)" style="margin-top:8px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
         <select id="lgCat" style="flex:1;min-width:150px">${catOptions('despesa')}</select>
         <button class="btn sm" id="lgGastar" style="border-color:var(--out);color:var(--out)" title="Usaste o saldo nesta compra: baixa o saldo, lança a despesa na categoria escolhida e não mexe no Valete">${svg(I.cash)} Gastar</button>
       </div>
-      <p class="dsub" style="margin:6px 0 0"><b>Gastar</b> = usaste o saldo numa compra (baixa o saldo e entra nas despesas do mês). <b>Mobilizar</b> = tiraste o dinheiro de volta para a conta.</p>
+      <p class="dsub" style="margin:6px 0 0">${c.externo?'<b>Carregar</b> = a empresa carregou o cartão (entra nas receitas, coluna Bonus, sem mexer no Valete). ':''}<b>Gastar</b> = usaste o saldo numa compra (baixa o saldo e entra nas despesas do mês). <b>Mobilizar</b> = tiraste o dinheiro de volta para a conta.</p>
+      ${(c.real||_alvo==='valete')?'':`<label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mut);cursor:pointer;margin-top:10px"><input type="checkbox" id="lgExt" ${c.externo?'checked':''}> O saldo vem da empresa (ex.: cartão de bónus) ${hlp('O dinheiro não sai do Valete: carregar o cartão é um bónus, que entra nas receitas (coluna Bonus). Não conta como poupança nem entra no alerta do saldo. Fica ligado à conta, por isso podes mudar-lhe o nome quando mudar o fornecedor.')}</label>`}
     </div>
     <div style="border-top:1px solid var(--line);padding-top:10px">
       <label>Ou definir o saldo exato ${(c.nome||'').trim().toLowerCase()==='valete'?'(ex.: igualar ao banco)':''}</label>
@@ -2033,7 +2035,7 @@ function openContaLedger(y,i){
     </div>
     <div>
       <label>Histórico</label>
-      <div class="plist" style="max-height:200px">${mov.length?mov.map((mo,j)=>`<div class="pe"><span style="font-weight:700;color:${mo.j?'var(--acc)':(mo.valor>=0?'var(--in)':'var(--out)')}">${mo.valor>=0?'+':''}${fmt(mo.valor)}</span>${mo.j?`<span class="pill" style="background:var(--card2);color:var(--acc);font-size:10.5px">juros</span>`:''}${mo._mid?`<span class="pill" style="background:var(--card2);color:var(--out);font-size:10.5px">compra</span>`:''}<span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}/${mo.data.slice(0,4)}${mo.nota?' · '+esc(mo.nota):''}</span>${mo._mid?`<button class="x" data-poupdelcompra="${y}|${i}|${mo._mid}" title="Apagar a compra - repõe o saldo e tira a despesa da grelha">✕</button>`:`<button class="x" data-poupmovdel="${y}|${i}|${mo._idx}">✕</button>`}</div>`).join(''):'<div class="pempty">Sem movimentos registados.</div>'}</div>
+      <div class="plist" style="max-height:200px">${mov.length?mov.map((mo,j)=>`<div class="pe"><span style="font-weight:700;color:${mo.j?'var(--acc)':(mo.valor>=0?'var(--in)':'var(--out)')}">${mo.valor>=0?'+':''}${fmt(mo.valor)}</span>${mo.j?`<span class="pill" style="background:var(--card2);color:var(--acc);font-size:10.5px">juros</span>`:''}${mo._mid?(mo._rec?`<span class="pill" style="background:var(--card2);color:var(--in);font-size:10.5px">carregamento</span>`:`<span class="pill" style="background:var(--card2);color:var(--out);font-size:10.5px">compra</span>`):''}<span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}/${mo.data.slice(0,4)}${mo.nota?' · '+esc(mo.nota):''}</span>${mo._mid?`<button class="x" data-poupdelcompra="${y}|${i}|${mo._mid}" title="${mo._rec?'Apagar o carregamento - baixa o saldo e tira a receita da grelha':'Apagar a compra - repõe o saldo e tira a despesa da grelha'}">✕</button>`:`<button class="x" data-poupmovdel="${y}|${i}|${mo._idx}">✕</button>`}</div>`).join(''):'<div class="pempty">Sem movimentos registados.</div>'}</div>
     </div>
     <input type="hidden" id="lgY" value="${y}"><input type="hidden" id="lgI" value="${i}">
   </div>
@@ -2082,13 +2084,29 @@ function poupGastar(){
   save(); render(); openContaLedger(y,i);
   toast('Gasto '+fmt(gv)+' · '+catName(catId)+' ('+c.nome+')');
 }
+/* Carregar: a empresa pôs dinheiro no cartão (bónus). Entra como RECEITA na coluna Bonus, paga NESTA conta (pgConta):
+   sobe o saldo do cartão pelo aplicaValete e nunca toca no Valete. Fica nas receitas do ano e no Total Host. */
+function poupCarregar(){
+  const y=val('lgY'),i=+val('lgI'); const c=state.poupancas[y].contas[i]; if(!c)return;
+  const v=parseFloat(val('lgVal')); if(isNaN(v)||v<=0){document.getElementById('lgVal').focus();return;}
+  const data=val('lgData')||isoToday();
+  if(isFrozenYm(data.slice(0,7))){toast('Mês congelado - desbloqueia na grelha para lançar no passado');return;}
+  const bc=state.categorias.find(x=>x.tipo==='receita'&&!x.parent&&(x.nome||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase()==='bonus');
+  if(!bc){toast('Falta a categoria de receita Bonus');return;}
+  const cv=round2(Math.abs(v));
+  const mv={id:nid('m'),data,tipo:'receita',categoriaId:bc.id,valor:cv,pagador:P()[0].id,split:{...state.settings.splitDefault},nota:val('lgNota')||'',pgConta:c.nome};
+  state.movimentos.push(mv); aplicaValete(mv); // contaDeMov encaminha para ESTA conta (não o Valete)
+  save(); render(); openContaLedger(y,i);
+  toast('Carregado '+fmt(cv)+' · Bonus ('+c.nome+')');
+}
 /* apagar uma compra a partir do histórico da conta: repõe o saldo e tira a despesa da grelha */
 function poupDelCompra(y,i,id){
   const mv=state.movimentos.find(x=>x.id===id); if(!mv)return;
   if(isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado - não pode ser apagado');return;}
-  confirmModal(catName(mv.categoriaId)+' · '+fmt(Math.abs(mv.valor))+' · '+mv.data+' - apaga a despesa da grelha e repõe o saldo da conta.',()=>{
+  const _r=mv.tipo==='receita';
+  confirmModal(catName(mv.categoriaId)+' · '+fmt(Math.abs(mv.valor))+' · '+mv.data+(_r?' - apaga a receita da grelha e baixa o saldo da conta.':' - apaga a despesa da grelha e repõe o saldo da conta.'),()=>{
     reverteValete(mv); state.movimentos=state.movimentos.filter(x=>x.id!==id); save(); render(); openContaLedger(y,+i);
-  },{titulo:'Apagar esta compra?',okLabel:'Apagar'});
+  },{titulo:_r?'Apagar este carregamento?':'Apagar esta compra?',okLabel:'Apagar'});
 }
 function poupSetSaldo(){
   const y=val('lgY'),i=+val('lgI'); const c=state.poupancas[y].contas[i];
@@ -2770,6 +2788,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v111',d:'2 nov',bul:['Contas e cartões com saldo têm a opção <b>«O saldo vem da empresa»</b> (ex.: o cartão de bónus). Nessas contas o botão Reforço dá lugar a <b>Carregar</b>: o bónus entra nas <b>receitas, coluna Bonus</b> (e no Total Host), sobe o saldo do cartão e <b>não mexe no Valete</b> - antes, o Reforço tirava esse valor ao Valete como se fosse uma transferência tua.','Os carregamentos não contam como poupança transferida nem entram no alerta do saldo, e aparecem no histórico do cartão com o selo <b>carregamento</b> (apagar ali tira a receita e baixa o saldo).','A opção fica ligada à conta e não ao nome: se o fornecedor mudar, basta mudar o nome da conta - as compras e carregamentos já lançados acompanham o nome novo.']},
   {v:'v110',d:'2 nov',bul:['<b>Mimos e alerta do saldo passam a bater certo.</b> Antes, os Mimos olhavam para o mês inteiro (contavam o salário que só entra ~dia 23) e o alerta olhava para o dinheiro dia a dia - podiam dizer «tens 1 035 € para mimos» e «vais ficar abaixo da margem» ao mesmo tempo.','Agora os <b>Mimos são o menor de dois limites</b>: o que resta no orçamento do mês e a <b>folga do Valete</b> - quanto podes gastar hoje sem que o saldo desça abaixo da margem antes de o salário entrar. O cartão diz qual dos dois está a limitar e, quando é o saldo, quanto passas a ter depois do salário.','O <b>alerta</b> usa a mesma projeção, <b>só com o obrigatório</b> (fixas, agendados, gasto essencial típico e a poupança do mês por transferir) e com o salário no dia em que entra. Só aparece quando, mesmo sem lazer nenhum, o saldo desce abaixo da margem - e aí os Mimos mostram 0 €.','A projeção do Valete deixou de contar o que se paga pelo <b>Coverflex</b>, por outros cartões ou em dinheiro (não sai do Valete), e os débitos agendados entram no dia em que o banco <b>realmente cobra</b>.','O chip do topo diz o que é («Dia 22 · abaixo da margem») em vez de um número negativo solto, que parecia o saldo.']},
   {v:'v109',d:'29 out',bul:['O assistente passou a aguentar muito melhor os <b>limites do nível gratuito</b> do Gemini (a Google cortou-os para pouquíssimos pedidos por dia). Os números do mês vão já calculados com a pergunta, por isso a maioria das perguntas gasta <b>1 pedido</b> em vez de 2 ou 3.','Quando um modelo esgota a quota, está sobrecarregado ou demora mais de 20 segundos, passa <b>sozinho ao seguinte</b> (3 Flash, 2.5 Flash-Lite, 2.0 Flash...) - cada um tem a sua quota, o que multiplica as perguntas por dia.','Mensagens de erro claras (limite do minuto, com o tempo de espera, ou limite do dia) e um botão <b>Tentar outra vez</b>. Nas Definições fica explicado como acabar de vez com os limites: ativar a faturação no AI Studio, que com este uso custa cêntimos por mês.']},
   {v:'v108',d:'29 out',bul:['<b>Assistente CASA novo.</b> A barra de perguntas do topo deu lugar a um <b>botão redondo no canto</b> (no PC) que abre uma <b>conversa</b>; no telemóvel abre pelo botão do rodapé, como antes. O assistente lembra-se do que foi dito (podes perguntar «e no ano passado?») e traz perguntas prontas a carregar.','Ferramentas novas de <b>previsão do mês</b>: quanto vais gastar até ao fim do mês, o que ainda <b>falta pagar</b> (fixas e débitos agendados, com dia e valor), com quanto fica o <b>Valete no fim do mês</b>, se estás a gastar mais do que no <b>mesmo período do ano passado</b> e quanto ainda podes gastar em <b>lazer</b>. Os números são calculados pela app - a IA só os explica.','Mais <b>rápido e fiável</b>: passa a usar só o Gemini (saiu o OpenRouter, cujos modelos grátis estavam sempre ocupados), escolhe sozinho o melhor modelo Flash da tua chave e responde sem o modo «pensar». Se a Google retirar um modelo, a app deteta e passa ao seguinte sem dares por isso.','A subscrição Gemini Plus não dá acesso à API: o assistente usa a <b>chave gratuita do Google AI Studio</b>, que se põe em Definições → Assistente IA e fica só no teu dispositivo.']},
@@ -3295,6 +3314,7 @@ document.addEventListener('click',e=>{
   if(t.id==='lgMob'){ poupMovAdd(-1); return; }
   if(t.id==='lgJuros'){ poupJurosAdd(); return; }
   if(t.id==='lgGastar'){ poupGastar(); return; }
+  if(t.id==='lgCarregar'){ poupCarregar(); return; }
   if(d.poupdelcompra){ const[y,i,id]=d.poupdelcompra.split('|'); poupDelCompra(y,i,id); return; }
   if(t.id==='lgAuto'){ poupAutoReforco(); return; }
   if(t.id==='lgSetBtn'){ poupSetSaldo(); return; }
@@ -3392,11 +3412,15 @@ document.addEventListener('change',e=>{
   if(e.target.dataset&&e.target.dataset.recval!=null){const r=state.recorrencias.find(x=>x.id===e.target.dataset.recval);if(r){r.valor=parseFloat(e.target.value)||0;save();render();}}
   if(e.target.dataset&&e.target.dataset.recdia!=null){const r=state.recorrencias.find(x=>x.id===e.target.dataset.recdia);if(r){r.dia=Math.min(28,Math.max(1,parseInt(e.target.value)||8));save();render();}}
   const ds=e.target.dataset||{};
-  if(ds.poupnome!=null){const[y,i]=ds.poupnome.split('|');state.poupancas[y].contas[+i].nome=e.target.value.trim();save();render();}
+  if(ds.poupnome!=null){const[y,i]=ds.poupnome.split('|');const c=state.poupancas[y].contas[+i];const old=(c.nome||'').trim(),nv=e.target.value.trim();c.nome=nv;
+    // os movimentos pagos por esta conta guardam o NOME: renomeá-los também (só se o nome novo não for de outra conta)
+    const lo=old.toLowerCase(),ln=nv.toLowerCase(); if(lo&&ln&&lo!==ln&&!state.poupancas[y].contas.some((x,k)=>k!==+i&&(x.nome||'').trim().toLowerCase()===ln)){ state.movimentos.forEach(m=>{ if(m.pgConta&&String(m.pgConta).trim().toLowerCase()===lo)m.pgConta=nv; if(m.vAdjConta===lo)m.vAdjConta=ln; }); }
+    save();render();}
   if(ds.poupval!=null){const[y,i]=ds.poupval.split('|');state.poupancas[y].contas[+i].valor=parseFloat(e.target.value)||0;save();render();}
   if(ds.contq!=null){const[y,i]=ds.contq.split('|');state.poupancas[y].contagem[+i].q=parseFloat(e.target.value)||0;state.poupancas[y].contagemData=Date.now();save();render();}
   if(ds.orc!=null){const v=parseFloat(e.target.value); if(v>0)state.orcamentos[ds.orc]=v; else delete state.orcamentos[ds.orc]; save();}
   if(ds.consumo!=null){const [cid,ym]=ds.consumo.split('|'); const v=parseFloat(e.target.value); state.consumos[cid]=state.consumos[cid]||{}; const cur=state.consumos[cid][ym]; const rd=consR(cur),ce=consEur(cur); if(v>0){const o={k:round2(v)}; if(rd)o.r=rd; if(ce!=null)o.eur=ce; state.consumos[cid][ym]=o;} else delete state.consumos[cid][ym]; save(); render(); return;}
+  if(e.target.id==='lgExt'){ const y=val('lgY'),i=+val('lgI'); const c=state.poupancas[y]&&state.poupancas[y].contas[i]; if(c){ if(e.target.checked)c.externo=true; else delete c.externo; save(); render(); openContaLedger(y,i); toast(e.target.checked?c.nome+': saldo vem da empresa':c.nome+': conta normal'); } return; }
   if(e.target.id==='bankAuto'){if(state.bank){state.bank.auto=e.target.checked;save();render();toast(e.target.checked?'Banco: automático ligado (1×/dia)':'Banco: automático desligado');}}
   if(e.target.id==='bankSince'){if(state.bank){state.bank.since=e.target.value||isoToday();save();}}
   if(e.target.id==='bankHour'){if(state.bank){state.bank.autoHour=parseInt((e.target.value||'20:00').split(':')[0])||0;save();}}
