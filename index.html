@@ -309,40 +309,61 @@ table.grid thead th:hover .thedit{opacity:.7}
 .poupval{cursor:pointer;font-weight:700;font-variant-numeric:tabular-nums;border-bottom:1px dashed var(--line);padding-bottom:1px}
 .poupval:hover{border-color:var(--acc);color:var(--acc)}
 /* vista Lista da Grelha (um cartão por mês, colapsável) */
-.gm{display:flex;flex-direction:column;gap:10px}
-.gm-month{background:linear-gradient(180deg,color-mix(in srgb,var(--card) 92%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-sm);overflow:hidden;position:relative;transition:box-shadow .18s,border-color .18s}
-.gm-month::after{content:'';position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 1px 0 var(--hair);pointer-events:none}
-.gm-month:hover{box-shadow:var(--sh);border-color:var(--line2)}
-.gm-month.now{box-shadow:inset 3px 0 0 var(--acc),var(--sh)}
-.gm-head{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;padding:16px 18px;cursor:pointer;font-size:15px;color:var(--txt)}
-.gm-nm{font-weight:800;min-width:92px;text-align:left;flex:none}
-.gm-month.now .gm-nm{color:var(--acc)}
-.gm-lock{width:16px;flex:none;display:inline-flex;align-items:center;color:var(--mut);opacity:.85}
-.gm-lock svg{width:13px;height:13px}
+/* Grelha em lista: os 12 meses num só cartão, separados por filetes (antes: 12 cartões soltos com sombra = muitas linhas).
+   Cada mês tem uma barra com o peso no ano e um traço com a média dos meses fechados. */
+.gm{display:flex;flex-direction:column;background:linear-gradient(180deg,color-mix(in srgb,var(--card) 92%,#fff),var(--card));border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--sh-sm);overflow:hidden;position:relative}
+.gm-month{position:relative;border-top:1px solid color-mix(in srgb,var(--line) 55%,transparent);transition:background .16s}
+.gm-month:first-child{border-top:0}
+.gm-month.open{background:color-mix(in srgb,var(--bg2) 60%,transparent)}
+.gm-month.now::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--acc);z-index:1}
+.gm-month.fut .gm-head{opacity:.5}
+.gm-head{display:flex;align-items:center;gap:12px;width:100%;background:none;border:0;padding:12px 18px;cursor:pointer;font-size:14.5px;color:var(--txt);text-align:left;transition:background .14s}
+.gm-head:hover{background:var(--acc-10)}
+.gm-nm{font-weight:700;min-width:82px;flex:none}
+.gm-month.now .gm-nm{color:var(--acc);font-weight:800}
+.gm-now{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px;color:var(--acc);background:var(--acc-15);border-radius:6px;padding:2px 7px;flex:none}
+.gm-lock{width:14px;flex:none;display:inline-flex;align-items:center;color:var(--mut);opacity:.45}
+.gm-lock svg{width:12px;height:12px}
+.gm-bar{flex:0 1 220px;min-width:30px;margin-left:auto;height:5px;border-radius:4px;background:var(--card2);position:relative}
+.gm-bar>i{display:block;height:100%;border-radius:4px;background:var(--mut);opacity:.45;min-width:2px}
+.gm-bar.hi>i{background:var(--out);opacity:.85} /* despesa 10%+ acima da média dos meses fechados */
+.gm-bar.in>i{background:var(--in);opacity:.6}
+.gm-bar>b{position:absolute;top:-4px;bottom:-4px;width:2px;margin-left:-1px;border-radius:1px;background:var(--txt);opacity:.35}
 .sumtable td.barscell{width:160px;padding:8px 16px 8px 10px;vertical-align:middle}
 .mbars{display:flex;flex-direction:column;gap:5px;min-width:80px}
 .mbars .mbar{height:7px;border-radius:4px;background:var(--card2);overflow:hidden;box-shadow:inset 0 0 0 1px var(--hair)}
 .mbars .mbar i{display:block;height:100%;border-radius:4px;min-width:2px}
 .mbars .mbar i.in{background:var(--in)}
 .mbars .mbar i.out{background:var(--out)}
-.gm-tot{margin-left:auto;font-weight:700;font-size:15px;font-variant-numeric:tabular-nums;min-width:108px;text-align:right}
+.gm-tot{font-weight:700;font-size:14.5px;font-variant-numeric:tabular-nums;min-width:100px;text-align:right;flex:none}
 .gm-tot.neg{color:var(--out)} .gm-tot.pos{color:var(--in)}
 .gm-tot.mut{color:var(--mut);opacity:.45;font-weight:500}
-.gm-chev{color:var(--mut);font-size:11px;width:12px;flex:none}
-.gm-body{border-top:1px solid var(--line);padding:5px 9px 8px}
-.gm-cat{display:flex;align-items:center;gap:9px;padding:9px;border-radius:10px;cursor:pointer;transition:background .12s}
+.gm-chev{color:var(--mut);width:14px;height:14px;flex:none;display:inline-flex;transition:transform .18s,color .18s}
+.gm-chev svg{width:14px;height:14px}
+.gm-month.open .gm-chev{transform:rotate(90deg);color:var(--acc)}
+.gm-body{padding:2px 10px 10px 30px}
+.gm-cat{display:flex;align-items:center;gap:10px;padding:7px 9px;border-radius:10px;cursor:pointer;transition:background .12s}
 .gm-cat:hover{background:var(--acc-12)}
 .gm-cat .cicon{flex:none}
 .gm-cnm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
-.gm-cv{font-weight:600;font-variant-numeric:tabular-nums;font-size:13.5px;min-width:108px;text-align:right;flex:none}
-.gm-cat.z .gm-cv,.gm-cat.z .gm-cnm{opacity:.45}
+.gm-cbar{width:150px;flex:none;height:4px;border-radius:3px;background:var(--card2)}
+.gm-cbar>i{display:block;height:100%;border-radius:3px;background:var(--mut);opacity:.55;min-width:2px}
+.gm-cat.sub .gm-cbar{visibility:hidden}
+.gm-cv{font-weight:600;font-variant-numeric:tabular-nums;font-size:13.5px;min-width:100px;text-align:right;flex:none}
+.gm-cat.z .gm-cv,.gm-cat.z .gm-cnm,.gm-cat.z .cicon{opacity:.38}
+.gm-cat.z .gm-cbar{background:none} /* sem lançamentos: sem trilho (menos linhas) */
 .gm-cat.warn .gm-cv{color:var(--warn)} .gm-cat.over .gm-cv{color:var(--out)}
+.gm-cat.warn .gm-cbar>i{background:var(--warn);opacity:.8} .gm-cat.over .gm-cbar>i{background:var(--out);opacity:.8}
 .gm-cat.sub{padding-left:30px;background:var(--bg2);border-radius:8px;margin:1px 0}
 .gm-cat.sub .gm-cnm,.gm-cat.sub .gm-cv{font-size:12.5px;color:var(--mut)}
 .gm-cat.sub .cicon{opacity:.85}
-.gm-tog{border:0;background:var(--card2);color:var(--mut);cursor:pointer;padding:3px 8px;border-radius:7px;font-size:11px;flex:none}
+.gm-tog{border:0;background:var(--card2);color:var(--mut);cursor:pointer;padding:3px 8px;border-radius:7px;font-size:11px;font-weight:700;flex:none;display:inline-flex;align-items:center;gap:3px}
+.gm-tog svg{width:11px;height:11px;transition:transform .15s}
+.gm-tog.on svg{transform:rotate(90deg)}
 .gm-tog:hover{color:var(--acc)}
-.gm-foot{display:flex;justify-content:space-between;align-items:center;padding:11px 15px;background:var(--card2);border-radius:var(--r);font-size:13px}
+.gm-foot{display:flex;justify-content:space-between;align-items:center;padding:12px 18px;background:var(--card2);border-top:1px solid var(--line);font-size:13px}
+@media(max-width:560px){.gm-cbar{display:none} .gm-now{display:none} .gm-head{gap:9px;padding:12px 14px} .gm-body{padding-left:14px}}
+@media(max-width:380px){.gm-bar{display:none} .gm-tot{margin-left:auto}}
 /* metas / objetivos de poupança */
 .metagrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
 @media(max-width:720px){.metagrid{grid-template-columns:1fr}}
@@ -733,6 +754,27 @@ body.has-side #pageTitle{display:block;font-size:17px;font-weight:800}
 .side-foot button:hover{color:var(--txt);background:var(--card)}
 .side-foot button.on{color:var(--acc);background:var(--card)}
 #sideLock:hover{color:var(--out)}
+/* ===== revisão visual v113 (PC com barra lateral): menos linhas, mais largura, título de página a sério ===== */
+body.has-side{--maxw:1520px}
+body.has-side #side{background:color-mix(in srgb,var(--bg2) 80%,transparent);border-right:1px solid color-mix(in srgb,var(--line) 50%,transparent)}
+body.has-side .topbar{background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom-color:transparent;transition:border-color .2s}
+body.has-side.scrolled .topbar{border-bottom-color:color-mix(in srgb,var(--line) 60%,transparent)}
+body.has-side .topbar-inner{padding:18px 20px 12px;min-height:66px}
+body.has-side #pageTitle{font-size:22px;font-weight:800;letter-spacing:-.4px}
+#pageTitle span{color:var(--mut);font-weight:600;margin-left:9px}
+@media(min-width:1700px){body.has-side .freshg-left{flex-basis:350px}}
+.gm-avgk{display:inline-block;width:2px;height:11px;border-radius:1px;background:var(--txt);opacity:.35;vertical-align:-1px;margin-left:3px}
+/* menus da barra lateral: ativo suave (fundo tingido + filete), atalho de teclado à direita ao passar o rato */
+.side-nav button{position:relative}
+.side-nav button.on{color:var(--txt);background:var(--acc-15);box-shadow:none}
+.side-nav button.on svg{color:var(--acc)}
+.side-nav button.on::before{content:'';position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--acc)}
+.side-nav .kb{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--mut);border:1px solid var(--line);border-radius:5px;min-width:18px;text-align:center;padding:0 4px;line-height:16px;opacity:0;transition:opacity .15s}
+.side-nav button:hover .kb,.side-nav button:focus-visible .kb{opacity:.85}
+.side-n+.kb{margin-left:6px}
+/* "Sai de": ícone + texto (no telemóvel fica só o ícone) */
+.qadd .qconta .qcl{font-size:12px;font-weight:700;margin-left:6px}
+@media(max-width:720px){.qadd .qconta .qcl{display:none}}
 </style>
 </head>
 <body data-theme="dark">
@@ -820,6 +862,7 @@ const I={
   bulb:'<path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A6 6 0 0 0 6 8c0 1 .2 2.2 1.5 3.5.7.7 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/>',
   leaf:'<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/>',
   arrowr:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+  chev:'<path d="M9 6l6 6-6 6"/>',
   cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',
   bank:'<path d="M3 10l9-6 9 6M3 10h18M3 21h18M6 10v8M10 10v8M14 10v8M18 10v8"/>',
   logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
@@ -1414,7 +1457,7 @@ function valeteSpark(F){
 function render(){
   document.body.setAttribute('data-theme',state.settings.tema||'dark');
   // PC largo: barra lateral; abaixo de 1100px fica o header de sempre (e o telemóvel a #botnav). Volta a desenhar ao mudar de largura.
-  if(!window._sideMQ){ window._sideMQ=window.matchMedia('(min-width:1100px)'); window._sideMQ.addEventListener('change',()=>render()); }
+  if(!window._sideMQ){ window._sideMQ=window.matchMedia('(min-width:1100px)'); window._sideMQ.addEventListener('change',()=>render()); window.addEventListener('scroll',()=>document.body.classList.toggle('scrolled',window.scrollY>6),{passive:true}); }
   const _desk=window._sideMQ.matches; document.body.classList.toggle('has-side',_desk);
   const _tabDefs=[['grelha','Grelha',I.grid],['acerto','Dívida',I.scale],['poup','Poupanças',I.wallet],['previsao','Previsão',I.trend],['analytics','Analytics',I.report],['defs','Definições',I.gear]];
   const _tabBtns=_tabDefs.map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('');
@@ -1454,13 +1497,13 @@ function render(){
     if(_cfv!=null) _bal+=_row('var(--cflex)','Coverflex',fmt(_cfv),' title="Saldo do cartão de benefícios"');
     if(_vbWarn) _bal+=`<div class="sb-row sb-warn${_vbExplained?' expl':''}" id="vbWarn" title="${_vbExplained?`Diferença explicada por ${fmt(vbPendenteSum())} agendado(s) - ainda não cobrado(s) pelo banco.`:`O Valete (${fmt(_vb.valete)}) não bate certo com o banco (${fmt(_vb.banco)}). Clica para acertar o Valete ao banco.`}"><span class="sb-l"><i style="background:currentColor"></i>Dif. banco</span><b>${fmt(_vb.diff)}</b></div>`;
     if(_alerta) _bal+=`<button class="sb-alert" data-openalerts="1" title="Mesmo sem lazer, por volta do dia ${_vf.faltaDia} o saldo do Valete desce abaixo da ${_vf.margem>0?'margem ('+fmt(_vf.margem)+')':'linha 0'} - faltam ~${fmt(_vf.faltaValor)}. Os Mimos ficam a 0 até lá.">${svg(I.warn)}<span><b>Dia ${_vf.faltaDia}</b> ${_vf.margem>0?'abaixo da margem':'saldo negativo'}</span></button>`;
-    const _nav=_tabDefs.filter(([k])=>k!=='defs').map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}">${svg(ic)}<span>${n}</span></button>`).join('');
+    const _nav=_tabDefs.filter(([k])=>k!=='defs').map(([k,n,ic],j)=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n} (tecla ${j+1})">${svg(ic)}<span>${n}</span><span class="kb">${j+1}</span></button>`).join('');
     _sideEl.innerHTML=`<div class="side-brand"><div class="brand" data-home="1" style="cursor:pointer" title="Início (Grelha)"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div><span>CASA</span></div><div class="yearnav"><button data-year="-1" aria-label="Ano anterior">‹</button><span class="y">${ano}</span><button data-year="1" aria-label="Ano seguinte">›</button></div></div>
-      <nav class="side-nav">${_nav}<button id="sideInbox">${svg(I.inbox)}<span>Caixa de entrada</span>${_ibn?`<span class="side-n">${_ibn}</span>`:''}</button></nav>
+      <nav class="side-nav">${_nav}<button id="sideInbox" title="Caixa de entrada (tecla E)">${svg(I.inbox)}<span>Caixa de entrada</span>${_ibn?`<span class="side-n">${_ibn}</span>`:''}<span class="kb">E</span></button></nav>
       ${_bal?`<div><div class="side-grp">Saldos</div><div class="side-bal">${_bal}</div></div>`:''}
-      <div class="side-foot"><button data-tab="defs" class="${tab==='defs'?'on':''}" title="Definições" aria-label="Definições">${svg(I.gear)}</button><button id="sideRefresh" title="Atualizar - limpar cache e recarregar" aria-label="Atualizar">${svg(I.repeat)}</button>${state.settings.codigo?`<button id="sideLock" title="Bloquear (sair)" aria-label="Bloquear">${svg(I.logout)}</button>`:''}</div>`;
+      <div class="side-foot"><button data-tab="defs" class="${tab==='defs'?'on':''}" title="Definições (tecla ,) · atalhos: tecla ?" aria-label="Definições">${svg(I.gear)}</button><button id="sideRefresh" title="Atualizar - limpar cache e recarregar" aria-label="Atualizar">${svg(I.repeat)}</button>${state.settings.codigo?`<button id="sideLock" title="Bloquear (sair)" aria-label="Bloquear">${svg(I.logout)}</button>`:''}</div>`;
     const _tn=(_tabDefs.find(([k])=>k===tab)||[])[1]||'';
-    document.getElementById('pageTitle').textContent=_tn+(tab==='defs'?'':' · '+ano);
+    document.getElementById('pageTitle').innerHTML=esc(_tn)+(tab==='defs'?'':`<span>${ano}</span>`);
   } else { _sideEl.innerHTML=''; }
   const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
   document.getElementById('searchBtn').innerHTML=svg(I.search);
@@ -1498,6 +1541,10 @@ function vGrelha(m){
   const _recM=MESES.map((_,i)=>Math.max(0,sumMonth('receita',i)));
   const _despM=MESES.map((_,i)=>Math.max(0,sumMonth('despesa',i)));
   const _barMax=Math.max(1,..._recM,..._despM);
+  // escala comum das barras dos meses + média dos meses já fechados (antes do corrente) com lançamentos
+  const _rt=MESES.map((_,i)=>Math.max(0,rowTot(i))), _rtMax=Math.max(1,..._rt);
+  const _fech=_rt.filter((v,i)=>v>0&&(mi<0||i<mi)), _avg=_fech.length>=2?_fech.reduce((a,v)=>a+v,0)/_fech.length:0;
+  const _fut=i=>(mi>=0?i>mi:ano>new Date().getFullYear())&&!_rt[i];
   const gmHtml=()=>`<div class="gm">${MESES.map((nm,i)=>{
     const tot=rowTot(i), open=gmOpen.has(i), froz=isFrozenMi(ano,i);
     let body='';
@@ -1506,13 +1553,15 @@ function vGrelha(m){
         const kids=childrenOf(c.id), v=cellSum(c.id,i), exp=kids.length&&expandedCols.has(c.id);
         let bc=''; if(gridTipo==='despesa'&&v>0){const lim=+state.orcamentos[c.id]||0;if(lim>0)bc=v>lim?' over':(v>lim*0.8?' warn':'');}
         const pend=v&&cellHasPend(c.id,i,true);
-        let h=`<div class="gm-cat${v?'':' z'}${bc}" data-cell="${c.id}|${i}">${catIconHtml(c,24)}<span class="gm-cnm">${esc(c.nome)}</span>${kids.length?`<button class="gm-tog" data-toggle="${c.id}" title="${exp?'Fechar':'Abrir'} sub-categorias">${exp?'▾':'▸'}&nbsp;${kids.length}</button>`:''}<span class="gm-cv">${v?fmtn(v):'-'}${pend?` <span class="eico">${svg(I.clock)}</span>`:''}</span></div>`;
-        if(exp)kids.forEach(k=>{const kv=directSum(k.id,i);h+=`<div class="gm-cat sub${kv?'':' z'}" data-cell="${k.id}|${i}">${catIconHtml(k,18)}<span class="gm-cnm">${esc(k.nome)}</span><span class="gm-cv">${kv?fmtn(kv):'-'}</span></div>`;});
+        let h=`<div class="gm-cat${v?'':' z'}${bc}" data-cell="${c.id}|${i}">${catIconHtml(c,24)}<span class="gm-cnm">${esc(c.nome)}</span>${kids.length?`<button class="gm-tog${exp?' on':''}" data-toggle="${c.id}" title="${exp?'Fechar':'Abrir'} sub-categorias">${svg(I.chev,2.5)}${kids.length}</button>`:''}<span class="gm-cbar">${v>0&&tot>0?`<i style="width:${Math.max(2,Math.round(v/tot*100))}%"></i>`:''}</span><span class="gm-cv">${v?fmtn(v):'-'}${pend?` <span class="eico">${svg(I.clock)}</span>`:''}</span></div>`;
+        if(exp)kids.forEach(k=>{const kv=directSum(k.id,i);h+=`<div class="gm-cat sub${kv?'':' z'}" data-cell="${k.id}|${i}">${catIconHtml(k,18)}<span class="gm-cnm">${esc(k.nome)}</span><span class="gm-cbar"></span><span class="gm-cv">${kv?fmtn(kv):'-'}</span></div>`;});
         return h;
       }).join('')+'</div>';
     }
-    return `<div class="gm-month${i===mi?' now':''}"><button class="gm-head" data-gmmonth="${i}"><span class="gm-chev">${open?'▾':'▸'}</span><span class="gm-nm">${nm}</span><span class="gm-lock">${froz?svg(I.lock):''}</span><span class="gm-tot${tot?(gridTipo==='despesa'?' neg':' pos'):' mut'}">${tot?fmtn(tot):'-'}</span></button>${body}</div>`;
-  }).join('')}<div class="gm-foot"><span>Total ${gridTipo==='despesa'?'despesas':'receitas'} ${ano}</span><b>${fmtn(grand)}</b></div></div>`;
+    const _pa=_avg&&tot>0?Math.round((tot/_avg-1)*100):null;
+    const ttl=tot?`${nm}: ${fmtn(tot)}${_pa!=null?` · média dos meses fechados ${fmtn(_avg)} (${_pa>0?'+':''}${_pa}%)`:''}`:nm;
+    return `<div class="gm-month${i===mi?' now':''}${open?' open':''}${_fut(i)?' fut':''}"><button class="gm-head" data-gmmonth="${i}" aria-expanded="${open}" title="${ttl}"><span class="gm-chev">${svg(I.chev,2.5)}</span><span class="gm-nm">${nm}</span>${i===mi?'<span class="gm-now">este mês</span>':''}<span class="gm-lock"${froz?' title="Mês fechado - só leitura"':''}>${froz?svg(I.lock):''}</span><span class="gm-bar${gridTipo==='receita'?' in':(_avg&&_rt[i]>_avg*1.1?' hi':'')}">${_rt[i]?`<i style="width:${Math.max(1,Math.round(_rt[i]/_rtMax*100))}%"></i>`:''}${_avg?`<b style="left:${Math.min(100,Math.round(_avg/_rtMax*100))}%"></b>`:''}</span><span class="gm-tot${tot?(gridTipo==='despesa'?' neg':' pos'):' mut'}">${tot?fmtn(tot):'-'}</span></button>${body}</div>`;
+  }).join('')}<div class="gm-foot"><span>Total ${gridTipo==='despesa'?'despesas':'receitas'} ${ano}${_avg?` <span style="color:var(--mut)">· média mensal ${fmtn(_avg)} <span class="gm-avgk"></span></span>`:''}</span><b>${fmtn(grand)}</b></div></div>`;
 
   m.innerHTML=`
   <div class="kstrip">
@@ -1533,8 +1582,8 @@ function vGrelha(m){
         <button class="${gridTipo==='receita'?'on-in':''}" data-gt="receita" title="Receitas" aria-label="Receitas">${svg(I.up)}</button>
       </div></div></div>
     <div class="fld fld-tipo"><label>${gridTipo==='receita'?'Entra em':'Sai de'}</label><div class="seg qconta">
-      <button class="${!qCashMode?'on':''}" data-qconta="banco" title="${gridTipo==='receita'?'Entra na conta (banco / Valete)':'Desconta da conta (banco / Valete)'}">${svg(I.bank)}</button>
-      <button class="${qCashMode?'on':''}" data-qconta="cash" title="${gridTipo==='receita'?'Recebido em dinheiro (entra no Cofre)':'Sai do Cofre (dinheiro físico)'}">${svg(I.cash)}</button>
+      <button class="${!qCashMode?'on':''}" data-qconta="banco" title="${gridTipo==='receita'?'Entra na conta (banco / Valete)':'Desconta da conta (banco / Valete)'}">${svg(I.bank)}<span class="qcl">Conta</span></button>
+      <button class="${qCashMode?'on':''}" data-qconta="cash" title="${gridTipo==='receita'?'Recebido em dinheiro (entra no Cofre)':'Sai do Cofre (dinheiro físico)'}">${svg(I.cash)}<span class="qcl">Dinheiro</span></button>
     </div></div>
     <div class="fld fld-cat"><label>Categoria</label><select id="qCat">${catOptions(gridTipo)}</select></div>
     <div class="fld fld-mes"><label>Mês</label><select id="qMes">${MESES.map((x,i)=>`<option value="${i}" ${i===miv?'selected':''} ${isFrozenMi(ano,i)?'disabled':''}>${x}${isFrozenMi(ano,i)?' (bloqueado)':''}</option>`).join('')}</select></div>
@@ -2849,6 +2898,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v113',d:'3 nov',bul:['<b>Grelha mais limpa:</b> os 12 meses passam a viver num só cartão, separados por filetes finos, em vez de 12 caixas soltas com sombra. O mês corrente tem a etiqueta <b>este mês</b> e os meses futuros ficam esbatidos.','Cada mês tem agora uma <b>barra</b> com o peso no ano e um <b>traço com a média</b> dos meses fechados - vê-se logo que meses fugiram ao normal (passa o rato para ver a diferença em %). Dentro do mês, cada categoria tem uma barra com a fatia do mês.','No PC: o conteúdo usa mais largura, o título da página ficou maior e a linha do topo só aparece quando fazes scroll. O menu ativo da barra lateral ficou mais suave.','<b>Atalhos de teclado</b> (PC): 1 a 5 mudam de menu, E abre a Caixa de entrada, vírgula abre as Definições, / pesquisa, N vai para o lançamento rápido, [ e ] mudam o ano, ? mostra a lista. Os números aparecem na barra lateral ao passar o rato.','No lançamento rápido, «Sai de» diz <b>Conta</b> ou <b>Dinheiro</b> além do ícone.']},
   {v:'v112',d:'2 nov',bul:['<b>Navegação nova no PC:</b> os menus passaram para uma <b>barra à esquerda</b>, que aproveita o espaço que sobrava dos lados num ecrã largo. Lá ficam também a <b>Caixa de entrada</b> (com o contador), o ano e, em baixo, Definições, atualizar e bloquear.','Os saldos têm agora <b>nome</b> (Valete, Cativo, Coverflex) num bloco próprio, com a diferença ao banco e o alerta do saldo logo por baixo - carregar no alerta abre o detalhe do sino.','O topo do conteúdo fica só com o título da página, a pesquisa e o sino. Em ecrãs mais estreitos (abaixo de 1100 px) e no telemóvel fica tudo como antes.']},
   {v:'v111',d:'2 nov',bul:['Contas e cartões com saldo têm a opção <b>«O saldo vem da empresa»</b> (ex.: o cartão de bónus). Nessas contas o botão Reforço dá lugar a <b>Carregar</b>: o bónus entra nas <b>receitas, coluna Bonus</b> (e no Total Host), sobe o saldo do cartão e <b>não mexe no Valete</b> - antes, o Reforço tirava esse valor ao Valete como se fosse uma transferência tua.','Os carregamentos não contam como poupança transferida nem entram no alerta do saldo, e aparecem no histórico do cartão com o selo <b>carregamento</b> (apagar ali tira a receita e baixa o saldo).','A opção fica ligada à conta e não ao nome: se o fornecedor mudar, basta mudar o nome da conta - as compras e carregamentos já lançados acompanham o nome novo.']},
   {v:'v110',d:'2 nov',bul:['<b>Mimos e alerta do saldo passam a bater certo.</b> Antes, os Mimos olhavam para o mês inteiro (contavam o salário que só entra ~dia 23) e o alerta olhava para o dinheiro dia a dia - podiam dizer «tens 1 035 € para mimos» e «vais ficar abaixo da margem» ao mesmo tempo.','Agora os <b>Mimos são o menor de dois limites</b>: o que resta no orçamento do mês e a <b>folga do Valete</b> - quanto podes gastar hoje sem que o saldo desça abaixo da margem antes de o salário entrar. O cartão diz qual dos dois está a limitar e, quando é o saldo, quanto passas a ter depois do salário.','O <b>alerta</b> usa a mesma projeção, <b>só com o obrigatório</b> (fixas, agendados, gasto essencial típico e a poupança do mês por transferir) e com o salário no dia em que entra. Só aparece quando, mesmo sem lazer nenhum, o saldo desce abaixo da margem - e aí os Mimos mostram 0 €.','A projeção do Valete deixou de contar o que se paga pelo <b>Coverflex</b>, por outros cartões ou em dinheiro (não sai do Valete), e os débitos agendados entram no dia em que o banco <b>realmente cobra</b>.','O chip do topo diz o que é («Dia 22 · abaixo da margem») em vez de um número negativo solto, que parecia o saldo.']},
@@ -3454,6 +3504,23 @@ document.addEventListener('click',e=>{
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){closePop();closeBack();}
   if(e.key==='Enter'){ if(document.getElementById('pVal')===document.activeElement){popAdd();} else if(document.getElementById('qVal')===document.activeElement){quickAdd();} }
+});
+/* atalhos de teclado (PC): 1-5 menus · E caixa de entrada · , Definições · / pesquisa · N novo lançamento · [ ] ano · ? lista.
+   Só fora de campos de texto, sem Ctrl/Alt e sem janelas abertas. */
+document.addEventListener('keydown',e=>{
+  if(e.ctrlKey||e.metaKey||e.altKey||e.defaultPrevented) return;
+  const t=e.target; if(t&&(t.isContentEditable||/^(INPUT|SELECT|TEXTAREA)$/.test(t.tagName))) return;
+  if(document.getElementById('lock')) return;
+  if(['back','pop','aiSheet'].some(id=>{const el=document.getElementById(id);return el&&el.classList.contains('on');})) return;
+  const k=e.key, tabs=['grelha','acerto','poup','previsao','analytics'];
+  const ir=x=>{ if(tab!==x){tab=x;closePop();render();} };
+  if(/^[1-5]$/.test(k)){ e.preventDefault(); ir(tabs[+k-1]); return; }
+  if(k===','){ e.preventDefault(); ir('defs'); return; }
+  if(k==='e'||k==='E'){ e.preventDefault(); openInbox(); return; }
+  if(k==='/'){ e.preventDefault(); openSearch(); return; }
+  if(k==='n'||k==='N'){ e.preventDefault(); ir('grelha'); const q=document.getElementById('qVal'); if(q){q.scrollIntoView({block:'center',behavior:'smooth'});q.focus();} return; }
+  if(k==='['||k===']'){ e.preventDefault(); const b=document.querySelector(`[data-year="${k===']'?1:-1}"]`); if(b)b.click(); return; }
+  if(k==='?'){ e.preventDefault(); toast('Atalhos: 1-5 menus · E entrada · , definições · / pesquisa · N lançar · [ ] ano'); return; }
 });
 document.addEventListener('input',e=>{ if(e.target.id==='arqFilter'){ const q=e.target.value.trim().toLowerCase(); document.querySelectorAll('#arqList .pe').forEach(r=>{ r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none'; }); } });
 document.addEventListener('change',e=>{
