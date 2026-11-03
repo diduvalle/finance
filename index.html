@@ -757,8 +757,13 @@ body.has-side #pageTitle{display:block;font-size:17px;font-weight:800}
 /* ===== revisão visual v113 (PC com barra lateral): menos linhas, mais largura, título de página a sério ===== */
 body.has-side{--maxw:1520px}
 body.has-side #side{background:color-mix(in srgb,var(--bg2) 80%,transparent);border-right:1px solid color-mix(in srgb,var(--line) 50%,transparent)}
-body.has-side .topbar{background:color-mix(in srgb,var(--bg) 80%,transparent);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom-color:transparent;transition:border-color .2s}
-body.has-side.scrolled .topbar{border-bottom-color:color-mix(in srgb,var(--line) 60%,transparent)}
+body.has-side .topbar{position:static;background:none;border:0} /* PC com barra lateral: o topo é só o título da página, rola com o conteúdo */
+body.has-side #searchBtn,body.has-side #bell{display:none!important} /* pesquisa e alertas passaram para a barra lateral */
+.side-search{display:flex;align-items:center;gap:9px;width:100%;padding:8px 10px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--mut);font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-align:left;transition:border-color .15s,color .15s}
+.side-search:hover{border-color:var(--line2);color:var(--txt)}
+.side-search svg{width:16px;height:16px;flex:none}
+.side-search .kb{opacity:.8!important}
+.side-nav .side-sep{height:1px;background:color-mix(in srgb,var(--line) 60%,transparent);margin:6px 11px}
 body.has-side .topbar-inner{padding:18px 20px 12px;min-height:66px}
 body.has-side #pageTitle{font-size:22px;font-weight:800;letter-spacing:-.4px}
 #pageTitle span{color:var(--mut);font-weight:600;margin-left:9px}
@@ -769,8 +774,9 @@ body.has-side #pageTitle{font-size:22px;font-weight:800;letter-spacing:-.4px}
 .side-nav button.on{color:var(--txt);background:var(--acc-15);box-shadow:none}
 .side-nav button.on svg{color:var(--acc)}
 .side-nav button.on::before{content:'';position:absolute;left:-12px;top:8px;bottom:8px;width:3px;border-radius:0 3px 3px 0;background:var(--acc)}
-.side-nav .kb{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--mut);border:1px solid var(--line);border-radius:5px;min-width:18px;text-align:center;padding:0 4px;line-height:16px;opacity:0;transition:opacity .15s}
+.side-nav .kb,.side-search .kb{margin-left:auto;font-size:10.5px;font-weight:700;color:var(--mut);border:1px solid var(--line);border-radius:5px;min-width:18px;text-align:center;padding:0 4px;line-height:16px;opacity:0;transition:opacity .15s}
 .side-nav button:hover .kb,.side-nav button:focus-visible .kb{opacity:.85}
+.side-search .kb{border:1px solid var(--line);border-radius:5px;min-width:18px;text-align:center;padding:0 4px;line-height:16px;font-size:10.5px;font-weight:700}
 .side-n+.kb{margin-left:6px}
 /* "Sai de": ícone + texto (no telemóvel fica só o ícone) */
 .qadd .qconta .qcl{font-size:12px;font-weight:700;margin-left:6px}
@@ -1457,7 +1463,7 @@ function valeteSpark(F){
 function render(){
   document.body.setAttribute('data-theme',state.settings.tema||'dark');
   // PC largo: barra lateral; abaixo de 1100px fica o header de sempre (e o telemóvel a #botnav). Volta a desenhar ao mudar de largura.
-  if(!window._sideMQ){ window._sideMQ=window.matchMedia('(min-width:1100px)'); window._sideMQ.addEventListener('change',()=>render()); window.addEventListener('scroll',()=>document.body.classList.toggle('scrolled',window.scrollY>6),{passive:true}); }
+  if(!window._sideMQ){ window._sideMQ=window.matchMedia('(min-width:1100px)'); window._sideMQ.addEventListener('change',()=>render()); }
   const _desk=window._sideMQ.matches; document.body.classList.toggle('has-side',_desk);
   const _tabDefs=[['grelha','Grelha',I.grid],['acerto','Dívida',I.scale],['poup','Poupanças',I.wallet],['previsao','Previsão',I.trend],['analytics','Analytics',I.report],['defs','Definições',I.gear]];
   const _tabBtns=_tabDefs.map(([k,n,ic])=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n}" aria-label="${n}">${svg(ic)}<span class="tablabel">${n}</span></button>`).join('');
@@ -1488,6 +1494,7 @@ function render(){
   /* barra lateral (PC largo): menus, caixa de entrada, saldos COM NOME e o alerta junto ao Valete; o topo fica só com título, pesquisa e sino.
      Os saldos vão para UM sítio de cada vez (aqui ou no #valeteHead), para não haver ids repetidos (#vCativo, #vbWarn). */
   const _ibn=(state.inbox||[]).length;
+  const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0);
   const _sideEl=document.getElementById('side');
   if(_desk){
     const _row=(cor,nome,val,extra)=>`<div class="sb-row"${extra||''}><span class="sb-l"><i style="background:${cor}"></i>${nome}</span><b>${val}</b></div>`;
@@ -1499,13 +1506,14 @@ function render(){
     if(_alerta) _bal+=`<button class="sb-alert" data-openalerts="1" title="Mesmo sem lazer, por volta do dia ${_vf.faltaDia} o saldo do Valete desce abaixo da ${_vf.margem>0?'margem ('+fmt(_vf.margem)+')':'linha 0'} - faltam ~${fmt(_vf.faltaValor)}. Os Mimos ficam a 0 até lá.">${svg(I.warn)}<span><b>Dia ${_vf.faltaDia}</b> ${_vf.margem>0?'abaixo da margem':'saldo negativo'}</span></button>`;
     const _nav=_tabDefs.filter(([k])=>k!=='defs').map(([k,n,ic],j)=>`<button class="${tab===k?'on':''}" data-tab="${k}" title="${n} (tecla ${j+1})">${svg(ic)}<span>${n}</span><span class="kb">${j+1}</span></button>`).join('');
     _sideEl.innerHTML=`<div class="side-brand"><div class="brand" data-home="1" style="cursor:pointer" title="Início (Grelha)"><div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4l8 6.5V20H4v-9.5z"/></svg></div><span>CASA</span></div><div class="yearnav"><button data-year="-1" aria-label="Ano anterior">‹</button><span class="y">${ano}</span><button data-year="1" aria-label="Ano seguinte">›</button></div></div>
-      <nav class="side-nav">${_nav}<button id="sideInbox" title="Caixa de entrada (tecla E)">${svg(I.inbox)}<span>Caixa de entrada</span>${_ibn?`<span class="side-n">${_ibn}</span>`:''}<span class="kb">E</span></button></nav>
+      <button class="side-search" id="sideSearch" title="Pesquisar movimentos (tecla /)">${svg(I.search)}<span>Pesquisar</span><span class="kb">/</span></button>
+      <nav class="side-nav">${_nav}<div class="side-sep"></div><button id="sideInbox" title="Caixa de entrada (tecla E)">${svg(I.inbox)}<span>Caixa de entrada</span>${_ibn?`<span class="side-n">${_ibn}</span>`:''}<span class="kb">E</span></button><button id="sideBell" data-openalerts="1" title="Alertas (tecla A)">${svg(I.bell)}<span>Alertas</span>${_bn?`<span class="side-n">${_bn}</span>`:''}<span class="kb">A</span></button></nav>
       ${_bal?`<div><div class="side-grp">Saldos</div><div class="side-bal">${_bal}</div></div>`:''}
       <div class="side-foot"><button data-tab="defs" class="${tab==='defs'?'on':''}" title="Definições (tecla ,) · atalhos: tecla ?" aria-label="Definições">${svg(I.gear)}</button><button id="sideRefresh" title="Atualizar - limpar cache e recarregar" aria-label="Atualizar">${svg(I.repeat)}</button>${state.settings.codigo?`<button id="sideLock" title="Bloquear (sair)" aria-label="Bloquear">${svg(I.logout)}</button>`:''}</div>`;
     const _tn=(_tabDefs.find(([k])=>k===tab)||[])[1]||'';
     document.getElementById('pageTitle').innerHTML=esc(_tn)+(tab==='defs'?'':`<span>${ano}</span>`);
   } else { _sideEl.innerHTML=''; }
-  const _al=computeAlertas(); const _bn=_al.n+(_alerta?1:0); document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
+  document.getElementById('bell').innerHTML=`${svg(I.bell)}${_bn?`<span class="bell-badge">${_bn}</span>`:''}`;
   document.getElementById('searchBtn').innerHTML=svg(I.search);
   document.getElementById('inboxTop').innerHTML=`${svg(I.inbox)}${_ibn?`<span class="bell-badge">${_ibn}</span>`:''}`;
   document.getElementById('refreshBtn').innerHTML=svg(I.repeat);
@@ -2898,6 +2906,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v114',d:'3 nov',bul:['No PC, o <b>topo deixou de ser fixo</b>: o título da página rola com o conteúdo e já não fica uma faixa a flutuar por cima.','A <b>pesquisa</b> e os <b>alertas</b> passaram para a barra lateral, com nome: «Pesquisar» logo por baixo do logótipo e «Alertas» (com o número) junto à Caixa de entrada. O painel dos alertas abre ao lado da barra.','Novo atalho: <b>A</b> abre os alertas. Em ecrãs mais estreitos e no telemóvel fica tudo como estava.']},
   {v:'v113',d:'3 nov',bul:['<b>Grelha mais limpa:</b> os 12 meses passam a viver num só cartão, separados por filetes finos, em vez de 12 caixas soltas com sombra. O mês corrente tem a etiqueta <b>este mês</b> e os meses futuros ficam esbatidos.','Cada mês tem agora uma <b>barra</b> com o peso no ano e um <b>traço com a média</b> dos meses fechados - vê-se logo que meses fugiram ao normal (passa o rato para ver a diferença em %). Dentro do mês, cada categoria tem uma barra com a fatia do mês.','No PC: o conteúdo usa mais largura, o título da página ficou maior e a linha do topo só aparece quando fazes scroll. O menu ativo da barra lateral ficou mais suave.','<b>Atalhos de teclado</b> (PC): 1 a 5 mudam de menu, E abre a Caixa de entrada, vírgula abre as Definições, / pesquisa, N vai para o lançamento rápido, [ e ] mudam o ano, ? mostra a lista. Os números aparecem na barra lateral ao passar o rato.','No lançamento rápido, «Sai de» diz <b>Conta</b> ou <b>Dinheiro</b> além do ícone.']},
   {v:'v112',d:'2 nov',bul:['<b>Navegação nova no PC:</b> os menus passaram para uma <b>barra à esquerda</b>, que aproveita o espaço que sobrava dos lados num ecrã largo. Lá ficam também a <b>Caixa de entrada</b> (com o contador), o ano e, em baixo, Definições, atualizar e bloquear.','Os saldos têm agora <b>nome</b> (Valete, Cativo, Coverflex) num bloco próprio, com a diferença ao banco e o alerta do saldo logo por baixo - carregar no alerta abre o detalhe do sino.','O topo do conteúdo fica só com o título da página, a pesquisa e o sino. Em ecrãs mais estreitos (abaixo de 1100 px) e no telemóvel fica tudo como antes.']},
   {v:'v111',d:'2 nov',bul:['Contas e cartões com saldo têm a opção <b>«O saldo vem da empresa»</b> (ex.: o cartão de bónus). Nessas contas o botão Reforço dá lugar a <b>Carregar</b>: o bónus entra nas <b>receitas, coluna Bonus</b> (e no Total Host), sobe o saldo do cartão e <b>não mexe no Valete</b> - antes, o Reforço tirava esse valor ao Valete como se fosse uma transferência tua.','Os carregamentos não contam como poupança transferida nem entram no alerta do saldo, e aparecem no histórico do cartão com o selo <b>carregamento</b> (apagar ali tira a receita e baixa o saldo).','A opção fica ligada à conta e não ao nome: se o fornecedor mudar, basta mudar o nome da conta - as compras e carregamentos já lançados acompanham o nome novo.']},
@@ -3420,8 +3429,9 @@ document.addEventListener('click',e=>{
   if(d.alertreadall){ _panelAlerts.slice().forEach(it=>markAlertRead(it)); render(); renderAlertPanel(); return; }
   if(d.alertlogclear){ if((state.alertLog||[]).length){ confirmModal('Limpar o arquivo de alertas?',()=>{state.alertLog=[];state.alertReads={};save();render();},{titulo:'Limpar arquivo',okLabel:'Limpar'}); } return; }
   if(d.utilread){ markAlertRead({_key:d.utilread,_v:+d.utilv||0,_txt:decodeURIComponent(d.utiltxt||'')}); render(); return; }
-  if(t.dataset&&t.dataset.openalerts){ document.getElementById('bell').click(); return; } // alerta da barra lateral abre o painel do sino
-  if(t.id==='bell'){ const p=document.getElementById('alertPanel'); if(p.classList.contains('on')){p.classList.remove('on');} else { renderAlertPanel(); const r=t.getBoundingClientRect(); p.style.top=(r.bottom+8)+'px'; p.style.left=Math.max(10,r.right-340)+'px'; p.classList.add('on'); } return; }
+  // painel de alertas: abre por baixo do sino (topo) ou ao lado do botão que o abriu na barra lateral (Alertas / alerta do saldo)
+  if(t.id==='bell'||(t.dataset&&t.dataset.openalerts)){ const p=document.getElementById('alertPanel'); if(p.classList.contains('on')){p.classList.remove('on');} else { renderAlertPanel(); p.classList.add('on'); const r=t.getBoundingClientRect();
+    if(t.closest('#side')){ p.style.left=(r.right+12)+'px'; p.style.top=Math.max(10,Math.min(r.top,window.innerHeight-p.offsetHeight-10))+'px'; } else { p.style.top=(r.bottom+8)+'px'; p.style.left=Math.max(10,r.right-340)+'px'; } } return; }
   if(d.poupledger){ const[y,i]=d.poupledger.split('|'); openContaLedger(y,+i); return; }
   if(t.id==='lgReforco'){ poupMovAdd(1); return; }
   if(t.id==='lgMob'){ poupMovAdd(-1); return; }
@@ -3480,7 +3490,7 @@ document.addEventListener('click',e=>{
   if(d.pvdel){const p=(state.providers||[]).find(x=>x.id===d.pvdel);if(p){confirmModal('Esquecer o fornecedor "'+(p.label||p.from)+'"? (as faturas já lançadas mantêm-se)',()=>{state.providers=state.providers.filter(x=>x.id!==d.pvdel);save();render();},{titulo:'Esquecer fornecedor',okLabel:'Esquecer'});}return;}
   if(t.id==='recAdd'){openRec();return;}
   if(d.recdel){const _r=(state.recorrencias||[]).find(r=>r.id===d.recdel); confirmModal('Eliminar esta despesa fixa'+(_r?' ('+catName(_r.categoriaId)+' · '+fmt(_r.valor)+')':'')+'? Os lançamentos já feitos mantêm-se.',()=>{ state.recorrencias=state.recorrencias.filter(r=>r.id!==d.recdel);save();render(); },{titulo:'Eliminar despesa fixa'});return;}
-  if(t.id==='searchBtn'){openSearch();return;}
+  if(t.id==='searchBtn'||t.id==='sideSearch'){openSearch();return;}
   if(t.id==='refreshBtn'||t.id==='sideRefresh'){hardRefresh();return;}
   if(t.id==='lockNow'||t.id==='sideLock'){ if(!state.settings.codigo){toast('Define um código em Definições primeiro');return;} sessionStorage.removeItem('casa-unlock'); closePop(); showLock(); return; }
   if(t.id==='notifToggle'){notifToggle();return;}
@@ -3505,7 +3515,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){closePop();closeBack();}
   if(e.key==='Enter'){ if(document.getElementById('pVal')===document.activeElement){popAdd();} else if(document.getElementById('qVal')===document.activeElement){quickAdd();} }
 });
-/* atalhos de teclado (PC): 1-5 menus · E caixa de entrada · , Definições · / pesquisa · N novo lançamento · [ ] ano · ? lista.
+/* atalhos de teclado (PC): 1-5 menus · E caixa de entrada · A alertas · , Definições · / pesquisa · N novo lançamento · [ ] ano · ? lista.
    Só fora de campos de texto, sem Ctrl/Alt e sem janelas abertas. */
 document.addEventListener('keydown',e=>{
   if(e.ctrlKey||e.metaKey||e.altKey||e.defaultPrevented) return;
@@ -3518,9 +3528,10 @@ document.addEventListener('keydown',e=>{
   if(k===','){ e.preventDefault(); ir('defs'); return; }
   if(k==='e'||k==='E'){ e.preventDefault(); openInbox(); return; }
   if(k==='/'){ e.preventDefault(); openSearch(); return; }
+  if(k==='a'||k==='A'){ const b=document.getElementById(document.body.classList.contains('has-side')?'sideBell':'bell'); if(b){ e.preventDefault(); b.click(); } return; }
   if(k==='n'||k==='N'){ e.preventDefault(); ir('grelha'); const q=document.getElementById('qVal'); if(q){q.scrollIntoView({block:'center',behavior:'smooth'});q.focus();} return; }
   if(k==='['||k===']'){ e.preventDefault(); const b=document.querySelector(`[data-year="${k===']'?1:-1}"]`); if(b)b.click(); return; }
-  if(k==='?'){ e.preventDefault(); toast('Atalhos: 1-5 menus · E entrada · , definições · / pesquisa · N lançar · [ ] ano'); return; }
+  if(k==='?'){ e.preventDefault(); toast('Atalhos: 1-5 menus · E entrada · A alertas · , definições · / pesquisa · N lançar · [ ] ano'); return; }
 });
 document.addEventListener('input',e=>{ if(e.target.id==='arqFilter'){ const q=e.target.value.trim().toLowerCase(); document.querySelectorAll('#arqList .pe').forEach(r=>{ r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none'; }); } });
 document.addEventListener('change',e=>{
@@ -3570,7 +3581,7 @@ document.addEventListener('change',e=>{
   if(e.target.id==='fcMetaA'){state.forecast.meta.ano=e.target.value.trim();save();render();}
 });
 // close popover when clicking outside
-document.addEventListener('mousedown',e=>{ if(popCell && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); const ap=document.getElementById('alertPanel'); if(ap&&ap.classList.contains('on')&&!e.target.closest('#alertPanel')&&!e.target.closest('#bell')) ap.classList.remove('on'); });
+document.addEventListener('mousedown',e=>{ if(popCell && !e.target.closest('#pop') && !e.target.closest('[data-cell]')) closePop(); const ap=document.getElementById('alertPanel'); if(ap&&ap.classList.contains('on')&&!e.target.closest('#alertPanel')&&!e.target.closest('#bell')&&!e.target.closest('[data-openalerts]')) ap.classList.remove('on'); });
 document.addEventListener('keydown',e=>{ if(e.target&&e.target.id==='aiQm'&&e.key==='Enter'){ e.preventDefault(); aiAskM(); } else if(e.key==='Escape'){ const sh=document.getElementById('aiSheet'); if(sh&&sh.classList.contains('on')){ aiSheetClose(); return; } } });
 /* fechar popover ao redimensionar - só quando muda a LARGURA (rotação/janela);
    ignora mudanças só de altura (teclado virtual no telemóvel, que senão fechava o popover ao focar o input) */
