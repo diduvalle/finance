@@ -2906,6 +2906,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+ {v:'v115',d:'25 nov',bul:['<b>Banco: os movimentos voltaram a entrar.</b> Desde dia 21 o saldo atualizava mas os movimentos não: a app pedia ao novobanco tudo desde a data «Importar a partir de» (setembro) e o banco começou a recusar pedidos tão longos («Service unavailable»), em silêncio.','Agora a app pede só os dias desde a última leitura que correu bem (com 5 dias de margem; os repetidos continuam a ser ignorados) e, se o banco recusar, tenta outra vez com os últimos 5 dias.','Se mesmo assim falhar, aparece um aviso com o erro do banco em vez de ficar calado.']},
   {v:'v114',d:'3 nov',bul:['No PC, o <b>topo deixou de ser fixo</b>: o título da página rola com o conteúdo e já não fica uma faixa a flutuar por cima.','A <b>pesquisa</b> e os <b>alertas</b> passaram para a barra lateral, com nome: «Pesquisar» logo por baixo do logótipo e «Alertas» (com o número) junto à Caixa de entrada. O painel dos alertas abre ao lado da barra.','Novo atalho: <b>A</b> abre os alertas. Em ecrãs mais estreitos e no telemóvel fica tudo como estava.']},
   {v:'v113',d:'3 nov',bul:['<b>Grelha mais limpa:</b> os 12 meses passam a viver num só cartão, separados por filetes finos, em vez de 12 caixas soltas com sombra. O mês corrente tem a etiqueta <b>este mês</b> e os meses futuros ficam esbatidos.','Cada mês tem agora uma <b>barra</b> com o peso no ano e um <b>traço com a média</b> dos meses fechados - vê-se logo que meses fugiram ao normal (passa o rato para ver a diferença em %). Dentro do mês, cada categoria tem uma barra com a fatia do mês.','No PC: o conteúdo usa mais largura, o título da página ficou maior e a linha do topo só aparece quando fazes scroll. O menu ativo da barra lateral ficou mais suave.','<b>Atalhos de teclado</b> (PC): 1 a 5 mudam de menu, E abre a Caixa de entrada, vírgula abre as Definições, / pesquisa, N vai para o lançamento rápido, [ e ] mudam o ano, ? mostra a lista. Os números aparecem na barra lateral ao passar o rato.','No lançamento rápido, «Sai de» diz <b>Conta</b> ou <b>Dinheiro</b> além do ícone.']},
   {v:'v112',d:'2 nov',bul:['<b>Navegação nova no PC:</b> os menus passaram para uma <b>barra à esquerda</b>, que aproveita o espaço que sobrava dos lados num ecrã largo. Lá ficam também a <b>Caixa de entrada</b> (com o contador), o ano e, em baixo, Definições, atualizar e bloquear.','Os saldos têm agora <b>nome</b> (Valete, Cativo, Coverflex) num bloco próprio, com a diferença ao banco e o alerta do saldo logo por baixo - carregar no alerta abre o detalhe do sino.','O topo do conteúdo fica só com o título da página, a pesquisa e o sino. Em ecrãs mais estreitos (abaixo de 1100 px) e no telemóvel fica tudo como antes.']},
@@ -5018,12 +5019,19 @@ async function bankImport(silent){
   if(_bankBusy)return; _bankBusy=true;
   try{
     state.bankSeen=state.bankSeen||[]; const seen=new Set(state.bankSeen);
-    const dateFrom=(state.bank&&state.bank.since)||isoToday(); // só a partir da data definida (default: dia da ligação) - não puxa o passado já lançado
-    let added=0, dup=0, err=0;
+    // janela curta: o novobanco recusa pedidos longos ("Service unavailable" a partir de ~30 dias), por isso pede-se só desde a última
+    // leitura de movimentos que correu bem (menos 5 dias de margem; o dedup trata a sobreposição), nunca antes da data «Importar a partir de».
+    // Se mesmo assim o banco recusar, tenta outra vez só com os últimos 5 dias.
+    const _dia=ms=>{const d=new Date(ms);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+    const since=(state.bank&&state.bank.since)||isoToday();
+    const base=state.bank.lastTxOk||(Date.now()-10*864e5);
+    const dateFrom=[since,_dia(base-5*864e5)].sort().pop(), dateCurto=[since,_dia(Date.now()-5*864e5)].sort().pop();
+    let added=0, dup=0, err=0, errMsg='';
     for(const acc of state.bank.accounts){
       if(acc.sel===false)continue;
       try{
-        const r=await bankFn('/transactions?account_id='+encodeURIComponent(acc.uid)+'&date_from='+dateFrom);
+        const q='/transactions?account_id='+encodeURIComponent(acc.uid)+'&date_from=';
+        let r; try{ r=await bankFn(q+dateFrom); }catch(e1){ if(dateCurto===dateFrom)throw e1; r=await bankFn(q+dateCurto); }
         for(const t of (r.transactions||[])){
           const id=bankTxId(t);
           if(seen.has(id)){dup++;continue;}
@@ -5044,12 +5052,15 @@ async function bankImport(silent){
           mark(id);mark(alias);
           it.acct=acc.name; state.inbox.push(it); added++;
         }
-      }catch(e){ err++; }
+      }catch(e){ err++; errMsg=String(e&&e.message||e); }
     }
+    const nAcc=state.bank.accounts.filter(a=>a.sel!==false).length;
+    if(err<nAcc) state.bank.lastTxOk=Date.now(); // pelo menos uma conta leu os movimentos
+    state.bank.lastTxErr=err?{ts:Date.now(),msg:errMsg}:null;
     await bankFetchSaldo(true); // lê o saldo real da conta (p/ comparar com o Valete)
     state.bank.lastImport=Date.now(); save(); render();
-    if(silent){ if(added) toast(`Banco: ${added} novo(s) movimento(s) na Caixa de entrada`); }
-    else { toast(`Importados ${added} · ${dup} repetidos`+(err?` · ${err} conta(s) com erro`:'')); if(added) openInbox(); }
+    if(silent){ if(added) toast(`Banco: ${added} novo(s) movimento(s) na Caixa de entrada`); else if(err&&err>=nAcc) toast('Banco: o saldo atualizou, mas não consegui ler os movimentos ('+errMsg+')'); }
+    else { toast(`Importados ${added} · ${dup} repetidos`+(err?` · ${err} conta(s) com erro: ${errMsg}`:'')); if(added) openInbox(); }
   } finally { _bankBusy=false; }
 }
 /* lê o saldo real da conta (a do Valete = a conta com IBAN) e guarda em state.bank.saldoBanco */
