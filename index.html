@@ -779,8 +779,31 @@ body.has-side #pageTitle{font-size:22px;font-weight:800;letter-spacing:-.4px}
 .side-search .kb{border:1px solid var(--line);border-radius:5px;min-width:18px;text-align:center;padding:0 4px;line-height:16px;font-size:10.5px;font-weight:700}
 .side-n+.kb{margin-left:6px}
 /* "Sai de": ícone + texto (no telemóvel fica só o ícone) */
-.qadd .qconta .qcl{font-size:12px;font-weight:700;margin-left:6px}
+.qadd .qconta .qcl{display:none;font-size:12px;font-weight:700;margin-left:6px}
+.freshg-left .qadd .qconta .qcl{display:inline} /* só na coluna do lançamento rápido (PC), onde há espaço */
 @media(max-width:720px){.qadd .qconta .qcl{display:none}}
+/* "Tirar das contas" (v116) */
+.fora-mv{background:var(--card2);border-radius:11px;padding:10px 12px;margin-bottom:4px;font-size:13px}
+.fora-mv div{color:var(--mut);font-size:12px;margin-top:3px}
+.fora-op{display:flex;flex-direction:column;gap:3px;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-top:8px;cursor:pointer;color:var(--txt);font:inherit;transition:border-color .15s}
+.fora-op span{font-size:12px;color:var(--mut);line-height:1.4}
+.fora-op:hover{border-color:var(--line2)}
+.fora-op.on{border-color:var(--acc);box-shadow:inset 0 0 0 1px var(--acc);background:var(--acc-10)}
+.fora-det{padding:10px 4px 2px;display:flex;flex-direction:column;gap:7px}
+.fora-det label{margin:0}
+.fora-chk{display:flex;gap:8px;align-items:flex-start;font-size:12.5px;color:var(--txt);font-weight:500}
+.fora-chk input{margin-top:2px}
+.fora-prev{font-size:12.5px;color:var(--mut)}
+.fora-card{margin-top:14px}
+.fora-h{display:flex;align-items:center;gap:8px;font-size:14px;margin-bottom:4px}
+.fora-h svg{color:var(--acc)}
+.fora-g{border-top:1px solid color-mix(in srgb,var(--line) 60%,transparent);padding:10px 0 4px;margin-top:6px}
+.fora-gh{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.fora-gh span{color:var(--mut);font-size:12px}
+.fora-gh b:last-child{margin-left:auto}
+.fora-r{display:flex;align-items:center;gap:10px;padding:5px 0;font-size:13px}
+.fora-d{color:var(--mut);font-size:11.5px;width:62px;flex:none}
+.fora-n{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut)}
 </style>
 </head>
 <body data-theme="dark">
@@ -869,6 +892,7 @@ const I={
   leaf:'<path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/>',
   arrowr:'<path d="M5 12h14M13 6l6 6-6 6"/>',
   chev:'<path d="M9 6l6 6-6 6"/>',
+  semconta:'<circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/>',
   cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v6M18 9v6"/>',
   bank:'<path d="M3 10l9-6 9 6M3 10h18M3 21h18M6 10v8M10 10v8M14 10v8M18 10v8"/>',
   logout:'<path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>',
@@ -1120,7 +1144,7 @@ function contaDeMov(mv){
 }
 /* lançamentos novos na app abatem/somam na conta certa; guardam vAdj+conta p/ reverter ao apagar.
    Movimentos em dinheiro (mv.cash) NÃO mexem no Valete - saem do / entram no Cofre (contado à mão; ver "Esperado" nas Poupanças). */
-function aplicaValete(mv){if(mv.cash)return;const c=contaDeMov(mv);if(!c)return;const delta=mv.tipo==='receita'?mv.valor:(mv.tipo==='despesa'?-mv.valor:0);if(!delta)return;c.valor=round2((parseFloat(c.valor)||0)+delta);mv.vAdj=delta;mv.vAdjConta=(c.nome||'').trim().toLowerCase();}
+function aplicaValete(mv){if(mv.cash)return;const c=contaDeMov(mv);if(!c)return;const delta=mv.tipo==='receita'?mv.valor:(mv.tipo==='despesa'?-mv.valor:(mv.tipo==='fora'?(mv.dir==='in'?mv.valor:-mv.valor):0));if(!delta)return;c.valor=round2((parseFloat(c.valor)||0)+delta);mv.vAdj=delta;mv.vAdjConta=(c.nome||'').trim().toLowerCase();}
 /* dinheiro movimentado (cash) desde a última contagem do Cofre - para mostrar o "Esperado".
    Despesas em dinheiro TIRAM do Cofre; receitas em dinheiro (ex.: um trabalho pago em notas) PÕEM lá.
    Esperado = contado - saídas + entradas. */
@@ -1678,7 +1702,7 @@ function openCellPop(catId,mi,anchor){
       <div class="padd"><input id="pVal" type="number" step="0.01" inputmode="decimal" placeholder="${isDescontoCat(c.id)?'- valor (desconto)':'+ valor'}" autofocus><button class="btn" id="pAddCash" title="${c.tipo==='receita'?'Recebido em dinheiro (entra no Cofre)':'Pagar em dinheiro (Cofre)'}">${svg(I.cash)}</button><button class="btn primary" id="pAdd">${svg(I.plus)}</button></div>
       <input id="pNota" type="text" maxlength="80" placeholder="nota (opcional)" style="width:100%;margin-top:6px">
       ${isDescontoCat(c.id)?`<div class="pempty" style="margin-top:4px">Desconto: entra como negativo (abate à receita).</div>`:''}`}
-      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)"><span class="eico">${svg(I.clock)}</span> agendado${mo.cobraEm?' até '+mo.cobraEm.split('-').reverse().join('/'):''} (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<span class="pe-acts">${acIds.has(mo.categoriaId)?`<button class="x peaq ${aqInfo(mo.aq).c}" data-aqcycle="${mo.id}" title="Quota de quem deve este valor na Dívida - clica para alternar 50/50 · 100% dela · 0% (tua)">${aqInfo(mo.aq).t}</button>`:''}${mo.cash?'':`<button class="x peag${mo.pendente?' on':''}" data-agopen="${mo.id}" title="${mo.pendente?'Agendado'+(mo.cobraEm?' até '+mo.cobraEm.split('-').reverse().join('/'):'')+' - ainda não saiu da conta. Clica para alterar.':'Marcar como ainda não cobrado (agendado) - fica esbatido e só desconta do Valete quando chegar a data'}">${svg(I.clock)}</button>`}<button class="x" data-editmov="${mo.id}" title="Editar valor/nota">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button></span>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
+      <div class="plist">${movs.length?movs.map(mo=>(!frozen&&mo.id===popEditId)?`<div class="pe pe-ed"><input class="pe-ed-val" id="peEditVal" type="number" step="0.01" inputmode="decimal" value="${Math.abs(mo.valor)}"><input class="pe-ed-nota" id="peEditNota" type="text" maxlength="80" placeholder="nota (opcional)" value="${esc(mo.nota||'')}"><button class="x ok" data-editsave="${mo.id}" title="Guardar">✓</button><button class="x" data-editcancel="1" title="Cancelar">✕</button></div>`:`<div class="pe"${mo.pendente?' style="opacity:.6"':''}><span style="font-weight:700">${fmt(mo.valor)}${mo.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span><span style="color:var(--mut)">${mo.data.slice(8,10)}/${mo.data.slice(5,7)}${mo.categoriaId!==catId?' · '+(cat(mo.categoriaId)||{}).nome:''}${mo.nota?' · '+esc(mo.nota):''}${mo.pendente?` · <span style="color:var(--warn)"><span class="eico">${svg(I.clock)}</span> agendado${mo.cobraEm?' até '+mo.cobraEm.split('-').reverse().join('/'):''} (ainda não cobrado)</span>`:''}${mo.provisorio?` · <span style="color:var(--warn)">≈ provisório (até ao recibo)</span>`:''}</span>${frozen?'':`<span class="pe-acts">${acIds.has(mo.categoriaId)?`<button class="x peaq ${aqInfo(mo.aq).c}" data-aqcycle="${mo.id}" title="Quota de quem deve este valor na Dívida - clica para alternar 50/50 · 100% dela · 0% (tua)">${aqInfo(mo.aq).t}</button>`:''}${mo.cash?'':`<button class="x peag${mo.pendente?' on':''}" data-agopen="${mo.id}" title="${mo.pendente?'Agendado'+(mo.cobraEm?' até '+mo.cobraEm.split('-').reverse().join('/'):'')+' - ainda não saiu da conta. Clica para alterar.':'Marcar como ainda não cobrado (agendado) - fica esbatido e só desconta do Valete quando chegar a data'}">${svg(I.clock)}</button>`}<button class="x" data-foramov="${mo.id}" title="Tirar das contas - veio/foi para a poupança, ou dinheiro de passagem que não conta">${svg(I.semconta)}</button><button class="x" data-editmov="${mo.id}" title="Editar valor/nota">✎</button><button class="x" data-movmov="${mo.id}" title="Mudar de categoria">↪</button><button class="x" data-delmov="${mo.id}" title="Apagar">✕</button></span>`}</div>`).join(''):`<div class="pempty">${frozen?'Sem lançamentos.':'Sem lançamentos. Escreve um valor.'}</div>`}</div>
     </div>`;
   pop.classList.add('on');
   // position near anchor
@@ -2110,6 +2134,7 @@ function vPoupancas(m){
     </table>
   </div>
   ${hasDisc?`<button class="btn sm" data-recontei="${ano}" style="margin-top:10px" title="Já recontei o dinheiro - limpar aviso">${svg(I.check)}Já recontei (limpar aviso)</button>`:''}`:''}`;
+  m.insertAdjacentHTML('beforeend',foraCard()); // dinheiro de passagem (não conta)
 }
 
 function openContaLedger(y,i){
@@ -2161,6 +2186,110 @@ function openContaLedger(y,i){
   openBack();
 }
 const round2=n=>Math.round((+n||0)*100)/100;
+/* ===== TIRAR DAS CONTAS (v116) =====
+   Dois casos que mexem no Valete mas NÃO são receita/despesa e enviesavam as estatísticas:
+   1) "Veio/Foi para a poupança": o movimento sai da grelha e passa a mobilização/reforço da conta poupança
+      (poupApplyMov espelha no Valete, que fica igual). Se a conta já tinha sido acertada à mão com um
+      "ajuste de saldo" do mesmo valor, esse ajuste é substituído (senão a conta ficava a dobrar).
+   2) "Não conta" (dinheiro de passagem): o movimento fica no Valete mas muda para tipo 'fora' (sem categoria),
+      por isso todas as somas por tipo/categoria o ignoram. Agrupa-se por um nome (ex.: o que se vai pagar)
+      para a entrada e o pagamento ficarem juntos. Guarda tipo/categoria/valor originais para "Voltar a contar". */
+function _foraAjuste(nome,alvo,data){
+  const yp=state.poupancas[ultimoAnoPoup()]; const c=((yp&&yp.contas)||[]).find(x=>x.nome===nome); if(!c)return null;
+  const t0=new Date(data).getTime(); let best=null;
+  (c.mov||[]).forEach((m,idx)=>{ if(m.txId||!/^ajuste de saldo/.test(m.nota||''))return; if(Math.abs((+m.valor||0)-alvo)>=0.01)return;
+    const dd=Math.abs(new Date(m.data).getTime()-t0)/864e5; if(dd<=31&&(!best||dd<best.dd))best={idx,valor:+m.valor,data:m.data,dd}; });
+  return best;
+}
+function _foraGrupos(){ return [...new Set(state.movimentos.filter(m=>m.tipo==='fora'&&m.grupo).map(m=>m.grupo))]; }
+function openForaModal(id,modo,conta){
+  const mv=state.movimentos.find(x=>x.id===id); if(!mv)return;
+  if(mv.tipo==='fora'){toast('Este movimento já não conta');return;}
+  if(mv.pendente){toast('Ainda está agendado - espera que seja cobrado');return;}
+  if(isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado - desbloqueia na grelha');return;}
+  const ent=mv.tipo==='receita', v=round2(Math.abs(mv.valor));
+  const yp=state.poupancas[ultimoAnoPoup()]; const cs=((yp&&yp.contas)||[]).filter(c=>!c.real&&!c.externo&&(c.nome||'').trim());
+  const podePoup=!!(cs.length&&mv.vAdj&&(mv.vAdjConta||'')==='valete'); // só se o movimento mexeu mesmo no Valete
+  modo=modo||(podePoup?'poup':'fora'); if(modo==='poup'&&!podePoup)modo='fora';
+  conta=conta||(cs[0]&&cs[0].nome);
+  const c=cs.find(x=>x.nome===conta)||cs[0], delta=ent?-v:v;
+  const aj=modo==='poup'&&c?_foraAjuste(c.nome,delta,mv.data):null;
+  const dm=d=>d.slice(8,10)+'/'+d.slice(5,7);
+  const depois=c?round2((+c.valor||0)-(aj?aj.valor:0)+delta):0;
+  const grupos=_foraGrupos();
+  document.getElementById('back').innerHTML=`<div class="modal"><h2>${svg(I.semconta)} Tirar das contas <button class="close" data-close="1">&times;</button></h2>
+    <div class="body">
+      <div class="fora-mv"><b>${ent?'+':'-'}${fmt(v)}</b> · ${dm(mv.data)} · ${esc(catName(mv.categoriaId))}${mv.nota?`<div>${esc(mv.nota)}</div>`:''}</div>
+      <button class="fora-op${modo==='poup'?' on':''}" data-foramodo="poup" data-foraid="${id}"${podePoup?'':' disabled'}><b>${ent?'Veio da poupança':'Foi para a poupança'}</b><span>${podePoup?(ent?'O dinheiro já era teu: sai das receitas e fica como mobilização da conta poupança. O Valete não muda.':'É dinheiro que guardaste: sai das despesas e fica como reforço da conta poupança. O Valete não muda.'):'Só para movimentos que entraram ou saíram do Valete.'}</span></button>
+      ${modo==='poup'&&c?`<div class="fora-det"><label>Conta poupança</label><select id="foraConta" data-foraid="${id}">${cs.map(x=>`<option${x.nome===c.nome?' selected':''}>${esc(x.nome)}</option>`).join('')}</select>
+        ${aj?`<label class="fora-chk"><input type="checkbox" id="foraAj" checked> Substituir o «ajuste de saldo» de ${fmt(aj.valor)} de ${dm(aj.data)} - já tinhas acertado a conta à mão</label>`:''}
+        <div class="fora-prev">${esc(c.nome)}: ${fmt(+c.valor||0)} → <b>${fmt(depois)}</b>${depois<-0.005?' <span style="color:var(--out)">(fica negativa)</span>':''}</div></div>`:''}
+      <button class="fora-op${modo==='fora'?' on':''}" data-foramodo="fora" data-foraid="${id}"><b>Não conta (dinheiro de passagem)</b><span>Fica no Valete, mas sai das receitas e despesas, das médias, dos Mimos e do Analytics. Dá o mesmo nome à entrada e ao pagamento para veres quanto falta usar.</span></button>
+      ${modo==='fora'?`<div class="fora-det"><label>Para quê?</label><input id="foraGrupo" list="foraGrupos" maxlength="60" placeholder="ex.: dinheiro para pagar a obra"><datalist id="foraGrupos">${grupos.map(g=>`<option value="${esc(g)}">`).join('')}</datalist></div>`:''}
+      <input type="hidden" id="foraModo" value="${modo}"><input type="hidden" id="foraContaSel" value="${c?esc(c.nome):''}">
+    </div>
+    <div class="foot"><div class="spacer"></div><button class="btn" data-close="1">Cancelar</button><button class="btn primary" id="foraOk" data-foraid="${id}">${svg(I.check)}Confirmar</button></div></div>`;
+  openBack();
+}
+function foraPoupanca(id,nome,trocaAj){
+  const mv=state.movimentos.find(x=>x.id===id); if(!mv)return;
+  const y=ultimoAnoPoup(), yp=state.poupancas[y]; const i=((yp&&yp.contas)||[]).findIndex(c=>c.nome===nome); if(i<0){toast('Conta poupança não encontrada');return;}
+  const ent=mv.tipo==='receita', v=round2(Math.abs(mv.valor)), delta=ent?-v:v, c=yp.contas[i];
+  if(trocaAj){ const aj=_foraAjuste(nome,delta,mv.data); if(aj){ c.valor=round2((+c.valor||0)-aj.valor); c.mov.splice(aj.idx,1); } }
+  reverteValete(mv); state.movimentos=state.movimentos.filter(x=>x.id!==id);
+  poupApplyMov(y,i,delta,mv.data,(ent?'mobilização':'reforço')+(mv.txId?' (banco)':'')+(mv.nota?' · '+mv.nota:''));
+  const mo=c.mov[c.mov.length-1]; if(mo&&mv.txId)mo.txId=mv.txId; // o banco não volta a oferecer a transação
+  save(); closeBack(); closePop(); render(); toast((ent?'Mobilização ← ':'Reforço → ')+c.nome+' · '+fmt(v)+' (fora das '+(ent?'receitas':'despesas')+')');
+}
+function foraMarcar(id,grupo){
+  const mv=state.movimentos.find(x=>x.id===id); if(!mv)return;
+  const ent=(mv.tipo==='receita')===(mv.valor>=0);
+  mv.tipoOrig=mv.tipo; mv.catOrig=mv.categoriaId; mv.valorOrig=mv.valor;
+  mv.dir=ent?'in':'out'; mv.valor=round2(Math.abs(mv.valor)); mv.tipo='fora'; mv.categoriaId=null; mv.grupo=(grupo||'').trim();
+  save(); closeBack(); closePop(); render(); toast('Não conta: '+fmt(mv.valor)+(mv.grupo?' · '+mv.grupo:'')+' - a lista está nas Poupanças');
+}
+function _foraCatDef(tipo){
+  const tops=state.categorias.filter(c=>c.tipo===tipo&&!c.parent);
+  return (tops.find(c=>/^outros/i.test((c.nome||'').trim()))||tops[0]||{}).id||null;
+}
+function foraVoltar(id){
+  const mv=state.movimentos.find(x=>x.id===id); if(!mv||mv.tipo!=='fora')return;
+  const tipo=mv.tipoOrig||(mv.dir==='in'?'receita':'despesa');
+  mv.tipo=tipo; mv.categoriaId=(mv.catOrig&&cat(mv.catOrig))?mv.catOrig:_foraCatDef(tipo);
+  if(mv.valorOrig!=null)mv.valor=mv.valorOrig;
+  ['tipoOrig','catOrig','valorOrig','dir','grupo'].forEach(k=>delete mv[k]);
+  save(); render(); toast('Voltou a contar: '+catName(mv.categoriaId)+' · '+fmt(Math.abs(mv.valor)));
+}
+/* cartão nas Poupanças: o que não conta, por grupo (entrou / saiu / falta usar) */
+function foraCard(){
+  const L=state.movimentos.filter(m=>m.tipo==='fora'); if(!L.length)return '';
+  const gs={}; L.forEach(m=>{ const g=m.grupo||'Sem nome'; (gs[g]=gs[g]||[]).push(m); });
+  const blocos=Object.keys(gs).map(g=>{
+    const ms=gs[g].slice().sort((a,b)=>b.data.localeCompare(a.data));
+    const inn=round2(ms.filter(m=>m.dir==='in').reduce((a,m)=>a+m.valor,0)), out=round2(ms.filter(m=>m.dir!=='in').reduce((a,m)=>a+m.valor,0));
+    return {g,ms,inn,out,ult:ms[0].data};
+  }).sort((a,b)=>b.ult.localeCompare(a.ult));
+  return `<div class="card fora-card"><div class="fora-h">${svg(I.semconta)}<b>Não conta · dinheiro de passagem</b>${hlp('Movimentos que mexem no Valete mas ficam fora das receitas, despesas, médias, Mimos e Analytics. Marca-se no movimento da grelha (botão do círculo cortado) ou na Caixa de entrada.')}</div>
+    ${blocos.map(b=>`<div class="fora-g"><div class="fora-gh"><b>${esc(b.g)}</b><span>entrou ${fmt(b.inn)} · saiu ${fmt(b.out)}</span><b class="${b.inn-b.out>=0?'pos':'neg'}">${b.inn-b.out>=0?'falta usar':'a mais'} ${fmt(Math.abs(round2(b.inn-b.out)))}</b></div>
+      ${b.ms.map(m=>`<div class="fora-r"><span class="fora-d">${m.data.slice(8,10)}/${m.data.slice(5,7)}/${m.data.slice(2,4)}</span><span class="fora-n">${esc(m.nota||'')}</span><b class="${m.dir==='in'?'pos':'neg'}">${m.dir==='in'?'+':'-'}${fmt(m.valor)}</b><button class="btn sm" data-foraundo="${m.id}" title="Voltar a contar como ${m.dir==='in'?'receita':'despesa'}">Voltar a contar</button></div>`).join('')}</div>`).join('')}
+  </div>`;
+}
+/* Caixa de entrada: opção "Não conta" (só p/ movimentos do banco já cobrados - um agendado não pode ficar fora) */
+function _foraOptions(it){
+  if(it.source!=='bank'||it.pend)return '';
+  const gs=_foraGrupos();
+  return `<optgroup label="Não conta (dinheiro de passagem)">${gs.map(g=>`<option value="fora:${esc(g)}">Não conta · ${esc(g)}</option>`).join('')}<option value="fora:">Não conta (sem nome)</option></optgroup>`;
+}
+function _commitForaInbox(it,grupo,mi,year){
+  const tipo=it.tipo||'despesa';
+  const dim=new Date(year,mi+1,0).getDate(), dia=Math.min(Math.max(1,+it.dia||1),dim);
+  const data=year+'-'+String(mi+1).padStart(2,'0')+'-'+String(dia).padStart(2,'0');
+  const mv={id:nid('m'),data,tipo:'fora',dir:tipo==='receita'?'in':'out',tipoOrig:tipo,catOrig:null,valor:round2(Math.abs(+it.total||0)),grupo:grupo||'',pagador:P()[0].id,split:{...state.settings.splitDefault},nota:it.desc||'banco'};
+  if(it.txId)mv.txId=it.txId;
+  state.movimentos.push(mv); if(!isPastMonth(year,mi))aplicaValete(mv);
+  state.inbox=state.inbox.filter(x=>x.id!==it.id);
+  return {status:'ok'};
+}
 /* aplica um movimento à conta i e espelha no Valete (conta real) como transferência */
 function poupApplyMov(y,i,delta,data,nota){
   const yp=state.poupancas[y]; const c=yp.contas[i];
@@ -2906,6 +3035,7 @@ function vAnalytics(m){
 /* ================= DEFINIÇÕES ================= */
 /* ===== Histórico de versões (changelog) - a 1.ª entrada é a versão em uso ===== */
 const CHANGELOG=[
+  {v:'v116',d:'25 nov',bul:['<b>Tirar das contas:</b> cada movimento da grelha tem um botão novo (círculo cortado) para os valores que mexem no Valete mas não são receita nem despesa e enviesavam as estatísticas.','<b>Veio da poupança / Foi para a poupança</b> - ex.: um depósito a prazo que venceu e caiu na conta à ordem. Sai das receitas e fica como mobilização da conta poupança; o Valete não muda. Se já tinhas acertado a conta à mão com um «ajuste de saldo» do mesmo valor, a app propõe substituí-lo.','<b>Não conta (dinheiro de passagem)</b> - ex.: dinheiro que te deram para pagar uma coisa. Fica no Valete mas sai das receitas, despesas, médias, Mimos e Analytics. Dá-lhe um nome e usa o mesmo no pagamento: no fim das Poupanças vês quanto entrou, quanto saiu e quanto falta usar, e podes voltar a contá-lo.','Na Caixa de entrada, os movimentos do banco também têm a opção «Não conta».']},
  {v:'v115',d:'25 nov',bul:['<b>Banco: os movimentos voltaram a entrar.</b> Desde dia 21 o saldo atualizava mas os movimentos não: a app pedia ao novobanco tudo desde a data «Importar a partir de» (setembro) e o banco começou a recusar pedidos tão longos («Service unavailable»), em silêncio.','Agora a app pede só os dias desde a última leitura que correu bem (com 5 dias de margem; os repetidos continuam a ser ignorados) e, se o banco recusar, tenta outra vez com os últimos 5 dias.','Se mesmo assim falhar, aparece um aviso com o erro do banco em vez de ficar calado.']},
   {v:'v114',d:'3 nov',bul:['No PC, o <b>topo deixou de ser fixo</b>: o título da página rola com o conteúdo e já não fica uma faixa a flutuar por cima.','A <b>pesquisa</b> e os <b>alertas</b> passaram para a barra lateral, com nome: «Pesquisar» logo por baixo do logótipo e «Alertas» (com o número) junto à Caixa de entrada. O painel dos alertas abre ao lado da barra.','Novo atalho: <b>A</b> abre os alertas. Em ecrãs mais estreitos e no telemóvel fica tudo como estava.']},
   {v:'v113',d:'3 nov',bul:['<b>Grelha mais limpa:</b> os 12 meses passam a viver num só cartão, separados por filetes finos, em vez de 12 caixas soltas com sombra. O mês corrente tem a etiqueta <b>este mês</b> e os meses futuros ficam esbatidos.','Cada mês tem agora uma <b>barra</b> com o peso no ano e um <b>traço com a média</b> dos meses fechados - vê-se logo que meses fugiram ao normal (passa o rato para ver a diferença em %). Dentro do mês, cada categoria tem uma barra com a fatia do mês.','No PC: o conteúdo usa mais largura, o título da página ficou maior e a linha do topo só aparece quando fazes scroll. O menu ativo da barra lateral ficou mais suave.','<b>Atalhos de teclado</b> (PC): 1 a 5 mudam de menu, E abre a Caixa de entrada, vírgula abre as Definições, / pesquisa, N vai para o lançamento rápido, [ e ] mudam o ano, ? mostra a lista. Os números aparecem na barra lateral ao passar o rato.','No lançamento rápido, «Sai de» diz <b>Conta</b> ou <b>Dinheiro</b> além do ícone.']},
@@ -3383,6 +3513,10 @@ document.addEventListener('click',e=>{
   if(d.acexpand){const led=acertoLedger();acAnosOpen=new Set(led.map(r=>+r.ym.slice(0,4)));render();return;}
   if(d.accollapse){acAnosOpen=new Set();render();return;}
   if(t.id==='acCsv'){expAcertoCSV();return;}
+  if(d.foramov){ openForaModal(d.foramov); return; }
+  if(d.foramodo){ openForaModal(d.foraid,d.foramodo,(document.getElementById('foraContaSel')||{}).value); return; }
+  if(t.id==='foraOk'){ const id=d.foraid; if(val('foraModo')==='poup') foraPoupanca(id,val('foraContaSel'),!!(document.getElementById('foraAj')||{}).checked); else foraMarcar(id,val('foraGrupo')); return; }
+  if(d.foraundo){ const mv=state.movimentos.find(x=>x.id===d.foraundo); if(!mv)return; confirmModal('Voltar a contar '+fmt(mv.valor)+' como '+(mv.dir==='in'?'receita':'despesa')+'?'+(mv.nota?'\n'+mv.nota:''),()=>foraVoltar(d.foraundo),{titulo:'Voltar a contar',okLabel:'Voltar a contar',danger:false}); return; }
   if(d.delmov){const mv=state.movimentos.find(x=>x.id===d.delmov);if(!mv)return;if(isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado - não pode ser apagado');return;}confirmModal(catName(mv.categoriaId)+' · '+fmt(Math.abs(mv.valor))+' · '+mv.data,()=>{reverteValete(mv);state.movimentos=state.movimentos.filter(x=>x.id!==d.delmov);save();const pc=popCell;render();if(pc){const an=document.querySelector(`[data-cell="${pc.catId}|${pc.mi}"]`);if(an)openCellPop(pc.catId,pc.mi,an);}},{titulo:'Apagar este movimento?'});return;}
   if(d.editmov){ popEditId=d.editmov; reopenPop(); return; }
   if(d.aqcycle){ const mv=state.movimentos.find(x=>x.id===d.aqcycle); if(mv){ if(isFrozenYm(mv.data.slice(0,7))){toast('Mês congelado');return;} const cur=mv.aq!=null?mv.aq:50; const next=cur===50?100:(cur===100?0:50); if(next===50)delete mv.aq; else mv.aq=next; save(); render(); reopenPop(); toast('Quota na Dívida: '+(next===100?'100% dela':next===0?'0% (só Diogo)':'50/50')); } return; }
@@ -3537,6 +3671,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('input',e=>{ if(e.target.id==='arqFilter'){ const q=e.target.value.trim().toLowerCase(); document.querySelectorAll('#arqList .pe').forEach(r=>{ r.style.display=(!q||r.textContent.toLowerCase().includes(q))?'':'none'; }); } });
 document.addEventListener('change',e=>{
   if(e.target.id==='aiModel'){setAiModel(e.target.value);toast('Modelo IA: '+(e.target.value||'automático ('+aiModel()+')'));return;}
+  if(e.target.id==='foraConta'){openForaModal(e.target.dataset.foraid,'poup',e.target.value);return;}
   if(e.target.id==='anaCatSel'){anaCat=e.target.value;render();return;}
   if(e.target.id==='fileIn'&&e.target.files[0]){impJSON(e.target.files[0]);}
   if(e.target.id==='pdfIn'&&e.target.files[0]){const fs=[...e.target.files];e.target.value='';if(fs.length===1)processFatura(fs[0]);else processFaturasBatch(fs);}
@@ -3773,18 +3908,18 @@ function searchRender(){
   const terms=q.split(/\s+/).filter(Boolean);
   const hits=state.movimentos.filter(m=>{
     const d=m.data; const mes=MESES[+d.slice(5,7)-1]||''; const ano4=d.slice(0,4);
-    const hay=_norm([d,mes,ano4,m.tipo,catName(m.categoriaId),m.nota||'',Math.abs(m.valor).toFixed(2),Math.abs(m.valor).toFixed(2).replace('.',',')].join(' '));
+    const hay=_norm([d,mes,ano4,m.tipo,m.tipo==='fora'?'não conta '+(m.grupo||''):catName(m.categoriaId),m.nota||'',Math.abs(m.valor).toFixed(2),Math.abs(m.valor).toFixed(2).replace('.',',')].join(' '));
     return terms.every(t=>hay.includes(t));
   }).sort((a,b)=>b.data.localeCompare(a.data)).slice(0,80);
   if(!hits.length){res.innerHTML=`<div class="pempty">Nada encontrado.</div>`;return;}
-  const total=hits.reduce((a,m)=>a+(m.tipo==='despesa'?-Math.abs(m.valor):m.valor),0);
+  const total=hits.reduce((a,m)=>a+((m.tipo==='despesa'||(m.tipo==='fora'&&m.dir!=='in'))?-Math.abs(m.valor):m.valor),0);
   res.innerHTML=`<div style="font-size:12px;color:var(--mut);margin-bottom:6px">${hits.length} resultado(s)${hits.length>=80?' (mostro os 80 mais recentes)':''} · saldo ${fmt(round2(total))}</div>`+
-    hits.map(m=>{const neg=m.tipo==='despesa'||m.valor<0;return `<div class="srow" data-go="${m.id}" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer">
+    hits.map(m=>{const neg=m.tipo==='despesa'||m.valor<0||(m.tipo==='fora'&&m.dir!=='in');return `<div class="srow" data-go="${m.id}" style="display:flex;align-items:center;gap:10px;padding:8px 6px;border-bottom:1px solid var(--line);cursor:pointer">
       <span style="width:74px;font-size:11.5px;color:var(--mut)">${m.data.slice(8,10)}/${m.data.slice(5,7)}/${m.data.slice(0,4)}</span>
-      <span style="flex:1;font-size:13px">${esc(catName(m.categoriaId))}${m.nota?` <span style="color:var(--mut);font-size:11.5px">· ${esc(m.nota)}</span>`:''}${m.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span>
+      <span style="flex:1;font-size:13px">${esc(m.tipo==='fora'?'Não conta'+(m.grupo?' · '+m.grupo:''):catName(m.categoriaId))}${m.nota?` <span style="color:var(--mut);font-size:11.5px">· ${esc(m.nota)}</span>`:''}${m.cash?` <span class="eico">${svg(I.cash)}</span>`:''}</span>
       <span style="font-weight:700;color:${neg?'var(--out)':'var(--in)'}">${neg?'-':'+'}${fmt(Math.abs(m.valor))}</span></div>`;}).join('');
 }
-function gotoMov(id){const m=state.movimentos.find(x=>x.id===id);if(!m)return;ano=+m.data.slice(0,4);gridTipo=m.tipo;tab='grelha';closeBack();render();toast(catName(m.categoriaId)+' · '+m.data);}
+function gotoMov(id){const m=state.movimentos.find(x=>x.id===id);if(!m)return;if(m.tipo==='fora'){tab='poup';closeBack();render();toast('Não conta'+(m.grupo?' · '+m.grupo:'')+' - lista no fim das Poupanças');return;}ano=+m.data.slice(0,4);gridTipo=m.tipo;tab='grelha';closeBack();render();toast(catName(m.categoriaId)+' · '+m.data);}
 
 function quickAdd(cash){
   const v=parseFloat(val('qVal')); if(isNaN(v)||v===0){document.getElementById('qVal').focus();return;}
@@ -4271,7 +4406,7 @@ function openInbox(){
         <button class="btn sm danger" data-ibdel="${it.id}">Descartar</button>
       </div>
       <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end">
-        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria (${tipo==='receita'?'receita':'despesa'})</label><select id="ibcat_${it.id}">${it.catId?'':'<option value="" selected>- escolher -</option>'}${catOptions(tipo,it.catId)}${_poupOptions(it)}</select></div>
+        <div style="flex:1 1 150px"><label style="font-size:11px;color:var(--mut)">Categoria (${tipo==='receita'?'receita':'despesa'})</label><select id="ibcat_${it.id}">${it.catId?'':'<option value="" selected>- escolher -</option>'}${catOptions(tipo,it.catId)}${_poupOptions(it)}${_foraOptions(it)}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Mês</label><select id="ibmes_${it.id}">${MESES.map((x,k)=>`<option value="${k}" ${k===ym?'selected':''}>${x.slice(0,3)}</option>`).join('')}</select></div>
         <div><label style="font-size:11px;color:var(--mut)">Ano</label><input id="ibano_${it.id}" type="number" step="1" value="${it.year||ano}" style="width:64px"></div>
         ${tipo==='despesa'?`<label style="display:flex;align-items:center;gap:4px;font-size:12px;color:var(--mut);height:38px" title="Pago em dinheiro (sai do Cofre, não do Valete)"><input type="checkbox" id="ibcash_${it.id}"><span class="eico">${svg(I.cash)}</span></label>`:''}
@@ -4293,6 +4428,7 @@ function inboxAdd(id){
   if(!catId){toast('Escolhe a categoria');return;}
   const mi=+((document.getElementById('ibmes_'+id)||{}).value)||0;
   const year=+((document.getElementById('ibano_'+id)||{}).value)||ano;
+  if(String(catId).indexOf('fora:')===0){ _commitForaInbox(it,catId.slice(5),mi,year); save(); render(); openInbox(); toast('Não conta: '+fmt(Math.abs(it.total))+' - a lista está nas Poupanças'); return; }
   if(String(catId).indexOf('poup:')===0){ const rp=_commitPoupInbox(it,catId.slice(5),mi,year); if(rp.status!=='ok'){toast('Conta poupança não encontrada');return;} save(); render(); openInbox(); toast((rp.rf?'Reforço ':'Mobilização ')+fmt(Math.abs(it.total))+' · '+rp.conta+' (fora das despesas)'); return; }
   const cash=(it.tipo!=='receita') && !!(document.getElementById('ibcash_'+id)||{}).checked;
   const r=_commitInbox(it,catId,mi,year,cash,false);
@@ -4376,6 +4512,7 @@ function inboxAddAll(){
     if(!catId){nocat++;return;}
     const mi=+((document.getElementById('ibmes_'+it.id)||{}).value)||0;
     const year=+((document.getElementById('ibano_'+it.id)||{}).value)||ano;
+    if(String(catId).indexOf('fora:')===0){ _commitForaInbox(it,catId.slice(5),mi,year); ok++; return; }
     if(String(catId).indexOf('poup:')===0){ const rp=_commitPoupInbox(it,catId.slice(5),mi,year); if(rp.status==='ok')ok++; return; }
     const cash=(it.tipo!=='receita') && !!(document.getElementById('ibcash_'+it.id)||{}).checked;
     const r=_commitInbox(it,catId,mi,year,cash,false);
